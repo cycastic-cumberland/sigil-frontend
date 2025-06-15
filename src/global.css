@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+:root{
+    color-scheme: dark;
+    --spacing: .25rem;
+    --sidebar-width: calc(var(--spacing) * 64);
+}
