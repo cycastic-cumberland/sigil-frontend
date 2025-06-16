@@ -1,12 +1,86 @@
-import {useEffect, useState} from "react";
+import {type ReactNode, useEffect, useState} from "react";
 import api from "@/api.tsx";
 import type {UserInfoDto} from "@/dto/UserInfoDto.ts";
-import {Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader} from "@/components/ui/sidebar.tsx";
+import {
+    Sidebar,
+    SidebarContent,
+    SidebarFooter,
+    SidebarGroup, SidebarGroupContent,
+    SidebarGroupLabel,
+    SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem
+} from "@/components/ui/sidebar.tsx";
+import {DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem} from "@/components/ui/dropdown-menu.tsx";
+import {getAuth} from "@/utils/auth.ts";
+import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
+import {Construction, Folder, LayoutTemplate, Lock, Mail, Plus, Telescope} from "lucide-react";
+import {Link} from "react-router";
+import {useTheme} from "@/contexts/ThemeContext.tsx";
+import {Switch} from "@/components/ui/switch.tsx";
+import {Label} from "@/components/ui/label.tsx";
 
+type MenuGroup = {
+    title: string,
+    items: {name: string, icon: ReactNode, url: string}[]
+}
+
+const fullMenuGroups: MenuGroup[] = [
+    {
+        title: "Projects",
+        items: [
+            {
+                name: "All projects",
+                url: '/projects/all',
+                icon: <Construction/>
+            },
+            {
+                name: "New project",
+                url: '/projects/new',
+                icon: <Plus/>
+            },
+        ]
+    },
+    {
+        title: "Listings",
+        items: [
+            {
+                name: "Browser",
+                url: '/listing/all',
+                icon: <Folder/>
+            },
+        ]
+    },
+    {
+        title: "Emails",
+        items: [
+            {
+                name: "Templates",
+                url: '/emails/templates',
+                icon: <LayoutTemplate/>
+            },
+            {
+                name: "Queue",
+                url: '/emails/queue',
+                icon: <Mail/>
+            },
+            {
+                name: "SMTP credentials",
+                url: '/emails/credentials',
+                icon: <Lock/>
+            },
+            {
+                name: "Telemetry",
+                url: '/emails/telemetry',
+                icon: <Telescope/>
+            },
+        ]
+    }
+]
 
 const AppSidebar = () => {
     const [avatarUrl, setAvatarUrl] = useState("https://ui-avatars.com/api/?name=John+Doe")
     const [selfInfo, setSelfInfo] = useState(null as UserInfoDto | null)
+    const {theme, setTheme} = useTheme()
+    const {invalidateAllSessions, localLogout} = useAuthorization()
 
     useEffect(() => {
         (async () => {
@@ -17,14 +91,55 @@ const AppSidebar = () => {
         })()
     }, []);
 
-    return  <Sidebar className={"bg-primary"}>
-        <SidebarHeader className={"bg-primary"} />
+
+    const invalidateSessions = async () => {
+        const authInfo = getAuth()
+        if (!authInfo){
+            throw Error("unreachable");
+        }
+        await invalidateAllSessions(authInfo.userId)
+        localLogout()
+    }
+
+    const toggleTheme = () => {
+        if (theme === 'system' || theme === 'light'){
+            setTheme('dark')
+        } else {
+            setTheme('light')
+        }
+    }
+
+    return  <Sidebar className={"bg-primary border-r border-muted-foreground"}>
+        <SidebarHeader className={"bg-primary flex flex-col justify-center border-b border-muted-foreground"}>
+            <Link to={"/"} className={"w-full flex flex-row px-5 py-1 appearance-none bg-transparent border-none m-0 focus:outline-none"}>
+                <img className={"w-8 aspect-square"} src={"/icon.svg"} alt={"logo"}/>
+                <div className={"w-full flex flex-col"}>
+                    <h1 className={"text-2xl font-semibold tracking-tight text-secondary"}>
+                        PortfolioToolkit
+                    </h1>
+                </div>
+            </Link>
+        </SidebarHeader>
         <SidebarContent className={"bg-primary"}>
-            <SidebarGroup />
+            { fullMenuGroups.map((mg, i) => <SidebarGroup key={i}>
+                <SidebarGroupLabel className={"text-secondary"}>{ mg.title }</SidebarGroupLabel>
+                <SidebarGroupContent className={"text-secondary"}>
+                    <SidebarMenu>
+                        { mg.items.map((mi, j) => <SidebarMenuItem key={j}>
+                            <SidebarMenuButton asChild>
+                                <Link to={mi.url}>
+                                    { mi.icon }
+                                    <span>{ mi.name }</span>
+                                </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>) }
+                    </SidebarMenu>
+                </SidebarGroupContent>
+            </SidebarGroup>) }
         </SidebarContent>
         <SidebarFooter className={"bg-primary"}>
-            <ul className={"flex w-full min-w-0 flex-col gap-1"}>
-                <button className={"w-full flex flex-row appearance-none bg-transparent border-none p-0 m-0 hover:bg-sidebar-accent"}>
+            <ul className={"flex w-full min-w-0 flex-row gap-1"}>
+                <div className={"w-full flex flex-row m-0"}>
                     <span className={"relative flex size-8 shrink-0 overflow-hidden h-8 w-8 rounded-lg"}>
                         <img src={avatarUrl} alt={"pfp"}/>
                     </span>
@@ -36,7 +151,34 @@ const AppSidebar = () => {
                             { selfInfo?.email }
                         </span>
                     </div>
-                </button>
+                </div>
+                <div className={"min-w-fit"}>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button className="p-2 rounded-md hover:bg-muted-foreground cursor-pointer" aria-label="Open menu">
+                                <div className={"w-5 h-5 text-secondary text-center justify-center flex flex-col"}>
+                                    ⋮
+                                </div>
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem className={"cursor-pointer"} onSelect={toggleTheme}>
+                                <div className={"flex flex-row"}>
+                                    <Switch className={"cursor-pointer"} checked={theme === 'system' || theme === 'light'}/>
+                                    <div className={"flex flex-col justify-center ml-2"}>
+                                        <Label className={"text-primary"}>Dark mode</Label>
+                                    </div>
+                                </div>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className={"cursor-pointer"} onSelect={localLogout}>
+                                Log out
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className={"text-destructive cursor-pointer"} onSelect={invalidateSessions}>
+                                Invalidate all sessions
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
             </ul>
         </SidebarFooter>
     </Sidebar>

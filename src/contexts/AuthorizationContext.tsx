@@ -1,10 +1,12 @@
 import {createContext, type FC, type ReactNode, useContext} from "react";
 import api from "../api.tsx"
 import type {AuthenticationResponseDto} from "@/dto/AuthenticationResponseDto.ts";
-import {storeAuthResponse} from "@/utils/auth.ts";
+import {removeAuth, removeSelectedProjectId, storeAuthResponse} from "@/utils/auth.ts";
 
 export type AuthorizationContextType = {
     signInWithEmailAndPassword: (email: string, password: string) => Promise<void>
+    invalidateAllSessions: (userId: number) => Promise<void>
+    localLogout: () => void
 }
 
 const AuthorizationContext = createContext(null as never as AuthorizationContextType)
@@ -20,8 +22,20 @@ export const AuthorizationProvider: FC<{ children?: ReactNode }> = ({ children }
         storeAuthResponse(authResponse)
     }
 
+    const invalidateAllSessions = async (userId: number): Promise<void> => {
+        await api.post("auth/invalidate", { userId })
+    }
+
+    const localLogout = () => {
+        removeAuth()
+        removeSelectedProjectId()
+        window.location.href = '/login'
+    }
+
     const value: AuthorizationContextType = {
-        signInWithEmailAndPassword
+        signInWithEmailAndPassword,
+        invalidateAllSessions,
+        localLogout,
     }
 
     return <AuthorizationContext.Provider value={value}>
