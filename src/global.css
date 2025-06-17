@@ -5,3 +5,14 @@
     --spacing: .25rem;
     --sidebar-width: calc(var(--spacing) * 64);
 }
+
+.drop-zone {
+    border: 2px dashed #999;
+    background-image: repeating-linear-gradient(
+            -45deg,
+            var(--muted-foreground) 0px,
+            var(--muted-foreground) 4px,
+            transparent 4px,
+            transparent 12px
+    );
+}
