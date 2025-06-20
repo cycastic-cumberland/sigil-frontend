@@ -9,6 +9,8 @@ import api from "@/api.tsx";
 import SmtpCredentialEditForm from "@/interfaces/components/SmtpCredentialEditForm.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from "@/components/ui/dialog.tsx";
+import type {AxiosError} from "axios";
+import ConfirmationDialog from "@/interfaces/components/ConfirmationDialog.tsx";
 
 const LoadingComponent = () => <div className={"flex flex-col flex-grow w-full justify-center gap-2"}>
     <div className={"w-full flex flex-row justify-center text-secondary"}>
@@ -48,6 +50,9 @@ const SmtpCredentialPage = () => {
 
             await api.post('emails/credential', c)
             await reloadCredential(id)
+        } catch (e){
+            // @ts-ignore
+            setError((e as AxiosError).response?.data?.message ?? "")
         } finally {
             setIsLoading(false)
         }
@@ -70,6 +75,13 @@ const SmtpCredentialPage = () => {
 
     return <MainLayout>
         <ProjectGuard>
+            <ConfirmationDialog confirmationOpened={confirmDeleteOpened}
+                                setConfirmationOpened={setConfirmDeleteOpened}
+                                onAccepted={onDelete}
+                                title={'Delete SMTP credential'}
+                                message={'Are you sure you want to delete this credential?'}
+                                acceptText={'Delete'}
+                                destructive/>
             <Dialog open={confirmDeleteOpened} onOpenChange={setConfirmDeleteOpened}>
                 <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>

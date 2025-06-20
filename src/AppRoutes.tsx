@@ -3,6 +3,7 @@ import DashboardPage from "@/interfaces/pages/DashboardPage.tsx";
 import LoginPage from "@/interfaces/pages/LoginPage.tsx";
 import SmtpCredentialsPage from "@/interfaces/pages/emails/SmtpCredentialsPage.tsx";
 import SmtpCredentialPage from "@/interfaces/pages/emails/SmtpCredentialPage.tsx";
+import ListingsBrowser from "@/interfaces/pages/listings/ListingsBrowser.tsx";
 
 export type RouteInfo = { index?: boolean, isPrivate: boolean, path?: string, element: ReactNode };
 
@@ -26,5 +27,10 @@ export const AppRoutes : RouteInfo[] = [
         isPrivate: true,
         path: "/emails/credential/:id",
         element: <SmtpCredentialPage/>
+    },
+    {
+        isPrivate: true,
+        path: "/listings/browser/*",
+        element: <ListingsBrowser/>
     },
 ]

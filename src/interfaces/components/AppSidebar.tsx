@@ -44,7 +44,7 @@ const fullMenuGroups: MenuGroup[] = [
         items: [
             {
                 name: "Browser",
-                url: '/listing/all',
+                url: '/listings/browser',
                 icon: <Folder/>
             },
         ]
