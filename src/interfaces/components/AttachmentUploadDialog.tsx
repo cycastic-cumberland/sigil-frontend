@@ -1,4 +1,4 @@
-import {type ChangeEvent, type DragEvent, type FC, type SyntheticEvent, useEffect, useState} from "react";
+import {type ChangeEvent, type DragEvent, type FC, type SyntheticEvent, useEffect, useRef, useState} from "react";
 import axios, {type AxiosError, type AxiosProgressEvent} from "axios";
 import api from "@/api.tsx";
 import type {AttachmentPresignedDto} from "@/dto/AttachmentPresignedDto.ts";
@@ -9,6 +9,8 @@ import {Card} from "@/components/ui/card.tsx";
 import {cn} from "@/lib/utils.ts";
 import {Button} from "@/components/ui/button.tsx";
 import {Progress} from "@/components/ui/progress.tsx";
+import useMediaQuery from "@/hooks/use-media-query.tsx";
+import {Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle} from "@/components/ui/drawer.tsx";
 
 const AttachmentUploadDialog: FC<{
     isOpened: boolean,
@@ -23,6 +25,8 @@ const AttachmentUploadDialog: FC<{
     const [isDragging, setIsDragging] = useState(false)
     const [error, setError] = useState('')
     const [progress, setProgress] = useState(0.0)
+    const isDesktop = useMediaQuery("(min-width: 768px)")
+    const fileDropRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
         if (!selectedFile){
@@ -142,7 +146,7 @@ const AttachmentUploadDialog: FC<{
         }
     }
 
-    return <Dialog open={isOpened} onOpenChange={setIsOpened}>
+    return isDesktop ? <Dialog open={isOpened} onOpenChange={setIsOpened}>
         <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
                 <DialogTitle>Upload attachment</DialogTitle>
@@ -192,7 +196,58 @@ const AttachmentUploadDialog: FC<{
                 <Progress value={progress} />
             </div>
         </DialogContent>
-    </Dialog>
+    </Dialog> : <Drawer open={isOpened} onOpenChange={setIsOpened}>
+        <DrawerContent>
+            <DrawerHeader>
+                <DrawerTitle>Upload attachment</DrawerTitle>
+                <DrawerDescription>
+                    Upload an attachment to the folder specified bellow. The listed folder does not have to exist yet.
+                </DrawerDescription>
+            </DrawerHeader>
+            <div className={'w-full pb-3 px-3'}>
+                <div className={"w-full flex flex-col gap-2"}>
+                    <div className="flex flex-row gap-2">
+                        <Label className="w-32">File path:</Label>
+                        <Input
+                            className="flex-1 border-secondary"
+                            id="selectedPath"
+                            value={selectedPath}
+                            onChange={handlePathChanged}
+                            required
+                            disabled={isLoading}
+                        />
+                    </div>
+                    <Card
+                        onDrop={handleDrop}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        className={cn(
+                            'p-6 border-2 border-dashed rounded-2xl text-center transition-colors',
+                            isDragging ? 'drop-zone' : 'border-muted'
+                        )}
+                        onClick={() => {
+                            if (fileDropRef.current){
+                                fileDropRef.current.click()
+                            }
+                        }}
+                    >
+                        <p>Tap to select file</p>
+                        <Input
+                            type="file"
+                            onChange={handleFileChange}
+                            id="fileInput"
+                            className="hidden"
+                            ref={fileDropRef}
+                        />
+                    </Card>
+                    <Button disabled={isLoading || !selectedFile} onClick={onUpload} className={`flex flex-grow border-secondary border-2 cursor-pointer hover:bg-secondary hover:text-primary ${error ? 'bg-destructive' : ''}`}>
+                        { error ? error : 'Upload' }
+                    </Button>
+                    <Progress value={progress} />
+                </div>
+            </div>
+        </DrawerContent>
+    </Drawer>
 }
 
 export default AttachmentUploadDialog;

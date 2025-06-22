@@ -103,7 +103,7 @@ const ProjectDetailsPage = () => {
                 </Label>
             </div>
             <div className={"w-full"}>
-                <div className={"w-1/2 min-w-[500px] text-secondary flex flex-col gap-2"}>
+                <div className={"lg:w-1/2 text-secondary flex flex-col gap-2"}>
                     <ProjectEditForm submissionText={"Save"}
                                      error={error}
                                      isLoading={isLoading}

@@ -13,7 +13,7 @@ const ProjectGuard: FC<{ children?: ReactNode | ReactNode[] }> = ({ children }) 
                 </Label>
             </div>
             <div className={"w-full flex flex-row justify-center"}>
-                <p className={"text-muted-foreground"}>
+                <p className={"text-muted-foreground px-2 text-center"}>
                     Use the&nbsp;
                     <span className={"font-bold"}>
                         Set project&nbsp;

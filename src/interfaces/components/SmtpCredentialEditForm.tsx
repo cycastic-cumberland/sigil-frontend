@@ -99,7 +99,7 @@ const SmtpCredentialEditForm: FC<{ submissionText?: string, error?: string, isLo
                             <ChevronDown/>
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="center">
                         { possibleSecuritySettings.map((setting, i) =>
                             <DropdownMenuItem key={i}
                                               className={'cursor-pointer'}
@@ -157,9 +157,9 @@ const SmtpCredentialEditForm: FC<{ submissionText?: string, error?: string, isLo
             </div>
             <div className="flex flex-row gap-2">
                 <Label className="w-32">Password:</Label>
-                <div className="relative flex items-center flex-grow">
+                <div className="relative flex-1 items-center flex-grow">
                     <Input
-                        className="flex-1 border-secondary pr-10"
+                        className="border-secondary pr-10"
                         value={formValues.password}
                         onChange={handleChange}
                         id="password"

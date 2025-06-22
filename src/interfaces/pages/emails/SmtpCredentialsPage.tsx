@@ -27,6 +27,8 @@ import type {AxiosError} from "axios";
 import {Link} from "react-router";
 import SmtpCredentialEditForm from "@/interfaces/components/SmtpCredentialEditForm.tsx";
 import {useProject} from "@/contexts/ProjectContext.tsx";
+import useMediaQuery from "@/hooks/use-media-query.tsx";
+import {Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle} from "@/components/ui/drawer.tsx";
 
 const credentialSelectorColumnDef: ColumnDef<BaseSmtpCredentialDto>[] = [
     {
@@ -48,6 +50,7 @@ const possiblePageSizes = [5, 10, 20, 50, 100]
 
 const CreateSmtpCredentialDialog: FC<{ isLoading: boolean, setIsLoading: (l: boolean) => void, opened: boolean, setOpened: (o: boolean) => void }> = ({ isLoading, setIsLoading, opened, setOpened }) => {
     const [error, setError] = useState('')
+    const isDesktop = useMediaQuery("(min-width: 768px)")
 
     const onSave = async (credential: DecryptedSmtpCredentialDto) => {
         try {
@@ -64,7 +67,7 @@ const CreateSmtpCredentialDialog: FC<{ isLoading: boolean, setIsLoading: (l: boo
         }
     }
 
-    return <Dialog open={opened} onOpenChange={setOpened}>
+    return isDesktop ? <Dialog open={opened} onOpenChange={setOpened}>
         <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
                 <DialogTitle>Create new SMTP credential</DialogTitle>
@@ -76,7 +79,19 @@ const CreateSmtpCredentialDialog: FC<{ isLoading: boolean, setIsLoading: (l: boo
                 <SmtpCredentialEditForm isLoading={isLoading} onSave={onSave} error={error}/>
             </div>
         </DialogContent>
-    </Dialog>
+    </Dialog> : <Drawer open={opened} onOpenChange={setOpened}>
+        <DrawerContent>
+            <DrawerHeader>
+                <DrawerTitle>Create new SMTP credential</DrawerTitle>
+                <DrawerDescription>
+                    Create a new SMTP credential to use mail queue functionality.
+                </DrawerDescription>
+            </DrawerHeader>
+            <div className={"w-full px-3 pb-3"}>
+                <SmtpCredentialEditForm isLoading={isLoading} onSave={onSave} error={error}/>
+            </div>
+        </DrawerContent>
+    </Drawer>
 }
 
 const CredentialTable = () => {
@@ -211,18 +226,21 @@ const CredentialTable = () => {
                     </TableBody>
                 </Table>
 
-                <div className="flex items-center justify-between space-x-2 py-2">
-                    <div className={"flex flex-row ml-2"}>
-                        <div className={"flex flex-col justify-center"}>
+                <div className="flex items-start md:items-center justify-between space-y-2 md:space-y-0 py-2">
+                    <div className={"flex flex-col md:flex-row items-start md:items-center space-y-2 md:space-y-0 md:space-x-2 ml-2"}>
+                        <div className={"flex flex-col justify-center text-center"}>
                             <div className={"text-secondary"}>
                                 Page {pageIndex + 1} of {pageCount == 0 ? 1 : pageCount}
                             </div>
                         </div>
-                        <div className={"ml-3"}>
+                        <div className={"ml-0 md:ml-3"}>
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button className={"border-secondary border-2 cursor-pointer hover:bg-secondary hover:text-primary"}>
-                                        Page size: { pageSize }
+                                        <span className={"hidden md:block"}>
+                                            Page size:&nbsp;
+                                        </span>
+                                        { pageSize }
                                         <ChevronDown/>
                                     </Button>
                                 </DropdownMenuTrigger>

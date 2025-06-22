@@ -10,6 +10,8 @@ import type {ProjectDto} from "@/dto/ProjectDto.ts";
 import ProjectEditForm from "@/interfaces/components/ProjectEditForm.tsx";
 import type {AxiosError} from "axios";
 import api from "@/api.tsx";
+import useMediaQuery from "@/hooks/use-media-query.tsx";
+import {Drawer, DrawerContent, DrawerHeader} from "@/components/ui/drawer.tsx";
 
 const CreateProjectDialog: FC<{
     isLoading: boolean,
@@ -19,6 +21,7 @@ const CreateProjectDialog: FC<{
     reloadTrigger: () => void,
 }> = ({ isLoading, setIsLoading, opened, setOpened, reloadTrigger }) => {
     const [error, setError] = useState('')
+    const isDesktop = useMediaQuery("(min-width: 768px)")
 
     const onSave = async (project: ProjectDto) => {
         try {
@@ -37,7 +40,7 @@ const CreateProjectDialog: FC<{
         }
     }
 
-    return <Dialog open={opened} onOpenChange={setOpened}>
+    return isDesktop ? <Dialog open={opened} onOpenChange={setOpened}>
         <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
                 <DialogTitle>Create project</DialogTitle>
@@ -46,7 +49,14 @@ const CreateProjectDialog: FC<{
                 <ProjectEditForm isLoading={isLoading} error={error} onSave={onSave}/>
             </div>
         </DialogContent>
-    </Dialog>
+    </Dialog> : <Drawer open={opened} onOpenChange={setOpened}>
+        <DrawerContent>
+            <DrawerHeader>Create project</DrawerHeader>
+            <div className={"w-full px-3 pb-3"}>
+                <ProjectEditForm isLoading={isLoading} error={error} onSave={onSave}/>
+            </div>
+        </DrawerContent>
+    </Drawer>
 }
 
 const ProjectBrowserPage = () => {

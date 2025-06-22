@@ -34,7 +34,7 @@ const itemsColumnDef: ColumnDef<FolderItemDto>[] = [
     },
 ]
 
-const extractPathFragments = (dir: string): { display: string, url: string }[] => {
+const extractAndEncodePathFragments = (dir: string): { display: string, url: string }[] => {
     const split = dir.split('/').filter(s => s);
     switch (split.length){
         case 0:{
@@ -78,6 +78,10 @@ const getIcon = (type: FolderItemType): ReactNode => {
         default:
             throw Error("Unsupported type: " + type)
     }
+}
+
+const encodedListingPath = (path: string): string => {
+    return path.split("/").filter(s => s).map(encodeURIComponent).join("/")
 }
 
 const AttachmentContextMenu: FC<{
@@ -143,6 +147,12 @@ const ItemRow: FC<{
         refreshTrigger()
     }
 
+    const toListingUrl = (name: string) => {
+        const currentDirEncoded = encodedListingPath(currentDir)
+        const nameEncoded = encodedListingPath(name)
+        return `/listings/browser/${currentDirEncoded}/${nameEncoded}/`
+    }
+
     return <>
         <ConfirmationDialog confirmationOpened={confirmDeleteOpened}
                             setConfirmationOpened={setConfirmDeleteOpened}
@@ -161,7 +171,7 @@ const ItemRow: FC<{
                     {row.getVisibleCells().map((cell) => (
                         <TableCell key={cell.id} className={"flex flex-row gap-2"}>
                             { row.original.type === 'FOLDER' ?
-                                <Link to={`/listings/browser${currentDir}${encodeURIComponent(row.original.name)}/`}
+                                <Link to={toListingUrl(row.original.name)}
                                       className={'flex flex-row gap-2 w-full'} >
                                     <div className={'min-w-fit'}>
                                         { getIcon(row.original.type) }
@@ -204,7 +214,7 @@ const FileTable: FC<{ currentDir: string }> = ({ currentDir }) => {
         columns: itemsColumnDef,
         getCoreRowModel: getCoreRowModel(),
     })
-    const pathFragments = useMemo(() => extractPathFragments(currentDir), [currentDir])
+    const encodedPathFragments = useMemo(() => extractAndEncodePathFragments(currentDir), [currentDir])
 
     useEffect(() => {
         refreshTrigger().then(() => {})
@@ -290,9 +300,9 @@ const FileTable: FC<{ currentDir: string }> = ({ currentDir }) => {
                             </TableCell>
                         </TableRow> : table.getRowModel().rows?.length
                             ? <>
-                                { pathFragments.length <= 1 ? <></> : <TableRow className={"cursor-pointer"}>
+                                { encodedPathFragments.length <= 1 ? <></> : <TableRow className={"cursor-pointer"}>
                                     <TableCell className={'flex flex-row gap-2'}>
-                                        <Link to={`/listings/browser${pathFragments[pathFragments.length - 2].url}`} className={'flex flex-row gap-2 w-full'} >
+                                        <Link to={`/listings/browser${encodedPathFragments[encodedPathFragments.length - 2].url}`} className={'flex flex-row gap-2 w-full'} >
                                             { getIcon('FOLDER') }
                                             <span>..</span>
                                         </Link>
@@ -323,7 +333,7 @@ const CurrentDirectory: FC<{ currentDir: string }> = ({ currentDir }) => {
     const [slices, setSlices] = useState([] as { display: string, url: string }[])
 
     useEffect(() => {
-        setSlices(extractPathFragments(currentDir))
+        setSlices(extractAndEncodePathFragments(currentDir))
     }, [currentDir]);
 
     return <>

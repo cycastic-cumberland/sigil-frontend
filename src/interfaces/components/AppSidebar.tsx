@@ -7,16 +7,17 @@ import {
     SidebarFooter,
     SidebarGroup, SidebarGroupContent,
     SidebarGroupLabel,
-    SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem
+    SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail, useSidebar
 } from "@/components/ui/sidebar.tsx";
 import {DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem} from "@/components/ui/dropdown-menu.tsx";
 import {getAuth} from "@/utils/auth.ts";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
-import {Construction, Folder, LayoutTemplate, Lock, Mail, Telescope} from "lucide-react";
-import {Link} from "react-router";
+import {Construction, Folder, LayoutTemplate, Lock, Mail, Menu, Telescope} from "lucide-react";
+import {Link, useLocation} from "react-router";
 import {useTheme} from "@/contexts/ThemeContext.tsx";
 import {Switch} from "@/components/ui/switch.tsx";
 import {Label} from "@/components/ui/label.tsx";
+import useMediaQuery from "@/hooks/use-media-query.tsx";
 
 type MenuGroup = {
     title: string,
@@ -76,6 +77,9 @@ const AppSidebar = () => {
     const [selfInfo, setSelfInfo] = useState(null as UserInfoDto | null)
     const {theme, setTheme} = useTheme()
     const {invalidateAllSessions, localLogout} = useAuthorization()
+    const {state, setOpenMobile} = useSidebar()
+    const isDesktop = useMediaQuery("(min-width: 768px)")
+    const location = useLocation();
 
     useEffect(() => {
         (async () => {
@@ -85,6 +89,12 @@ const AppSidebar = () => {
             setAvatarUrl(`https://ui-avatars.com/api/?name=${encodeURIComponent(`${myInfo.firstName} ${myInfo.lastName}`)}`)
         })()
     }, []);
+
+    useEffect(() => {
+        if (!isDesktop){
+            setOpenMobile(false)
+        }
+    }, [location, isDesktop]);
 
 
     const invalidateSessions = async () => {
@@ -104,16 +114,16 @@ const AppSidebar = () => {
         }
     }
 
-    return  <Sidebar className={"bg-primary border-r border-muted-foreground"}>
-        <SidebarHeader className={"bg-primary flex flex-col justify-center border-b border-muted-foreground"}>
-            <Link to={"/"} className={"w-full flex flex-row px-5 py-1 appearance-none bg-transparent border-none m-0 focus:outline-none"}>
+    return  <Sidebar className={"bg-primary border-r border-muted-foreground"} collapsible="icon">
+        <SidebarHeader className={"bg-primary flex flex-col justify-center border-b border-muted-foreground min-h-16"}>
+            { state === 'expanded' ? <Link to={"/"} className={"w-full flex flex-row px-5 py-1 appearance-none bg-transparent border-none m-0 focus:outline-none"}>
                 <img className={"w-8 aspect-square"} src={"/icon.svg"} alt={"logo"}/>
                 <div className={"w-full flex flex-col"}>
                     <h1 className={"text-2xl font-semibold tracking-tight text-secondary"}>
                         PortfolioToolkit
                     </h1>
                 </div>
-            </Link>
+            </Link> : <Link to={'/'}><img className={"w-8 aspect-square"} src={"/icon.svg"} alt={"logo"}/></Link> }
         </SidebarHeader>
         <SidebarContent className={"bg-primary"}>
             { fullMenuGroups.map((mg, i) => <SidebarGroup key={i}>
@@ -134,7 +144,7 @@ const AppSidebar = () => {
         </SidebarContent>
         <SidebarFooter className={"bg-primary"}>
             <ul className={"flex w-full min-w-0 flex-row gap-1"}>
-                <div className={"w-full flex flex-row m-0"}>
+                { state === 'expanded' && <div className={"w-full flex flex-row m-0"}>
                     <span className={"relative flex size-8 shrink-0 overflow-hidden h-8 w-8 rounded-lg"}>
                         <img src={avatarUrl} alt={"pfp"}/>
                     </span>
@@ -146,13 +156,13 @@ const AppSidebar = () => {
                             { selfInfo?.email }
                         </span>
                     </div>
-                </div>
+                </div> }
                 <div className={"min-w-fit"}>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <button className="p-2 rounded-md hover:bg-muted-foreground cursor-pointer" aria-label="Open menu">
                                 <div className={"w-5 h-5 text-secondary text-center justify-center flex flex-col"}>
-                                    ⋮
+                                    { state === 'expanded' ? '⋮' : <Menu size={20}/> }
                                 </div>
                             </button>
                         </DropdownMenuTrigger>
@@ -176,6 +186,7 @@ const AppSidebar = () => {
                 </div>
             </ul>
         </SidebarFooter>
+        { isDesktop && <SidebarRail /> }
     </Sidebar>
 }
 
