@@ -1,4 +1,4 @@
-import {useMemo, useState} from "react";
+import {useState} from "react";
 import {
     Dialog,
     DialogContent,
@@ -7,57 +7,22 @@ import {
     DialogTitle,
     DialogTrigger
 } from "@/components/ui/dialog.tsx";
-import type {ProjectDto} from "@/dto/ProjectDto.ts";
 import {useProject} from "@/contexts/ProjectContext.tsx";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
-import type {PageDto} from "@/dto/PageDto.ts";
-import {getAuth} from "@/utils/auth.ts";
-import {type ColumnDef, flexRender, getCoreRowModel, useReactTable} from "@tanstack/react-table";
-import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table.tsx";
 import {Label} from "@/components/ui/label.tsx";
-
-const projectSelectorColumnDef: ColumnDef<ProjectDto>[] = [
-    {
-        accessorKey: 'projectName',
-        header: 'Name'
-    },
-    {
-        accessorKey: 'createdAt',
-        header: 'Created at'
-    }
-]
+import ProjectTable from "@/interfaces/components/ProjectTable.tsx";
 
 const ChangeActiveProjectDialog = () => {
-    // const [selectedProject, setSelectedProject] = useState(null as ProjectDto | null)
-    const [page, setPage] = useState({ items: [], pageSize: 0, page: 1, totalPages: 0, totalElements: 0 } as PageDto<ProjectDto>)
     const [open, setOpen] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
-    const {activeProject, changeActiveProject, queryProjects} = useProject()
-    const tableData = useMemo(() => page.items, [page])
-    const columns = useMemo(() => projectSelectorColumnDef, [])
-    const table = useReactTable({
-        data: tableData,
-        columns,
-        getCoreRowModel: getCoreRowModel(),
-    })
-
-    const refreshActiveProjects = async () => {
-        setIsLoading(true)
-        try {
-            const data = await queryProjects(getAuth()!.userId, 1, 5, null)
-            setPage(data)
-        } finally {
-            setIsLoading(false)
-        }
-    }
+    const {activeProject, changeActiveProject} = useProject()
+    const [counter, setCounter] = useState(0)
 
     return <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-            {/*<div className={"bg-primary"}>*/}
-            {/*</div>*/}
             <button disabled={isLoading}
                     className={"inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border shadow-xs h-9 px-4 py-2 has-[>svg]:px-3 cursor-pointer bg-secondary text-primary hover:bg-foreground hover:text-secondary"}
-                    onClick={refreshActiveProjects}>
+                    onClick={() => setCounter(c => c + 1)}>
                 { isLoading && (<Spinner/>) }
                 { !isLoading && !activeProject ? "Set project" : "Change project" }
             </button>
@@ -75,57 +40,7 @@ const ChangeActiveProjectDialog = () => {
                     </>) }
                 </DialogDescription>
             </DialogHeader>
-            <div className={"w-full"}>
-                { isLoading ? (<div className={"w-full flex flex-row justify-center"}>
-                    <Spinner></Spinner>
-                </div>) : <div className="rounded-md border">
-                    <Table>
-                        <TableHeader>
-                            {table.getHeaderGroups().map((headerGroup) => (
-                                <TableRow key={headerGroup.id}>
-                                    {headerGroup.headers.map((header) => {
-                                        return (
-                                            <TableHead key={header.id}>
-                                                {header.isPlaceholder
-                                                    ? null
-                                                    : flexRender(
-                                                        header.column.columnDef.header,
-                                                        header.getContext()
-                                                    )}
-                                            </TableHead>
-                                        )
-                                    })}
-                                </TableRow>
-                            ))}
-                        </TableHeader>
-                        <TableBody>
-                            {table.getRowModel().rows?.length ? (
-                                table.getRowModel().rows.map((row) => (
-                                    <TableRow
-                                        key={row.id}
-                                        data-state={row.getIsSelected() && "selected"}
-                                        className={"cursor-pointer"}
-                                        onClick={() => changeActiveProject(row.original)}
-                                    >
-                                        {row.getVisibleCells().map((cell) => (
-                                            <TableCell key={cell.id}>
-                                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                            </TableCell>
-                                        ))}
-                                    </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={columns.length} className="h-24 text-center">
-                                        No results.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </div> }
-
-            </div>
+            <ProjectTable key={counter} isLoading={isLoading} setIsLoading={setIsLoading} onSelect={changeActiveProject}/>
         </DialogContent>
     </Dialog>
 }

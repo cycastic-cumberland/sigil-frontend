@@ -25,6 +25,7 @@ import {Spinner} from "@/components/ui/shadcn-io/spinner";
 import type {AttachmentPresignedDto} from "@/dto/AttachmentPresignedDto.ts";
 import ConfirmationDialog from "@/interfaces/components/ConfirmationDialog.tsx";
 import type {TanstackRow} from "@/dto/aliases.ts";
+import {useProject} from "@/contexts/ProjectContext.tsx";
 
 const itemsColumnDef: ColumnDef<FolderItemDto>[] = [
     {
@@ -43,7 +44,7 @@ const extractPathFragments = (dir: string): { display: string, url: string }[] =
             const currSlices = [{ display: '/', url: '/' }]
             let lastFragment = '/'
             for (const fragment of split) {
-                lastFragment = `${lastFragment}${fragment}/`
+                lastFragment = `${lastFragment}${encodeURIComponent(fragment)}/`
                 currSlices.push({
                     display: `${fragment}/`,
                     url: lastFragment
@@ -57,6 +58,7 @@ const extractPathFragments = (dir: string): { display: string, url: string }[] =
 
 const extractPath = (path: string): string => {
     let subPath = path.replace(/^\/listings\/browser\/?/, '');
+    subPath = decodeURIComponent(subPath)
     subPath = subPath ? subPath : '/'
     subPath = subPath.endsWith('/') ? subPath : (subPath + '/')
     subPath = subPath.startsWith('/') ? subPath : ('/' + subPath)
@@ -236,13 +238,13 @@ const FileTable: FC<{ currentDir: string }> = ({ currentDir }) => {
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                    <DropdownMenuItem className={"cursor-pointer"}>
+                    <DropdownMenuItem className={"cursor-pointer"} disabled={true}>
                         <Text/>
                         <span>
                             Text
                         </span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem className={"cursor-pointer"}>
+                    <DropdownMenuItem className={"cursor-pointer"} disabled={true}>
                         <Hash/>
                         <span>
                             Decimal
@@ -341,6 +343,7 @@ const CurrentDirectory: FC<{ currentDir: string }> = ({ currentDir }) => {
 const ListingsBrowser = () => {
     const location = useLocation()
     const [currentDir, setCurrentDir] = useState('/')
+    const {activeProject} = useProject()
 
     useEffect(() => {
         setCurrentDir(extractPath(location.pathname))
@@ -351,14 +354,14 @@ const ListingsBrowser = () => {
             <div className={"w-full p-5 flex flex-col"}>
                 <div className={"my-2"}>
                     <Label className={"text-2xl text-secondary font-bold"}>
-                        Browser
+                        Listing browser
                     </Label>
                     <p className={"text-secondary text-sm"}>
                         Current directory:&nbsp;
                         <CurrentDirectory currentDir={currentDir}/>
                     </p>
                 </div>
-                <FileTable currentDir={currentDir}/>
+                <FileTable key={`${activeProject?.id ?? 0}:${currentDir}`} currentDir={currentDir}/>
             </div>
         </ProjectGuard>
     </MainLayout>

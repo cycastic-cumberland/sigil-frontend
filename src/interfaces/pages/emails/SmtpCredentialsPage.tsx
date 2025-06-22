@@ -26,6 +26,7 @@ import ProjectGuard from "@/interfaces/layouts/ProjectGuard.tsx";
 import type {AxiosError} from "axios";
 import {Link} from "react-router";
 import SmtpCredentialEditForm from "@/interfaces/components/SmtpCredentialEditForm.tsx";
+import {useProject} from "@/contexts/ProjectContext.tsx";
 
 const credentialSelectorColumnDef: ColumnDef<BaseSmtpCredentialDto>[] = [
     {
@@ -179,8 +180,7 @@ const CredentialTable = () => {
                     <TableBody>
                         {isLoading ? <TableRow>
                             <TableCell colSpan={columns.length}
-                                       className="h-24 text-secondary text-xl font-bold"
-                                       onClick={() => setCreateCredOpened(true)}>
+                                       className="h-24 text-secondary text-xl font-bold">
                                 <div className={"flex flex-row justify-center items-center content-center w-full"}>
                                     <Spinner/>
                                 </div>
@@ -255,6 +255,8 @@ const CredentialTable = () => {
 }
 
 const SmtpCredentialsPage = () => {
+    const {activeProject} = useProject()
+
     return <MainLayout>
         <ProjectGuard>
             <div className={"w-full p-5 flex flex-col"}>
@@ -266,7 +268,7 @@ const SmtpCredentialsPage = () => {
                         We will use these credentials to send templated emails.
                     </p>
                 </div>
-                <CredentialTable/>
+                <CredentialTable key={`${activeProject?.id ?? 0}`}/>
             </div>
         </ProjectGuard>
     </MainLayout>

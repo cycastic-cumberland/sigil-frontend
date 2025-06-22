@@ -7,7 +7,9 @@ import type {PageDto} from "@/dto/PageDto.ts";
 export type ProjectContextType = {
     activeProject: ProjectDto | null,
     changeActiveProject: (project: ProjectDto | null) => void,
-    queryProjects: (userId: number, page: number, pageSize: number, orderBy: string | null) => Promise<PageDto<ProjectDto>>
+    queryProjects: (userId: number, page: number, pageSize: number, orderBy: string | null) => Promise<PageDto<ProjectDto>>,
+    getProject: (id: number) => Promise<ProjectDto>,
+    deleteProject: (id: number) => Promise<void>,
 }
 
 const ProjectContext = createContext(null as never as ProjectContextType)
@@ -31,8 +33,7 @@ export const ProjectProvider: FC<{ children: ReactNode }> = ({ children }) => {
             return null;
         }
 
-        const response = await api.get(`projects/project?projectId=${activeProjectId}`)
-        return response.data as ProjectDto
+        return await getProject(Number(activeProjectId))
     }
 
     const queryProjects = async (userId: number, page: number, pageSize: number, orderBy: string | null): Promise<PageDto<ProjectDto>> => {
@@ -48,17 +49,27 @@ export const ProjectProvider: FC<{ children: ReactNode }> = ({ children }) => {
     const changeActiveProject = (project: ProjectDto | null) => {
         if (!project){
             removeSelectedProjectId()
-        } else {
+        } else if (project.id) {
             setSelectedProjectId(project.id)
         }
         setActiveProject(project)
     }
 
+    const getProject = async (id: number): Promise<ProjectDto> => {
+        const response = await api.get(`projects/project?id=${id}`)
+        return response.data as ProjectDto
+    }
+
+    const deleteProject = (id: number): Promise<void> => {
+        return api.delete(`projects/project?id=${id}`)
+    }
 
     const value = {
         activeProject,
         changeActiveProject,
-        queryProjects
+        queryProjects,
+        getProject,
+        deleteProject
     }
 
     return <ProjectContext.Provider value={value}>

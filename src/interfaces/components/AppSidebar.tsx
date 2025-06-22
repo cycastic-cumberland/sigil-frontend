@@ -12,7 +12,7 @@ import {
 import {DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem} from "@/components/ui/dropdown-menu.tsx";
 import {getAuth} from "@/utils/auth.ts";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
-import {Construction, Folder, LayoutTemplate, Lock, Mail, Plus, Telescope} from "lucide-react";
+import {Construction, Folder, LayoutTemplate, Lock, Mail, Telescope} from "lucide-react";
 import {Link} from "react-router";
 import {useTheme} from "@/contexts/ThemeContext.tsx";
 import {Switch} from "@/components/ui/switch.tsx";
@@ -29,13 +29,8 @@ const fullMenuGroups: MenuGroup[] = [
         items: [
             {
                 name: "All projects",
-                url: '/projects/all',
+                url: '/projects/browser',
                 icon: <Construction/>
-            },
-            {
-                name: "New project",
-                url: '/projects/new',
-                icon: <Plus/>
             },
         ]
     },

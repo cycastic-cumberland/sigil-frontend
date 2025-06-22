@@ -1,8 +1,8 @@
 export type ProjectDto = {
-    id: number
+    id?: number
     projectName: string
     corsSettings: string
-    createdAt: string
-    updatedAt: string
-    removedAt: string
+    createdAt?: string
+    updatedAt?: string
+    removedAt?: string
 }

@@ -16,7 +16,7 @@ api.interceptors.request.use(config => {
         config.headers.Authorization = `Bearer ${auth.authToken}`;
     }
     const projectId = getSelectedProjectId();
-    if (projectId){
+    if (auth && projectId){
         config.headers["X-Project-Id"] = projectId.toString()
     }
     return config;

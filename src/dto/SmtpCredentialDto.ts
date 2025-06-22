@@ -8,7 +8,7 @@ export interface BaseSmtpCredentialDto {
 }
 
 export interface DecryptedSmtpCredentialDto {
-    id: number | undefined,
+    id?: number,
     serverAddress: string
     secureSmtp: string
     port: number
