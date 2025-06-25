@@ -15,8 +15,6 @@ import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
 import {Construction, Folder, LayoutTemplate, Lock, Mail, Menu, Telescope} from "lucide-react";
 import {Link, useLocation} from "react-router";
 import {useTheme} from "@/contexts/ThemeContext.tsx";
-import {Switch} from "@/components/ui/switch.tsx";
-import {Label} from "@/components/ui/label.tsx";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
 
 type MenuGroup = {
@@ -107,28 +105,28 @@ const AppSidebar = () => {
     }
 
     const toggleTheme = () => {
-        if (theme === 'light'){
+        if (theme === 'system' || theme === 'light'){
             setTheme('dark')
         } else {
             setTheme('light')
         }
     }
 
-    return  <Sidebar className={"bg-primary border-r border-muted-foreground"} collapsible="icon">
-        <SidebarHeader className={"bg-primary flex flex-col justify-center border-b border-muted-foreground min-h-16"}>
+    return  <Sidebar className={"bg-sidebar-accent border-r border-sidebar"} collapsible="icon">
+        <SidebarHeader className={"bg-sidebar-accent flex flex-col justify-center border-b border-sidebar min-h-16"}>
             { state === 'expanded' ? <Link to={"/"} className={"w-full flex flex-row px-5 py-1 appearance-none bg-transparent border-none m-0 focus:outline-none"}>
                 <img className={"w-8 aspect-square"} src={"/icon.svg"} alt={"logo"}/>
                 <div className={"w-full flex flex-col"}>
-                    <h1 className={"text-2xl font-semibold tracking-tight text-secondary"}>
+                    <h1 className={"text-2xl font-semibold tracking-tight text-foreground"}>
                         PortfolioToolkit
                     </h1>
                 </div>
             </Link> : <Link to={'/'}><img className={"w-8 aspect-square"} src={"/icon.svg"} alt={"logo"}/></Link> }
         </SidebarHeader>
-        <SidebarContent className={"bg-primary"}>
+        <SidebarContent className={"bg-sidebar-accent"}>
             { fullMenuGroups.map((mg, i) => <SidebarGroup key={i}>
-                <SidebarGroupLabel className={"text-secondary"}>{ mg.title }</SidebarGroupLabel>
-                <SidebarGroupContent className={"text-secondary"}>
+                <SidebarGroupLabel className={"text-foreground"}>{ mg.title }</SidebarGroupLabel>
+                <SidebarGroupContent className={"text-foreground"}>
                     <SidebarMenu>
                         { mg.items.map((mi, j) => <SidebarMenuItem key={j}>
                             <SidebarMenuButton asChild>
@@ -142,14 +140,14 @@ const AppSidebar = () => {
                 </SidebarGroupContent>
             </SidebarGroup>) }
         </SidebarContent>
-        <SidebarFooter className={"bg-primary"}>
+        <SidebarFooter className={"bg-sidebar-accent"}>
             <ul className={"flex w-full min-w-0 flex-row gap-1"}>
                 { state === 'expanded' && <div className={"w-full flex flex-row m-0"}>
                     <span className={"relative flex size-8 shrink-0 overflow-hidden h-8 w-8 rounded-lg"}>
                         <img src={avatarUrl} alt={"pfp"}/>
                     </span>
                     <div className={"grid flex-1 ml-2 text-left text-sm leading-tight"}>
-                        <span className={"truncate font-medium text-secondary"}>
+                        <span className={"truncate font-medium text-foreground"}>
                             { selfInfo !== null ? `${selfInfo.firstName} ${selfInfo.lastName}` : '' }
                         </span>
                         <span className={"text-muted-foreground truncate text-xs"}>
@@ -161,19 +159,14 @@ const AppSidebar = () => {
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <button className="p-2 rounded-md hover:bg-muted-foreground cursor-pointer" aria-label="Open menu">
-                                <div className={"w-5 h-5 text-secondary text-center justify-center flex flex-col"}>
+                                <div className={"w-5 h-5 text-foreground text-center justify-center flex flex-col"}>
                                     { state === 'expanded' ? '⋮' : <Menu size={20}/> }
                                 </div>
                             </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem className={"cursor-pointer"} onSelect={toggleTheme}>
-                                <div className={"flex flex-row"}>
-                                    <Switch className={"cursor-pointer"} checked={theme === 'dark'}/>
-                                    <div className={"flex flex-col justify-center ml-2"}>
-                                        <Label className={"text-primary"}>Dark mode</Label>
-                                    </div>
-                                </div>
+                                { theme === 'light' ? "Dark mode" : "Light mode" }
                             </DropdownMenuItem>
                             <DropdownMenuItem className={"cursor-pointer"} onSelect={localLogout}>
                                 Log out

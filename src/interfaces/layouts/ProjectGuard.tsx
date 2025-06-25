@@ -8,7 +8,7 @@ const ProjectGuard: FC<{ children?: ReactNode | ReactNode[] }> = ({ children }) 
     return <>
         { activeProject ? children : <div className={"flex flex-col flex-grow w-full justify-center gap-2"}>
             <div className={"w-full flex flex-row justify-center"}>
-                <Label className={"text-secondary font-bold text-4xl"}>
+                <Label className={"text-foreground font-bold text-4xl"}>
                     No project selected
                 </Label>
             </div>

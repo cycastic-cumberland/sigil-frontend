@@ -159,7 +159,7 @@ const AttachmentUploadDialog: FC<{
                 <div className="flex flex-row gap-2">
                     <Label className="w-32">File path:</Label>
                     <Input
-                        className="flex-1 border-secondary"
+                        className="flex-1 border-foreground"
                         id="selectedPath"
                         value={selectedPath}
                         onChange={handlePathChanged}
@@ -191,10 +191,18 @@ const AttachmentUploadDialog: FC<{
                         Browse files
                     </label>
                 </Card>
-                <Button disabled={isLoading || !selectedFile} onClick={onUpload} className={`flex flex-grow border-secondary border-2 cursor-pointer hover:bg-secondary hover:text-primary ${error ? 'bg-destructive' : ''}`}>
-                    <Spinner className={isLoading ? '' : 'hidden'}/>
-                    { error ? error : 'Upload' }
-                </Button>
+                <div className="relative w-full">
+                    <Button disabled={isLoading || !selectedFile} onClick={onUpload} className={cn('w-full flex flex-grow border-foreground border-2 cursor-pointer',
+                        error ? 'bg-destructive' : '',
+                        isLoading ? '' : 'hover:bg-foreground hover:text-background')}>
+                        { isLoading && <span
+                            className={'absolute left-0 top-0 h-full bg-foreground opacity-50 transition-all duration-300 rounded-md'}
+                            style={{ width: `${progress}%` }}
+                        /> }
+                        <Spinner className={isLoading ? '' : 'hidden'}/>
+                        { error ? error : 'Upload' }
+                    </Button>
+                </div>
                 <Progress value={progress} />
             </div>
         </DialogContent>
@@ -211,7 +219,7 @@ const AttachmentUploadDialog: FC<{
                     <div className="flex flex-row gap-2">
                         <Label className="w-32">File path:</Label>
                         <Input
-                            className="flex-1 border-secondary"
+                            className="flex-1 border-foreground"
                             id="selectedPath"
                             value={selectedPath}
                             onChange={handlePathChanged}
@@ -242,7 +250,7 @@ const AttachmentUploadDialog: FC<{
                             ref={fileDropRef}
                         />
                     </Card>
-                    <Button disabled={isLoading || !selectedFile} onClick={onUpload} className={`flex flex-grow border-secondary border-2 cursor-pointer hover:bg-secondary hover:text-primary ${error ? 'bg-destructive' : ''}`}>
+                    <Button disabled={isLoading || !selectedFile} onClick={onUpload} className={`flex flex-grow border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background ${error ? 'bg-destructive' : ''}`}>
                         { error ? error : 'Upload' }
                     </Button>
                     <Progress value={progress} />

@@ -7,7 +7,7 @@ const TelemetryPage = () => {
         <ProjectGuard>
             <div className={"w-full p-5 flex flex-col"}>
                 <div className={"my-2"}>
-                    <Label className={"text-2xl text-secondary font-bold"}>
+                    <Label className={"text-2xl text-foreground font-bold"}>
                         Telemetry
                     </Label>
                 </div>

@@ -3,6 +3,10 @@ import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} fro
 import {Button} from "@/components/ui/button.tsx";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle} from "@/components/ui/drawer.tsx";
+import {cn} from "@/lib/utils.ts";
+
+const normalStyle = 'cursor-pointer border-foreground border-1 text-background bg-foreground hover:text-foreground hover:bg-background'
+const destructiveStyle = 'bg-destructive text-background border-destructive border-1 hover:bg-background hover:text-destructive'
 
 const ConfirmationDialog: FC<{
     confirmationOpened: boolean,
@@ -23,8 +27,8 @@ const ConfirmationDialog: FC<{
                 <DialogDescription>{ message }</DialogDescription>
             </DialogHeader>
             <div className={"w-full flex flex-row-reverse gap-2"}>
-                <Button className={`cursor-pointer ${destructive ? 'bg-destructive': ''}`} onClick={onAccepted}>{ acceptText }</Button>
-                <Button className={"cursor-pointer"} onClick={() => setConfirmationOpened(false)}>{ cancelText ?? "Cancel" }</Button>
+                <Button className={cn('cursor-pointer', destructive ? destructiveStyle : normalStyle)} onClick={onAccepted}>{ acceptText }</Button>
+                <Button className={normalStyle} onClick={() => setConfirmationOpened(false)}>{ cancelText ?? "Cancel" }</Button>
             </div>
         </DialogContent>
     </Dialog> : <Drawer open={confirmationOpened} onOpenChange={setConfirmationOpened}>
@@ -35,8 +39,8 @@ const ConfirmationDialog: FC<{
             </DrawerHeader>
             <div className={'w-full px-3 pb-3'}>
                 <div className={"w-full flex flex-col gap-2"}>
-                    <Button className={`cursor-pointer ${destructive ? 'bg-destructive': ''}`} onClick={onAccepted}>{ acceptText }</Button>
-                    <Button className={"cursor-pointer"} onClick={() => setConfirmationOpened(false)}>{ cancelText ?? "Cancel" }</Button>
+                    <Button className={cn('cursor-pointer', destructive ? destructiveStyle : normalStyle)} onClick={onAccepted}>{ acceptText }</Button>
+                    <Button className={normalStyle} onClick={() => setConfirmationOpened(false)}>{ cancelText ?? "Cancel" }</Button>
                 </div>
             </div>
         </DrawerContent>

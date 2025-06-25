@@ -148,16 +148,16 @@ const CredentialTable = () => {
     return <>
         <CreateSmtpCredentialDialog isLoading={isLoading} setIsLoading={setIsLoading} opened={createCredOpened} setOpened={setCreateCredOpened}/>
         <div className={"my-3"}>
-            <Button className={"text-secondary border-dashed border-2 border-secondary cursor-pointer " +
-                    "hover:border-solid hover:text-primary hover:bg-secondary"}
+            <Button className={"text-foreground border-dashed border-2 border-foreground cursor-pointer " +
+                    "hover:border-solid hover:text-background hover:bg-foreground hover:bg-foreground"}
                     onClick={() => setCreateCredOpened(true)} disabled={isLoading}>
                 { isLoading ? <Spinner/> : <Plus/> }
                 <span>Create credential</span>
             </Button>
         </div>
         <div className={"my-3 w-full"}>
-            <div className="rounded-md border border-secondary">
-                <Table className={"text-secondary"}>
+            <div className="rounded-md border border-foreground">
+                <Table className={"text-foreground"}>
                     <TableHeader>
                         {table.getHeaderGroups().map(headerGroup => (
                             <TableRow key={headerGroup.id}>
@@ -168,7 +168,7 @@ const CredentialTable = () => {
                                         <TableHead
                                             key={header.id}
                                             onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
-                                            className={canSort ? 'cursor-pointer select-none text-secondary' : 'text-secondary'}
+                                            className={canSort ? 'cursor-pointer select-none text-foreground' : 'text-foreground'}
                                         >
                                             {header.isPlaceholder
                                                 ? null
@@ -187,7 +187,7 @@ const CredentialTable = () => {
                     <TableBody>
                         {isLoading ? <TableRow>
                             <TableCell colSpan={columns.length}
-                                       className="h-24 text-secondary text-xl font-bold">
+                                       className="h-24 text-foreground text-xl font-bold">
                                 <div className={"flex flex-row justify-center items-center content-center w-full"}>
                                     <Spinner/>
                                 </div>
@@ -209,7 +209,7 @@ const CredentialTable = () => {
                         ) : (
                             <TableRow>
                                 <TableCell colSpan={columns.length}
-                                           className="h-24 text-center drop-zone cursor-pointer text-secondary text-xl font-bold"
+                                           className="h-24 text-center drop-zone cursor-pointer text-foreground text-xl font-bold"
                                            onClick={() => setCreateCredOpened(true)}>
                                     No credential found. Press here to create one.
                                 </TableCell>
@@ -221,14 +221,14 @@ const CredentialTable = () => {
                 <div className="flex items-start md:items-center justify-between space-y-2 md:space-y-0 py-2">
                     <div className={"flex flex-col md:flex-row items-start md:items-center space-y-2 md:space-y-0 md:space-x-2 ml-2"}>
                         <div className={"flex flex-col justify-center text-center"}>
-                            <div className={"text-secondary"}>
+                            <div className={"text-foreground"}>
                                 Page {pagination.pageIndex + 1} of {pageCount == 0 ? 1 : pageCount}
                             </div>
                         </div>
                         <div className={"ml-0 md:ml-3"}>
                             <DropdownMenu>
                                 <DropdownMenuTrigger disabled={isLoading} asChild>
-                                    <Button className={"border-secondary border-2 cursor-pointer hover:bg-secondary hover:text-primary"}>
+                                    <Button className={"border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background"}>
                                         <span className={"hidden md:block"}>
                                             Page size:&nbsp;
                                         </span>
@@ -246,14 +246,14 @@ const CredentialTable = () => {
                     </div>
                     <div className="space-x-2 mr-2">
                         <Button
-                            className={'cursor-pointer'}
+                            className={'cursor-pointer hover:bg-foreground hover:text-background'}
                             onClick={() => table.previousPage()}
                             disabled={!table.getCanPreviousPage() || isLoading}
                         >
                             Previous
                         </Button>
                         <Button
-                            className={'cursor-pointer'}
+                            className={'cursor-pointer hover:bg-foreground hover:text-background'}
                             onClick={() => table.nextPage()}
                             disabled={!table.getCanNextPage() || isLoading}
                         >
@@ -273,7 +273,7 @@ const SmtpCredentialsPage = () => {
         <ProjectGuard>
             <div className={"w-full p-5 flex flex-col"}>
                 <div className={"my-2"}>
-                    <Label className={"text-2xl text-secondary font-bold"}>
+                    <Label className={"text-2xl text-foreground font-bold"}>
                         SMTP credentials
                     </Label>
                     <p className={"text-muted-foreground text-sm"}>

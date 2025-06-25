@@ -24,7 +24,7 @@ const ChangeActiveProjectDialog = () => {
 
     return <>
         <Button disabled={isLoading}
-                className={'cursor-pointer bg-secondary text-primary hover:bg-foreground hover:text-secondary border-1 border-secondary'}
+                className={'cursor-pointer bg-foreground text-background hover:bg-background hover:text-foreground border-1 border-foreground'}
                 onClick={() => { setCounter(c => c + 1); setOpen(true); }}>
             { isLoading && (<Spinner/>) }
             { !isLoading && !activeProject ? "Set project" : "Change project" }
@@ -80,7 +80,7 @@ const ProjectSelector = () => {
     const {toggleSidebar} = useSidebar()
     const isDesktop = useMediaQuery("(min-width: 768px)")
 
-    return <div className={"w-full flex flex-row bg-primary border-b border-muted-foreground min-h-16"}>
+    return <div className={"w-full flex flex-row bg-background border-b border-sidebar min-h-16"}>
         { !isDesktop && <button className={"gap-2 p-2 appearance-none bg-transparent border-none m-0 focus:outline-none cursor-pointer"} onClick={toggleSidebar}>
             <div className={"flex flex-row py-1 m-0"}>
                 <div className={"flex flex-col"}>
@@ -94,7 +94,7 @@ const ProjectSelector = () => {
         <div className={`flex items-center gap-2 ${isDesktop ? 'ml-5' : ''}`}>
             <ChangeActiveProjectDialog />
             {activeProject && (
-                <Label className="text-secondary font-bold text-xl">
+                <Label className="text-foreground font-bold text-xl">
                     {activeProject.projectName}
                 </Label>
             )}

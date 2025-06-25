@@ -82,14 +82,14 @@ const ProjectTable: FC<{
     }, [pagination, sorting]);
 
     return <div className={"w-full"}>
-        <div className={`rounded-md border ${isDialog ? '' : 'border-secondary'}`}>
-            <Table className={isDialog ? '': 'text-secondary'}>
+        <div className={`rounded-md border ${isDialog ? '' : 'border-foreground'}`}>
+            <Table className={isDialog ? '': 'text-foreground'}>
                 <TableHeader>
                     {table.getHeaderGroups().map((headerGroup) => (
                         <TableRow key={headerGroup.id}>
                             {headerGroup.headers.map((header) => {
                                 return (
-                                    <TableHead key={header.id} className={isDialog ? '': 'text-secondary'}>
+                                    <TableHead key={header.id} className={isDialog ? '': 'text-foreground'}>
                                         {header.isPlaceholder
                                             ? null
                                             : flexRender(
@@ -105,7 +105,7 @@ const ProjectTable: FC<{
                 <TableBody>
                     {isLoading ? <TableRow>
                         <TableCell colSpan={columns.length}
-                                   className="h-24 text-secondary text-xl font-bold">
+                                   className="h-24 text-foreground text-xl font-bold">
                             <div className={"flex flex-row justify-center items-center content-center w-full"}>
                                 <Spinner/>
                             </div>
@@ -138,14 +138,14 @@ const ProjectTable: FC<{
             <div className="flex items-start md:items-center justify-between space-y-2 md:space-y-0 py-2">
                 <div className={"flex flex-col md:flex-row items-start md:items-center space-y-2 md:space-y-0 md:space-x-2 ml-2"}>
                     {!isDialog && <div className={"flex flex-col justify-center text-center"}>
-                        <div className={"text-secondary"}>
+                        <div className={"text-foreground"}>
                             Page {pagination.pageIndex + 1} of {pageCount == 0 ? 1 : pageCount}
                         </div>
                     </div>}
                     <div className={isDialog ? '' : 'ml-0 md:ml-3'}>
                         <DropdownMenu>
                             <DropdownMenuTrigger disabled={isLoading} asChild>
-                                <Button className={"border-secondary border-2 cursor-pointer hover:bg-secondary hover:text-primary"}>
+                                <Button className={"border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background"}>
                                         <span className={"hidden md:block"}>
                                             Page size:&nbsp;
                                         </span>
@@ -163,14 +163,14 @@ const ProjectTable: FC<{
                 </div>
                 <div className="space-x-2 mr-2">
                     <Button
-                        className={'cursor-pointer'}
+                        className={'cursor-pointer hover:bg-foreground hover:text-background'}
                         onClick={() => table.previousPage()}
-                        disabled={!table.getCanPreviousPage() || isLoading}
+                        disabled={!table.getCanNextPage() || isLoading}
                     >
                         { isDialog ? <ArrowLeft/> : "Previous" }
                     </Button>
                     <Button
-                        className={'cursor-pointer'}
+                        className={'cursor-pointer hover:bg-foreground hover:text-background'}
                         onClick={() => table.nextPage()}
                         disabled={!table.getCanNextPage() || isLoading}
                     >

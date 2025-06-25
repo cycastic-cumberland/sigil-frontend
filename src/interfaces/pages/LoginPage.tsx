@@ -58,7 +58,7 @@ const UserAuthForm: FC<HTMLAttributes<HTMLDivElement>> = ({ className, ...props 
             <form onSubmit={onSubmit}>
                 <div className="grid gap-2">
                     <div className={"flex flex-col gap-2 text-center"}>
-                        <h1 className={"text-2xl font-semibold tracking-tight text-secondary"}>
+                        <h1 className={"text-2xl font-semibold tracking-tight text-foreground"}>
                             Sign into PortfolioToolkit
                         </h1>
                         <p className={"text-muted-foreground text-sm"}>
@@ -73,7 +73,7 @@ const UserAuthForm: FC<HTMLAttributes<HTMLDivElement>> = ({ className, ...props 
                             id="email"
                             ref={emailRef}
                             placeholder="Email"
-                            className={"text-secondary"}
+                            className={"text-foreground"}
                             autoCapitalize="none"
                             autoComplete="email"
                             autoCorrect="off"
@@ -87,13 +87,13 @@ const UserAuthForm: FC<HTMLAttributes<HTMLDivElement>> = ({ className, ...props 
                         <Input
                             id="password"
                             ref={passwordRef}
-                            className={"text-secondary"}
+                            className={"text-foreground"}
                             placeholder="Password"
                             type="password"
                             disabled={isLoading}
                         />
                     </div>
-                    <Button disabled={isLoading} className={`hover:text-secondary cursor-pointer ${errorType ? "bg-destructive text-secondary" : "bg-secondary text-primary"}`}>
+                    <Button disabled={isLoading} className={`hover:text-foreground cursor-pointer ${errorType ? "bg-destructive text-foreground" : "bg-foreground text-background"}`}>
                         {isLoading && (
                             <Spinner />
                         )}
@@ -108,7 +108,7 @@ const UserAuthForm: FC<HTMLAttributes<HTMLDivElement>> = ({ className, ...props 
 const LoginPage = () => {
     return <>
         <div className={"min-h-screen w-full flex flex-row"}>
-            <div className={"min-w-1/2 bg-primary hidden lg:flex border-r border-muted-foreground"}>
+            <div className={"min-w-1/2 bg-background hidden lg:flex border-r border-sidebar"}>
 
             </div>
             <div className={"flex flex-col justify-center w-full bg-foreground"}>

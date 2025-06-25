@@ -59,7 +59,7 @@ const ProjectEditForm: FC<{
             <div className="flex flex-row gap-2">
                 <Label className="w-32">Project name:</Label>
                 <Input
-                    className="flex-1 border-secondary"
+                    className="flex-1 border-foreground"
                     value={formValues.projectName}
                     onChange={handleChange}
                     id="projectName"
@@ -70,7 +70,7 @@ const ProjectEditForm: FC<{
             <div className="flex flex-row gap-2">
                 <Label className="w-32">Allowed origins:</Label>
                 <Input
-                    className="flex-1 border-secondary"
+                    className="flex-1 border-foreground"
                     value={formValues.corsSettings}
                     onChange={handleChange}
                     id="corsSettings"
@@ -86,7 +86,7 @@ const ProjectEditForm: FC<{
             { !formValues.createdAt ? <></> : <div className="flex flex-row gap-2">
                 <Label className="w-32">Created at:</Label>
                 <Input
-                    className="flex-1 border-secondary"
+                    className="flex-1 border-foreground"
                     value={new Date(formValues.createdAt).toString()}
                     id="createdAt"
                     disabled={true}
@@ -95,13 +95,13 @@ const ProjectEditForm: FC<{
             { !formValues.updatedAt ? <></> : <div className="flex flex-row gap-2">
                 <Label className="w-32">Updated at:</Label>
                 <Input
-                    className="flex-1 border-secondary"
+                    className="flex-1 border-foreground"
                     value={new Date(formValues.updatedAt).toString()}
                     id="updatedAt"
                     disabled={true}
                 />
             </div> }
-            <Button disabled={isLoading} type={"submit"} className={`flex flex-grow border-secondary border-2 cursor-pointer hover:bg-secondary hover:text-primary ${error ? 'bg-destructive' : ''}`}>
+            <Button disabled={isLoading} type={"submit"} className={`flex flex-grow border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background ${error ? 'bg-destructive' : ''}`}>
                 { error ? error : submissionText ? submissionText : 'Create' }
             </Button>
         </div>

@@ -75,13 +75,13 @@ const ProjectBrowserPage = () => {
                              reloadTrigger={reloadTrigger}/>
         <div className={"w-full p-5 flex flex-col"}>
             <div className={"my-2"}>
-                <Label className={"text-2xl text-secondary font-bold"}>
+                <Label className={"text-2xl text-foreground font-bold"}>
                     All projects
                 </Label>
             </div>
             <div className={"my-3"}>
-                <Button className={"text-secondary border-dashed border-2 border-secondary cursor-pointer " +
-                    "hover:border-solid hover:text-primary hover:bg-secondary"}
+                <Button className={"text-foreground border-dashed border-2 border-foreground cursor-pointer " +
+                    "hover:border-solid hover:text-background hover:bg-foreground"}
                         onClick={() => { setDialogOpened(true) }}>
                     <Plus/>
                     <span>Create project</span>

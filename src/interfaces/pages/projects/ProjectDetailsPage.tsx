@@ -92,24 +92,24 @@ const ProjectDetailsPage = () => {
                             destructive/>
         { isLoading ? <FullSizeSpinner/> : !project ? <div className={"flex flex-col flex-grow w-full justify-center gap-2"}>
             <div className={"w-full flex flex-row justify-center"}>
-                <Label className={"text-secondary font-bold text-4xl"}>
+                <Label className={"text-foreground font-bold text-4xl"}>
                     Project not found
                 </Label>
             </div>
         </div> : <div className={"w-full p-5 flex flex-col"}>
             <div className={"my-2"}>
-                <Label className={"text-2xl text-secondary font-bold"}>
+                <Label className={"text-2xl text-foreground font-bold"}>
                     { project.projectName }
                 </Label>
             </div>
             <div className={"w-full"}>
-                <div className={"lg:w-1/2 text-secondary flex flex-col gap-2"}>
+                <div className={"lg:w-1/2 text-foreground flex flex-col gap-2"}>
                     <ProjectEditForm submissionText={"Save"}
                                      error={error}
                                      isLoading={isLoading}
                                      onSave={onSave}
                                      project={project}/>
-                    <Button className={"cursor-pointer bg-destructive"} onClick={() => setConfirmDeleteOpened(true)}>Delete project</Button>
+                    <Button className={"cursor-pointer bg-destructive text-background border-destructive border-1 hover:bg-background hover:text-destructive"} onClick={() => setConfirmDeleteOpened(true)}>Delete project</Button>
                 </div>
             </div>
         </div> }

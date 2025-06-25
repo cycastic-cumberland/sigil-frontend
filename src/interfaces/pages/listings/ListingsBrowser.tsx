@@ -301,8 +301,8 @@ const FileTable: FC<{ currentDir: string }> = ({ currentDir }) => {
         <div className={"my-3"}>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <Button className={"text-secondary border-dashed border-2 border-secondary cursor-pointer " +
-                        "hover:border-solid hover:text-primary hover:bg-secondary"}
+                    <Button className={"text-foreground border-dashed border-2 border-foreground cursor-pointer " +
+                        "hover:border-solid hover:text-background hover:bg-foreground"}
                             onClick={() => {}} disabled={isLoading}>
                         { isLoading ? <Spinner/> : <Plus/> }
                         <span>Create...</span>
@@ -331,8 +331,8 @@ const FileTable: FC<{ currentDir: string }> = ({ currentDir }) => {
             </DropdownMenu>
         </div>
         <div className={"my-3 w-full"}>
-            <div className="rounded-md border border-secondary">
-                <Table className={"text-secondary"}>
+            <div className="rounded-md border border-foreground">
+                <Table className={"text-foreground"}>
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
                             <TableRow key={headerGroup.id}>
@@ -342,7 +342,7 @@ const FileTable: FC<{ currentDir: string }> = ({ currentDir }) => {
                                     return (
                                         <TableHead key={header.id}
                                                    onClick={(canSort && !isLoading) ? header.column.getToggleSortingHandler() : undefined}
-                                                   className={`cursor-pointer text-secondary ${header.id === 'modifiedAt' ? 'min-w-1/4' : header.id === 'type' ? '' : 'w-full'}`}>
+                                                   className={`cursor-pointer text-foreground ${header.id === 'modifiedAt' ? 'min-w-1/4' : header.id === 'type' ? '' : 'w-full'}`}>
                                             {header.isPlaceholder
                                                 ? null
                                                 : <div className={"flex flex-row gap-1"}>
@@ -360,7 +360,7 @@ const FileTable: FC<{ currentDir: string }> = ({ currentDir }) => {
                     <TableBody>
                         { isLoading ? <TableRow>
                             <TableCell colSpan={itemsColumnDef.length}
-                                       className="h-24 text-secondary text-xl font-bold">
+                                       className="h-24 text-foreground text-xl font-bold">
                                 <div className={"flex flex-row justify-center items-center content-center w-full"}>
                                     <Spinner/>
                                 </div>
@@ -404,14 +404,14 @@ const FileTable: FC<{ currentDir: string }> = ({ currentDir }) => {
                 <div className="flex items-start md:items-center justify-between space-y-2 md:space-y-0 py-2">
                     <div className={"flex flex-col md:flex-row items-start md:items-center space-y-2 md:space-y-0 md:space-x-2 ml-2"}>
                         <div className={"flex flex-col justify-center text-center"}>
-                            <div className={"text-secondary"}>
+                            <div className={"text-foreground"}>
                                 Page {pagination.pageIndex + 1} of {pageCount == 0 ? 1 : pageCount}
                             </div>
                         </div>
                         <div className={"ml-0 md:ml-3"}>
                             <DropdownMenu>
                                 <DropdownMenuTrigger disabled={isLoading} asChild>
-                                    <Button className={"border-secondary border-2 cursor-pointer hover:bg-secondary hover:text-primary"}>
+                                    <Button className={"border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background"}>
                                         <span className={"hidden md:block"}>
                                             Page size:&nbsp;
                                         </span>
@@ -429,14 +429,14 @@ const FileTable: FC<{ currentDir: string }> = ({ currentDir }) => {
                     </div>
                     <div className="space-x-2 mr-2">
                         <Button
-                            className={'cursor-pointer'}
+                            className={'cursor-pointer hover:bg-foreground hover:text-background'}
                             onClick={() => table.previousPage()}
                             disabled={!table.getCanPreviousPage() || isLoading}
                         >
                             Previous
                         </Button>
                         <Button
-                            className={'cursor-pointer'}
+                            className={'cursor-pointer hover:bg-foreground hover:text-background'}
                             onClick={() => table.nextPage()}
                             disabled={!table.getCanNextPage() || isLoading}
                         >
@@ -459,7 +459,7 @@ const CurrentDirectory: FC<{ currentDir: string }> = ({ currentDir }) => {
     return <>
         { slices.map((s, i) => <>
             <span>
-                <Button className={"cursor-pointer hover:bg-secondary hover:text-primary mr-1 mb-1"} asChild>
+                <Button className={"cursor-pointer bg-muted hover:bg-foreground hover:text-background mr-1 mb-1"} asChild>
                     <Link key={i} to={`/listings/browser${s.url}`}>
                         { i === 0 ? s.display : s.display.slice(0, s.display.length - 1) }
                     </Link>
@@ -483,10 +483,10 @@ const ListingsBrowser = () => {
         <ProjectGuard>
             <div className={"w-full p-5 flex flex-col"}>
                 <div className={"my-2"}>
-                    <Label className={"text-2xl text-secondary font-bold"}>
+                    <Label className={"text-2xl text-foreground font-bold"}>
                         Listing browser
                     </Label>
-                    <p className={"text-secondary text-sm"}>
+                    <p className={"text-foreground text-sm"}>
                         Current directory:&nbsp;
                         <CurrentDirectory currentDir={currentDir}/>
                     </p>

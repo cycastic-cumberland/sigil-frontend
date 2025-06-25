@@ -77,20 +77,20 @@ const SmtpCredentialPageImpl = () => {
                             destructive/>
         { isLoading ? <FullSizeSpinner/> : !credential ? <div className={"flex flex-col flex-grow w-full justify-center gap-2"}>
             <div className={"w-full flex flex-row justify-center"}>
-                <Label className={"text-secondary font-bold text-4xl"}>
+                <Label className={"text-foreground font-bold text-4xl"}>
                     Credential not found
                 </Label>
             </div>
         </div> : <div className={"w-full p-5 flex flex-col"}>
             <div className={"my-2"}>
-                <Label className={"text-2xl text-secondary font-bold"}>
+                <Label className={"text-2xl text-foreground font-bold"}>
                     Credential info
                 </Label>
             </div>
             <div className={"w-full"}>
-                <div className={"lg:w-1/2 text-secondary flex flex-col gap-2"}>
+                <div className={"lg:w-1/2 text-foreground flex flex-col gap-2"}>
                     <SmtpCredentialEditForm submissionText={'Save changes'} error={error} isLoading={isLoading} onSave={onSave} credential={credential}/>
-                    <Button className={"cursor-pointer bg-destructive"} onClick={() => setConfirmDeleteOpened(true)}>Delete credential</Button>
+                    <Button className={"cursor-pointer bg-destructive text-background border-destructive border-1 hover:bg-background hover:text-destructive"} onClick={() => setConfirmDeleteOpened(true)}>Delete credential</Button>
                 </div>
             </div>
         </div> }
