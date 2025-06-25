@@ -37,7 +37,7 @@ const ProjectDetailsPage = () => {
             return
         }
 
-        reloadProject(Number(id)).then(() => {})
+        reloadProject(Number(id)).then(undefined)
     }, [id]);
 
     const onSave = async (project: ProjectDto) => {

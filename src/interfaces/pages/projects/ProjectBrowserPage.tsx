@@ -91,8 +91,7 @@ const ProjectBrowserPage = () => {
                 <ProjectTable key={counter}
                               isLoading={isLoading}
                               setIsLoading={setIsLoading}
-                              onSelect={(p) => { navigate(`/projects/${p.id}`) }}
-                              applyTheme/>
+                              onSelect={(p) => { navigate(`/projects/${p.id}`) }}/>
             </div>
         </div>
     </MainLayout>

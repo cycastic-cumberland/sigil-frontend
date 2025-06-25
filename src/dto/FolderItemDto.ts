@@ -2,9 +2,6 @@ export type FolderItemType = "TEXT" | "DECIMAL" | "ATTACHMENT" | "FOLDER"
 
 export type FolderItemDto = {
     name: string,
-    type: FolderItemType
-}
-
-export type FolderItemsDto = {
-    items: FolderItemDto[]
+    type: FolderItemType,
+    modifiedAt?: string
 }

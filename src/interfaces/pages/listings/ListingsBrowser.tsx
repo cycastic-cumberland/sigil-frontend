@@ -1,6 +1,6 @@
 import MainLayout from "@/interfaces/layouts/MainLayout.tsx";
 import ProjectGuard from "@/interfaces/layouts/ProjectGuard.tsx";
-import {Link, useLocation} from "react-router";
+import {Link, useLocation, useNavigate} from "react-router";
 import {
     type FC,
     type ReactNode,
@@ -9,7 +9,7 @@ import {
 } from "react";
 import {Label} from "@/components/ui/label.tsx";
 import {Button} from "@/components/ui/button.tsx";
-import {File, Folder, Hash, Plus, Text} from "lucide-react";
+import {ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, File, Folder, Hash, Plus, Text} from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -17,20 +17,49 @@ import {
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu.tsx";
 import api from "@/api.tsx";
-import {type ColumnDef, flexRender, getCoreRowModel, useReactTable} from "@tanstack/react-table";
-import type {FolderItemDto, FolderItemsDto, FolderItemType} from "@/dto/FolderItemDto.ts";
+import {
+    type ColumnDef,
+    flexRender,
+    getCoreRowModel,
+    getSortedRowModel,
+    type SortingState,
+    useReactTable
+} from "@tanstack/react-table";
+import type {FolderItemDto, FolderItemType} from "@/dto/FolderItemDto.ts";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table.tsx";
 import AttachmentUploadDialog from "@/interfaces/components/AttachmentUploadDialog.tsx";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
 import type {AttachmentPresignedDto} from "@/dto/AttachmentPresignedDto.ts";
 import ConfirmationDialog from "@/interfaces/components/ConfirmationDialog.tsx";
-import type {TanstackRow} from "@/dto/aliases.ts";
+import type {TanstackRow, TanstackTable} from "@/dto/aliases.ts";
 import {useProject} from "@/contexts/ProjectContext.tsx";
+import type {PageDto} from "@/dto/PageDto.ts";
 
 const itemsColumnDef: ColumnDef<FolderItemDto>[] = [
     {
+        accessorKey: 'type',
+        header: 'Type',
+        cell: info => {
+            const v = info.getValue() as FolderItemType;
+            return getIcon(v)
+        }
+    },
+    {
         accessorKey: 'name',
         header: 'Name'
+    },
+    {
+        accessorKey: 'modifiedAt',
+        header: 'Modified at',
+        enableSorting: true,
+        sortDescFirst: false,
+        cell: info => {
+            const v = info.getValue();
+            if (info.column.id === 'modifiedAt' && !v){
+                return <span className={'invisible'}>a</span>
+            }
+            return v
+        }
     },
 ]
 
@@ -133,6 +162,7 @@ const ItemRow: FC<{
 }> = ({ row, currentDir, isLoading, setIsLoading, refreshTrigger }) => {
     const fullPath = useMemo(() => currentDir + row.original.name, [currentDir, row])
     const [confirmDeleteOpened, setConfirmDeleteOpened] = useState(false)
+    const navigate = useNavigate()
 
     const onDelete = async () => {
         try {
@@ -169,25 +199,26 @@ const ItemRow: FC<{
                     className={"cursor-pointer"}
                 >
                     {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id} className={"flex flex-row gap-2"}>
-                            { row.original.type === 'FOLDER' ?
-                                <Link to={toListingUrl(row.original.name)}
-                                      className={'flex flex-row gap-2 w-full'} >
-                                    <div className={'min-w-fit'}>
-                                        { getIcon(row.original.type) }
-                                    </div>
-                                    <span className={'truncate'}>
-                                                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                                                </span>
-                                </Link> :
-                                <div className={'flex flex-row gap-2'}>
-                                    <div className={'min-w-fit'}>
-                                        { getIcon(row.original.type) }
-                                    </div>
-                                    <span className={'text-wrap'}>
-                                                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                                            </span>
-                                </div> }
+                        <TableCell key={cell.id} className={cell.column.id === 'type' ? 'max-w-fit' : 'gap-2'} onClick={() => row.original.type === 'FOLDER' && navigate(toListingUrl(row.original.name))}>
+                            { row.original.type === 'FOLDER' ? <>
+                                    { cell.column.id === 'type' ?
+                                        <Link to={toListingUrl(row.original.name)} className={'flex flex-row gap-2 w-full'} >
+                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                        </Link>
+                                        : <Link to={toListingUrl(row.original.name)}
+                                                                                className={'flex flex-row gap-2 w-full'} >
+                                        <span className={'truncate'}>
+                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                        </span>
+                                    </Link> }
+                                </>:
+                                <>
+                                    { cell.column.id === 'type' ? flexRender(cell.column.columnDef.cell, cell.getContext()) : <div className={'flex flex-row gap-2'}>
+                                        <span className={cell.column.id === 'name' ? 'text-wrap' : ''}>
+                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                        </span>
+                                    </div> }
+                                </> }
                         </TableCell>
                     ))}
                 </TableRow>
@@ -205,26 +236,56 @@ const ItemRow: FC<{
     </>
 }
 
+const possiblePageSizes = [5, 10, 20]
+
 const FileTable: FC<{ currentDir: string }> = ({ currentDir }) => {
     const [isLoading, setIsLoading] = useState(false)
     const [attachmentUploadOpened, setAttachmentUploadOpened] = useState(false)
     const [items, setItems] = useState([] as FolderItemDto[])
-    const table = useReactTable({
+    const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+    const [pageCount, setPageCount] = useState(0);
+    const [sorting, setSorting] = useState<SortingState>([]);
+    const navigate = useNavigate()
+    const encodedPathFragments = useMemo(() => extractAndEncodePathFragments(currentDir), [currentDir])
+    const table: TanstackTable<FolderItemDto> = useReactTable({
         data: items,
         columns: itemsColumnDef,
+        pageCount,
+        state: { pagination, sorting },
+        manualPagination: true,
+        manualSorting: true,
         getCoreRowModel: getCoreRowModel(),
+        getSortedRowModel: getSortedRowModel(),
+        onPaginationChange: setPagination,
+        onSortingChange: setSorting,
     })
-    const encodedPathFragments = useMemo(() => extractAndEncodePathFragments(currentDir), [currentDir])
 
     useEffect(() => {
-        refreshTrigger().then(() => {})
-    }, [currentDir]);
+        refreshTrigger().then(undefined)
+    }, [pagination, sorting, currentDir]);
 
-    const refreshTrigger = async () => {
+    const refreshTrigger = () => {
+        const sortParams = sorting.length
+            ? sorting
+                .map(s => `${s.id}:${s.desc ? 'desc' : 'asc'}`)
+                .join(',')
+            : null;
+
+        return updateTableContent(pagination.pageIndex, pagination.pageSize, sortParams)
+    }
+
+    const updateTableContent = async (pageIndex: number, pageSize: number, sortParams: string | null) => {
         try {
             setIsLoading(true)
-            const response = await api.get(`listings/subfolders?folder=${encodeURIComponent(currentDir)}`)
-            setItems((response.data as FolderItemsDto).items)
+
+            let url = `listings/subfolders?folder=${encodeURIComponent(currentDir)}&page=${pageIndex + 1}&pageSize=${pageSize}`
+            if (sortParams !== null){
+                url = `${url}&orderBy=${encodeURIComponent(sortParams)}`
+            }
+            const response = await api.get(url)
+            const page = response.data as PageDto<FolderItemDto>
+            setItems(page.items)
+            setPageCount(page.totalPages)
         } finally {
             setIsLoading(false)
         }
@@ -242,12 +303,12 @@ const FileTable: FC<{ currentDir: string }> = ({ currentDir }) => {
                 <DropdownMenuTrigger asChild>
                     <Button className={"text-secondary border-dashed border-2 border-secondary cursor-pointer " +
                         "hover:border-solid hover:text-primary hover:bg-secondary"}
-                            onClick={() => {}}>
-                        <Plus/>
+                            onClick={() => {}} disabled={isLoading}>
+                        { isLoading ? <Spinner/> : <Plus/> }
                         <span>Create...</span>
                     </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="center">
                     <DropdownMenuItem className={"cursor-pointer"} disabled={true}>
                         <Text/>
                         <span>
@@ -276,14 +337,20 @@ const FileTable: FC<{ currentDir: string }> = ({ currentDir }) => {
                         {table.getHeaderGroups().map((headerGroup) => (
                             <TableRow key={headerGroup.id}>
                                 {headerGroup.headers.map((header) => {
+                                    const canSort = header.column.getCanSort();
+                                    const sortState = header.column.getIsSorted();
                                     return (
-                                        <TableHead key={header.id} className={"text-secondary"}>
+                                        <TableHead key={header.id}
+                                                   onClick={(canSort && !isLoading) ? header.column.getToggleSortingHandler() : undefined}
+                                                   className={`cursor-pointer text-secondary ${header.id === 'modifiedAt' ? 'min-w-1/4' : header.id === 'type' ? '' : 'w-full'}`}>
                                             {header.isPlaceholder
                                                 ? null
-                                                : flexRender(
-                                                    header.column.columnDef.header,
-                                                    header.getContext()
-                                                )}
+                                                : <div className={"flex flex-row gap-1"}>
+                                                    {flexRender(header.column.columnDef.header, header.getContext())}
+                                                    <div className={"flex flex-col justify-center"}>
+                                                        {canSort && (sortState === 'asc' ? <ArrowUp size={15}/> : sortState === 'desc' ? <ArrowDown size={15}/> : <ArrowUpDown size={15}/>)}
+                                                    </div>
+                                                </div>}
                                         </TableHead>
                                     )
                                 })}
@@ -300,11 +367,20 @@ const FileTable: FC<{ currentDir: string }> = ({ currentDir }) => {
                             </TableCell>
                         </TableRow> : table.getRowModel().rows?.length
                             ? <>
-                                { encodedPathFragments.length <= 1 ? <></> : <TableRow className={"cursor-pointer"}>
-                                    <TableCell className={'flex flex-row gap-2'}>
+                                { encodedPathFragments.length <= 1 ? <></> : <TableRow className={"cursor-pointer"} onClick={() => navigate(`/listings/browser${encodedPathFragments[encodedPathFragments.length - 2].url}`)}>
+                                    <TableCell className={'max-w-fit'}>
                                         <Link to={`/listings/browser${encodedPathFragments[encodedPathFragments.length - 2].url}`} className={'flex flex-row gap-2 w-full'} >
                                             { getIcon('FOLDER') }
+                                        </Link>
+                                    </TableCell>
+                                    <TableCell className={'flex flex-row gap-2'}>
+                                        <Link to={`/listings/browser${encodedPathFragments[encodedPathFragments.length - 2].url}`} className={'flex flex-row gap-2 w-full'} >
                                             <span>..</span>
+                                        </Link>
+                                    </TableCell>
+                                    <TableCell className={'w-1/5'}>
+                                        <Link to={`/listings/browser${encodedPathFragments[encodedPathFragments.length - 2].url}`} className={'flex flex-row gap-2 w-full'} >
+                                            <span className={'invisible'}>a</span>
                                         </Link>
                                     </TableCell>
                                 </TableRow> }
@@ -324,6 +400,50 @@ const FileTable: FC<{ currentDir: string }> = ({ currentDir }) => {
                         )}
                     </TableBody>
                 </Table>
+
+                <div className="flex items-start md:items-center justify-between space-y-2 md:space-y-0 py-2">
+                    <div className={"flex flex-col md:flex-row items-start md:items-center space-y-2 md:space-y-0 md:space-x-2 ml-2"}>
+                        <div className={"flex flex-col justify-center text-center"}>
+                            <div className={"text-secondary"}>
+                                Page {pagination.pageIndex + 1} of {pageCount == 0 ? 1 : pageCount}
+                            </div>
+                        </div>
+                        <div className={"ml-0 md:ml-3"}>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger disabled={isLoading} asChild>
+                                    <Button className={"border-secondary border-2 cursor-pointer hover:bg-secondary hover:text-primary"}>
+                                        <span className={"hidden md:block"}>
+                                            Page size:&nbsp;
+                                        </span>
+                                        { pagination.pageSize }
+                                        <ChevronDown/>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="center">
+                                    { possiblePageSizes.map((p, i) => <DropdownMenuItem key={i} className={"cursor-pointer"} onSelect={() => setPagination({ ...pagination, pageSize: p })}>
+                                        { p }
+                                    </DropdownMenuItem>) }
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+                    </div>
+                    <div className="space-x-2 mr-2">
+                        <Button
+                            className={'cursor-pointer'}
+                            onClick={() => table.previousPage()}
+                            disabled={!table.getCanPreviousPage() || isLoading}
+                        >
+                            Previous
+                        </Button>
+                        <Button
+                            className={'cursor-pointer'}
+                            onClick={() => table.nextPage()}
+                            disabled={!table.getCanNextPage() || isLoading}
+                        >
+                            Next
+                        </Button>
+                    </div>
+                </div>
             </div>
         </div>
     </>

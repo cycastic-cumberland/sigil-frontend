@@ -1,12 +1,18 @@
 import { Button } from "@/components/ui/button.tsx"
 import { Input } from "@/components/ui/input.tsx"
 import { Label } from "@/components/ui/label.tsx"
-import {type FC, type HTMLAttributes, type SyntheticEvent, useRef, useState} from "react"
+import {type FC, type HTMLAttributes, type SyntheticEvent, useMemo, useRef, useState} from "react"
 import {cn} from "@/lib/utils.ts";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
-import {useNavigate} from "react-router";
+import {useLocation, useNavigate} from "react-router";
 import type {AxiosError} from "axios";
+
+const useQuery = () => {
+    const { search } = useLocation();
+
+    return useMemo(() => new URLSearchParams(search), [search]);
+}
 
 const UserAuthForm: FC<HTMLAttributes<HTMLDivElement>> = ({ className, ...props }) => {
     const [isLoading, setIsLoading] = useState<boolean>(false)
@@ -15,6 +21,7 @@ const UserAuthForm: FC<HTMLAttributes<HTMLDivElement>> = ({ className, ...props 
     const navigate = useNavigate()
     const emailRef = useRef<HTMLInputElement>(null)
     const passwordRef = useRef<HTMLInputElement>(null);
+    const query = useQuery()
 
     const onSubmit = async (event: SyntheticEvent) => {
         event.preventDefault()
@@ -33,7 +40,11 @@ const UserAuthForm: FC<HTMLAttributes<HTMLDivElement>> = ({ className, ...props 
                 return
             }
             await signInWithEmailAndPassword(email, password);
-            navigate('/')
+            if (query.get('redirect')){
+                navigate(`${query.get('redirect')}`)
+            } else {
+                navigate('/')
+            }
         } catch (e){
             // @ts-ignore
             setErrorType((e as AxiosError).response?.data?.message ?? "")

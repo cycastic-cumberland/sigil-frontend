@@ -43,7 +43,11 @@ const ChangeActiveProjectDialog = () => {
                         </>) }
                     </DialogDescription>
                 </DialogHeader>
-                <ProjectTable key={counter} isLoading={isLoading} setIsLoading={setIsLoading} onSelect={changeActiveProject}/>
+                <ProjectTable key={counter}
+                              isLoading={isLoading}
+                              setIsLoading={setIsLoading}
+                              onSelect={changeActiveProject}
+                              isDialog/>
             </DialogContent>
         </Dialog> : <Drawer open={open} onOpenChange={setOpen}>
             <DrawerContent>
@@ -60,7 +64,11 @@ const ChangeActiveProjectDialog = () => {
                     </DrawerDescription>
                 </DrawerHeader>
                 <div className={'w-full px-3 pb-3'}>
-                    <ProjectTable key={counter} isLoading={isLoading} setIsLoading={setIsLoading} onSelect={changeActiveProject}/>
+                    <ProjectTable key={counter}
+                                  isLoading={isLoading}
+                                  setIsLoading={setIsLoading}
+                                  onSelect={changeActiveProject}
+                                  isDialog/>
                 </div>
             </DrawerContent>
         </Drawer> }

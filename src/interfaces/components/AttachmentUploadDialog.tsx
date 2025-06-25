@@ -11,6 +11,7 @@ import {Button} from "@/components/ui/button.tsx";
 import {Progress} from "@/components/ui/progress.tsx";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle} from "@/components/ui/drawer.tsx";
+import {Spinner} from "@/components/ui/shadcn-io/spinner";
 
 const AttachmentUploadDialog: FC<{
     isOpened: boolean,
@@ -191,6 +192,7 @@ const AttachmentUploadDialog: FC<{
                     </label>
                 </Card>
                 <Button disabled={isLoading || !selectedFile} onClick={onUpload} className={`flex flex-grow border-secondary border-2 cursor-pointer hover:bg-secondary hover:text-primary ${error ? 'bg-destructive' : ''}`}>
+                    <Spinner className={isLoading ? '' : 'hidden'}/>
                     { error ? error : 'Upload' }
                 </Button>
                 <Progress value={progress} />

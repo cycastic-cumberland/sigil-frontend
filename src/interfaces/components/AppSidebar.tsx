@@ -107,7 +107,7 @@ const AppSidebar = () => {
     }
 
     const toggleTheme = () => {
-        if (theme === 'system' || theme === 'light'){
+        if (theme === 'light'){
             setTheme('dark')
         } else {
             setTheme('light')
@@ -169,7 +169,7 @@ const AppSidebar = () => {
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem className={"cursor-pointer"} onSelect={toggleTheme}>
                                 <div className={"flex flex-row"}>
-                                    <Switch className={"cursor-pointer"} checked={theme === 'system' || theme === 'light'}/>
+                                    <Switch className={"cursor-pointer"} checked={theme === 'dark'}/>
                                     <div className={"flex flex-col justify-center ml-2"}>
                                         <Label className={"text-primary"}>Dark mode</Label>
                                     </div>

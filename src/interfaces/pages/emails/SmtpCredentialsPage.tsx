@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/dropdown-menu.tsx";
 import ProjectGuard from "@/interfaces/layouts/ProjectGuard.tsx";
 import type {AxiosError} from "axios";
-import {Link} from "react-router";
+import {Link, useNavigate} from "react-router";
 import SmtpCredentialEditForm from "@/interfaces/components/SmtpCredentialEditForm.tsx";
 import {useProject} from "@/contexts/ProjectContext.tsx";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
@@ -97,31 +97,23 @@ const CreateSmtpCredentialDialog: FC<{ isLoading: boolean, setIsLoading: (l: boo
 const CredentialTable = () => {
     const [isLoading, setIsLoading] = useState(true)
     const [data, setData] = useState([] as BaseSmtpCredentialDto[])
-    const [pageIndex, setPageIndex] = useState(0);
-    const [pageSize, setPageSize] = useState(10);
+    const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [pageCount, setPageCount] = useState(0);
     const [sorting, setSorting] = useState<SortingState>([]);
     const [createCredOpened, setCreateCredOpened] = useState(false)
     const columns = useMemo(() => credentialSelectorColumnDef, [])
+    const navigate = useNavigate()
 
     const table = useReactTable({
         data,
-        columns: columns,
+        columns,
         pageCount,
-        state: {
-            pagination: { pageIndex, pageSize },
-            sorting,
-        },
+        state: { pagination, sorting },
         manualPagination: true,
         manualSorting: true,
         getCoreRowModel: getCoreRowModel(),
-        // getPaginationRowModel is only for client; we use pageCount above
         getSortedRowModel: getSortedRowModel(),
-        // @ts-ignore
-        onPaginationChange: ({ pageIndex, pageSize }) => {
-            setPageIndex(pageIndex);
-            setPageSize(pageSize);
-        },
+        onPaginationChange: setPagination,
         onSortingChange: setSorting,
     })
 
@@ -150,16 +142,16 @@ const CredentialTable = () => {
                 .join(',')
             : null;
 
-        updateTableContent(pageIndex, pageSize, sortParams).then(() => {})
-    }, [pageIndex, pageSize, sorting]);
+        updateTableContent(pagination.pageIndex, pagination.pageSize, sortParams).then(undefined)
+    }, [pagination, sorting]);
 
     return <>
         <CreateSmtpCredentialDialog isLoading={isLoading} setIsLoading={setIsLoading} opened={createCredOpened} setOpened={setCreateCredOpened}/>
         <div className={"my-3"}>
             <Button className={"text-secondary border-dashed border-2 border-secondary cursor-pointer " +
                     "hover:border-solid hover:text-primary hover:bg-secondary"}
-                    onClick={() => setCreateCredOpened(true)}>
-                <Plus/>
+                    onClick={() => setCreateCredOpened(true)} disabled={isLoading}>
+                { isLoading ? <Spinner/> : <Plus/> }
                 <span>Create credential</span>
             </Button>
         </div>
@@ -202,7 +194,7 @@ const CredentialTable = () => {
                             </TableCell>
                         </TableRow> : table.getRowModel().rows.length ? (
                             table.getRowModel().rows.map(row => (
-                                <TableRow key={row.id}>
+                                <TableRow key={row.id} className={'cursor-pointer'} onClick={() => navigate(`/emails/credential/${row.original.id}`)}>
                                     {row.getVisibleCells().map(cell => (
                                         <TableCell key={cell.id}>
                                             <Link to={`/emails/credential/${row.original.id}`}>
@@ -230,22 +222,22 @@ const CredentialTable = () => {
                     <div className={"flex flex-col md:flex-row items-start md:items-center space-y-2 md:space-y-0 md:space-x-2 ml-2"}>
                         <div className={"flex flex-col justify-center text-center"}>
                             <div className={"text-secondary"}>
-                                Page {pageIndex + 1} of {pageCount == 0 ? 1 : pageCount}
+                                Page {pagination.pageIndex + 1} of {pageCount == 0 ? 1 : pageCount}
                             </div>
                         </div>
                         <div className={"ml-0 md:ml-3"}>
                             <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
+                                <DropdownMenuTrigger disabled={isLoading} asChild>
                                     <Button className={"border-secondary border-2 cursor-pointer hover:bg-secondary hover:text-primary"}>
                                         <span className={"hidden md:block"}>
                                             Page size:&nbsp;
                                         </span>
-                                        { pageSize }
+                                        { pagination.pageSize }
                                         <ChevronDown/>
                                     </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    { possiblePageSizes.map((p, i) => <DropdownMenuItem key={i} className={"cursor-pointer"} onSelect={() => setPageSize(p)}>
+                                <DropdownMenuContent align="center">
+                                    { possiblePageSizes.map((p, i) => <DropdownMenuItem key={i} className={"cursor-pointer"} onSelect={() => setPagination({ ...pagination, pageSize: p })}>
                                         { p }
                                     </DropdownMenuItem>) }
                                 </DropdownMenuContent>
@@ -254,12 +246,14 @@ const CredentialTable = () => {
                     </div>
                     <div className="space-x-2 mr-2">
                         <Button
+                            className={'cursor-pointer'}
                             onClick={() => table.previousPage()}
                             disabled={!table.getCanPreviousPage() || isLoading}
                         >
                             Previous
                         </Button>
                         <Button
+                            className={'cursor-pointer'}
                             onClick={() => table.nextPage()}
                             disabled={!table.getCanNextPage() || isLoading}
                         >
