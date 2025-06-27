@@ -99,7 +99,8 @@ const AttachmentUploadDialog: FC<{
 
         const presignedResponse = await api.post('listings/attachment', {
             path: selectedPath,
-            mimeType: file.type
+            mimeType: file.type,
+            contentLength: file.size
         })
         const presigned = presignedResponse.data as AttachmentPresignedDto;
 
@@ -250,9 +251,18 @@ const AttachmentUploadDialog: FC<{
                             ref={fileDropRef}
                         />
                     </Card>
-                    <Button disabled={isLoading || !selectedFile} onClick={onUpload} className={`flex flex-grow border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background ${error ? 'bg-destructive' : ''}`}>
-                        { error ? error : 'Upload' }
-                    </Button>
+                    <div className="relative w-full">
+                        <Button disabled={isLoading || !selectedFile} onClick={onUpload} className={cn('w-full flex flex-grow border-foreground border-2 cursor-pointer',
+                            error ? 'bg-destructive' : '',
+                            isLoading ? '' : 'hover:bg-foreground hover:text-background')}>
+                            { isLoading && <span
+                                className={'absolute left-0 top-0 h-full bg-foreground opacity-50 transition-all duration-300 rounded-md'}
+                                style={{ width: `${progress}%` }}
+                            /> }
+                            <Spinner className={isLoading ? '' : 'hidden'}/>
+                            { error ? error : 'Upload' }
+                        </Button>
+                    </div>
                     <Progress value={progress} />
                 </div>
             </div>

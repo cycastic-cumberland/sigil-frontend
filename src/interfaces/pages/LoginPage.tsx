@@ -108,10 +108,10 @@ const UserAuthForm: FC<HTMLAttributes<HTMLDivElement>> = ({ className, ...props 
 const LoginPage = () => {
     return <>
         <div className={"min-h-screen w-full flex flex-row"}>
-            <div className={"min-w-1/2 bg-background hidden lg:flex border-r border-sidebar"}>
+            <div className={"min-w-1/2 bg-muted hidden lg:flex border-r border-sidebar"}>
 
             </div>
-            <div className={"flex flex-col justify-center w-full bg-foreground"}>
+            <div className={"flex flex-col justify-center w-full bg-background"}>
                 <div className={"flex flex-row w-full justify-center"}>
                     <UserAuthForm className={"w-2/3"}/>
                 </div>

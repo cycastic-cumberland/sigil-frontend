@@ -34,6 +34,7 @@ import ConfirmationDialog from "@/interfaces/components/ConfirmationDialog.tsx";
 import type {TanstackRow, TanstackTable} from "@/dto/aliases.ts";
 import {useProject} from "@/contexts/ProjectContext.tsx";
 import type {PageDto} from "@/dto/PageDto.ts";
+import {Tooltip, TooltipContent, TooltipTrigger} from "@/components/ui/tooltip.tsx";
 
 const itemsColumnDef: ColumnDef<FolderItemDto>[] = [
     {
@@ -117,7 +118,8 @@ const AttachmentContextMenu: FC<{
     fullPath: string,
     isLoading: boolean,
     setIsLoading: (b: boolean) => void,
-}> = ({ fullPath, isLoading, setIsLoading }) => {
+    uploadCompleted?: boolean,
+}> = ({ fullPath, isLoading, setIsLoading, uploadCompleted }) => {
     const downloadFile = async () => {
         try {
             setIsLoading(true)
@@ -134,7 +136,7 @@ const AttachmentContextMenu: FC<{
     }
 
     return <>
-        <DropdownMenuItem className={'cursor-pointer'} disabled={isLoading} onClick={downloadFile}>
+        <DropdownMenuItem className={'cursor-pointer'} disabled={isLoading || !(uploadCompleted ?? false)} onClick={downloadFile}>
             Download
         </DropdownMenuItem>
     </>
@@ -142,11 +144,12 @@ const AttachmentContextMenu: FC<{
 
 const ItemContextMenu: FC<{
     fullPath: string,
-    type: FolderItemType,
+    item: FolderItemDto,
     isLoading: boolean,
     setIsLoading: (b: boolean) => void,
-}> = ({ fullPath, type, isLoading, setIsLoading }): ReactNode => {
-    return type === 'ATTACHMENT' ? <AttachmentContextMenu fullPath={fullPath} isLoading={isLoading} setIsLoading={setIsLoading}/> : <>
+}> = ({ fullPath, item, isLoading, setIsLoading }): ReactNode => {
+    return item.type === 'ATTACHMENT' ?
+        <AttachmentContextMenu fullPath={fullPath} isLoading={isLoading} setIsLoading={setIsLoading} uploadCompleted={item.attachmentUploadCompleted}/> : <>
         <DropdownMenuItem className={'cursor-pointer'}>
             View/Update
         </DropdownMenuItem>
@@ -196,7 +199,7 @@ const ItemRow: FC<{
                 <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
-                    className={"cursor-pointer"}
+                    className={'cursor-pointer'}
                 >
                     {row.getVisibleCells().map((cell) => (
                         <TableCell key={cell.id} className={cell.column.id === 'type' ? 'max-w-fit' : 'gap-2'} onClick={() => row.original.type === 'FOLDER' && navigate(toListingUrl(row.original.name))}>
@@ -213,7 +216,18 @@ const ItemRow: FC<{
                                     </Link> }
                                 </>:
                                 <>
-                                    { cell.column.id === 'type' ? flexRender(cell.column.columnDef.cell, cell.getContext()) : <div className={'flex flex-row gap-2'}>
+                                    { cell.column.id === 'type'
+                                        ? !(row.original.attachmentUploadCompleted ?? true) ? <>
+                                            <Tooltip>
+                                                <TooltipTrigger className={'text-destructive'}>
+                                                    { flexRender(cell.column.columnDef.cell, cell.getContext()) }
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>This file is either not finished uploading or corrupted</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </> : flexRender(cell.column.columnDef.cell, cell.getContext())
+                                        : <div className={'flex flex-row gap-2'}>
                                         <span className={cell.column.id === 'name' ? 'text-wrap' : ''}>
                                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                         </span>
@@ -225,7 +239,7 @@ const ItemRow: FC<{
             </DropdownMenuTrigger>
             <DropdownMenuContent align={'start'}>
                 <ItemContextMenu fullPath={fullPath}
-                                 type={row.original.type}
+                                 item={row.original}
                                  isLoading={isLoading}
                                  setIsLoading={setIsLoading}/>
                 <DropdownMenuItem className={'cursor-pointer text-destructive'} disabled={isLoading} onClick={() => setConfirmDeleteOpened(true)}>
