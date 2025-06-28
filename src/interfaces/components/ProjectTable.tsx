@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import {ArrowLeft, ArrowRight, ChevronDown} from "lucide-react";
+import {notifyApiError} from "@/utils/errors.ts";
 
 const projectSelectorColumnDef: ColumnDef<ProjectDto>[] = [
     {
@@ -66,6 +67,8 @@ const ProjectTable: FC<{
             const page = await queryProjects(getAuth()!.userId, pageIndex + 1, pageSize, sortParams)
             setData(page.items)
             setPageCount(page.totalPages)
+        } catch (e) {
+            notifyApiError(e)
         } finally {
             setIsLoading(false)
         }

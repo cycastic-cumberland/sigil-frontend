@@ -10,6 +10,8 @@ import api from "@/api.tsx";
 import type {AxiosError} from "axios";
 import ConfirmationDialog from "@/interfaces/components/ConfirmationDialog.tsx";
 import {Button} from "@/components/ui/button.tsx";
+import {notifyApiError} from "@/utils/errors.ts";
+import {toast} from "sonner";
 
 const ProjectDetailsPage = () => {
     const [project, setProject] = useState(null as ProjectDto | null)
@@ -27,6 +29,8 @@ const ProjectDetailsPage = () => {
                 return;
             }
             setProject(await getProject(id))
+        } catch (e) {
+            notifyApiError(e)
         } finally {
             setIsLoading(false);
         }
@@ -45,12 +49,13 @@ const ProjectDetailsPage = () => {
             throw Error("unreachable")
         }
 
-        try{
+        try {
             setIsLoading(true)
             setError('')
 
             await api.post('projects/project', project)
             await reloadProject(Number(id))
+            toast.success("Project settings saved")
         } catch (e){
             // @ts-ignore
             setError((e as AxiosError).response?.data?.message ?? "")
@@ -64,7 +69,7 @@ const ProjectDetailsPage = () => {
             throw Error("unreachable")
         }
 
-        try{
+        try {
             setIsLoading(true)
             setError('')
 
@@ -73,6 +78,8 @@ const ProjectDetailsPage = () => {
             if ((activeProject?.id ?? null) === pid){
                 changeActiveProject(null)
             }
+
+            toast.success("Project deleted")
             navigate("/projects/browser")
         } catch (e){
             // @ts-ignore

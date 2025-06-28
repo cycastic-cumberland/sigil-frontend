@@ -130,7 +130,7 @@ const AppSidebar = () => {
                     <SidebarMenu>
                         { mg.items.map((mi, j) => <SidebarMenuItem key={j}>
                             <SidebarMenuButton asChild>
-                                <Link to={mi.url}>
+                                <Link to={mi.url} className={"hover:bg-sidebar-primary hover:text-sidebar-primary-foreground"}>
                                     { mi.icon }
                                     <span>{ mi.name }</span>
                                 </Link>

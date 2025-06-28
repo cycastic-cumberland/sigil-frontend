@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import {ChevronDown, Eye, EyeOff} from "lucide-react";
+import {Spinner} from "@/components/ui/shadcn-io/spinner";
 
 type SecuritySettings = "starttls" | "none"
 const possibleSecuritySettings: SecuritySettings[] = ["starttls", "none"]
@@ -94,7 +95,8 @@ const SmtpCredentialEditForm: FC<{ submissionText?: string, error?: string, isLo
                 <Label className="w-32">Security:</Label>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button className={`flex flex-grow border-foreground border-1 cursor-pointer bg-foreground text-background ${formValues.secureSmtp === 'none' ? 'border-destructive bg-destructive hover:bg-background hover:text-destructive' : 'hover:bg-background hover:text-foreground'}`}>
+                        <Button className={`flex flex-grow border-foreground border-1 cursor-pointer bg-foreground text-background ${formValues.secureSmtp === 'none' ? 'border-destructive bg-destructive hover:bg-background hover:text-destructive' : 'hover:bg-background hover:text-foreground'}`}
+                                disabled={isLoading}>
                             { formValues.secureSmtp }
                             <ChevronDown/>
                         </Button>
@@ -177,6 +179,7 @@ const SmtpCredentialEditForm: FC<{ submissionText?: string, error?: string, isLo
                 </div>
             </div>
             <Button disabled={isLoading} type={"submit"} className={`flex flex-grow border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background ${error ? 'bg-destructive' : ''}`}>
+                { isLoading && <Spinner/> }
                 { error ? error : submissionText ? submissionText : 'Create' }
             </Button>
         </div>

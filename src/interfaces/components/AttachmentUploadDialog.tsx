@@ -12,6 +12,7 @@ import {Progress} from "@/components/ui/progress.tsx";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle} from "@/components/ui/drawer.tsx";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
+import {toast} from "sonner";
 
 const AttachmentUploadDialog: FC<{
     isOpened: boolean,
@@ -116,6 +117,7 @@ const AttachmentUploadDialog: FC<{
                 id: presigned.id
             })
             setIsOpened(false)
+            toast.success("Attachment uploaded")
         } catch (e){
             await api.delete(`attachment?id=${encodeURIComponent(presigned.id)}`).catch(() => {})
             throw e
@@ -200,7 +202,7 @@ const AttachmentUploadDialog: FC<{
                             className={'absolute left-0 top-0 h-full bg-foreground opacity-50 transition-all duration-300 rounded-md'}
                             style={{ width: `${progress}%` }}
                         /> }
-                        <Spinner className={isLoading ? '' : 'hidden'}/>
+                        { isLoading && <Spinner/> }
                         { error ? error : 'Upload' }
                     </Button>
                 </div>

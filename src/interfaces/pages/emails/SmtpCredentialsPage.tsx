@@ -29,6 +29,8 @@ import SmtpCredentialEditForm from "@/interfaces/components/SmtpCredentialEditFo
 import {useProject} from "@/contexts/ProjectContext.tsx";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle} from "@/components/ui/drawer.tsx";
+import {notifyApiError} from "@/utils/errors.ts";
+import {toast} from "sonner";
 
 const credentialSelectorColumnDef: ColumnDef<BaseSmtpCredentialDto>[] = [
     {
@@ -48,7 +50,13 @@ const credentialSelectorColumnDef: ColumnDef<BaseSmtpCredentialDto>[] = [
 
 const possiblePageSizes = [5, 10, 20, 50, 100]
 
-const CreateSmtpCredentialDialog: FC<{ isLoading: boolean, setIsLoading: (l: boolean) => void, opened: boolean, setOpened: (o: boolean) => void }> = ({ isLoading, setIsLoading, opened, setOpened }) => {
+const CreateSmtpCredentialDialog: FC<{
+    isLoading: boolean,
+    setIsLoading: (l: boolean) => void,
+    opened: boolean,
+    setOpened: (o: boolean) => void,
+    refreshTrigger: () => void,
+}> = ({ isLoading, setIsLoading, opened, setOpened, refreshTrigger }) => {
     const [error, setError] = useState('')
     const isDesktop = useMediaQuery("(min-width: 768px)")
 
@@ -58,7 +66,9 @@ const CreateSmtpCredentialDialog: FC<{ isLoading: boolean, setIsLoading: (l: boo
             setError('')
 
             await api.post('emails/credential', credential)
-            window.location.reload()
+            refreshTrigger()
+            setOpened(false)
+            toast.success("SMTP Credential created")
         } catch (e){
             // @ts-ignore
             setError((e as AxiosError).response?.data?.message ?? "")
@@ -94,13 +104,15 @@ const CreateSmtpCredentialDialog: FC<{ isLoading: boolean, setIsLoading: (l: boo
     </Drawer>
 }
 
-const CredentialTable = () => {
-    const [isLoading, setIsLoading] = useState(true)
+const CredentialTableImpl: FC<{
+    setCreateCredOpened: (b: boolean) => void,
+    isLoading: boolean,
+    setIsLoading: (b: boolean) => void,
+}> = ({ setCreateCredOpened, isLoading, setIsLoading }) => {
     const [data, setData] = useState([] as BaseSmtpCredentialDto[])
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [pageCount, setPageCount] = useState(0);
     const [sorting, setSorting] = useState<SortingState>([]);
-    const [createCredOpened, setCreateCredOpened] = useState(false)
     const columns = useMemo(() => credentialSelectorColumnDef, [])
     const navigate = useNavigate()
 
@@ -130,6 +142,8 @@ const CredentialTable = () => {
             const page = response.data as PageDto<BaseSmtpCredentialDto>
             setData(page.items)
             setPageCount(page.totalPages)
+        } catch (e) {
+            notifyApiError(e)
         } finally {
             setIsLoading(false)
         }
@@ -145,8 +159,129 @@ const CredentialTable = () => {
         updateTableContent(pagination.pageIndex, pagination.pageSize, sortParams).then(undefined)
     }, [pagination, sorting]);
 
+    return <div className={"my-3 w-full"}>
+        <div className="rounded-md border border-foreground">
+            <Table className={"text-foreground"}>
+                <TableHeader>
+                    {table.getHeaderGroups().map(headerGroup => (
+                        <TableRow key={headerGroup.id}>
+                            {headerGroup.headers.map(header => {
+                                const canSort = header.column.getCanSort();
+                                const sortState = header.column.getIsSorted();
+                                return (
+                                    <TableHead
+                                        key={header.id}
+                                        onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                                        className={canSort ? 'cursor-pointer select-none text-foreground' : 'text-foreground'}
+                                    >
+                                        {header.isPlaceholder
+                                            ? null
+                                            : <div className={"flex flex-row gap-1"}>
+                                                {flexRender(header.column.columnDef.header, header.getContext())}
+                                                <div className={"flex flex-col justify-center"}>
+                                                    {canSort && (sortState === 'asc' ? <ArrowUp size={15}/> : sortState === 'desc' ? <ArrowDown size={15}/> : <ArrowUpDown size={15}/>)}
+                                                </div>
+                                            </div>}
+                                    </TableHead>
+                                );
+                            })}
+                        </TableRow>
+                    ))}
+                </TableHeader>
+                <TableBody>
+                    {isLoading ? <TableRow>
+                        <TableCell colSpan={columns.length}
+                                   className="h-24 text-foreground text-xl font-bold">
+                            <div className={"flex flex-row justify-center items-center content-center w-full"}>
+                                <Spinner/>
+                            </div>
+                        </TableCell>
+                    </TableRow> : table.getRowModel().rows.length ? (
+                        table.getRowModel().rows.map(row => (
+                            <TableRow key={row.id} className={'cursor-pointer'} onClick={() => navigate(`/emails/credential/${row.original.id}`)}>
+                                {row.getVisibleCells().map(cell => (
+                                    <TableCell key={cell.id}>
+                                        <Link to={`/emails/credential/${row.original.id}`}>
+                                            <div className={"w-full h-full"}>
+                                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                            </div>
+                                        </Link>
+                                    </TableCell>
+                                ))}
+                            </TableRow>
+                        ))
+                    ) : (
+                        <TableRow>
+                            <TableCell colSpan={columns.length}
+                                       className="h-24 text-center drop-zone cursor-pointer text-foreground text-xl font-bold"
+                                       onClick={() => setCreateCredOpened(true)}>
+                                No credential found. Press here to create one.
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
+
+            <div className="flex items-start md:items-center justify-between space-y-2 md:space-y-0 py-2">
+                <div className={"flex flex-col md:flex-row items-start md:items-center space-y-2 md:space-y-0 md:space-x-2 ml-2"}>
+                    <div className={"flex flex-col justify-center text-center"}>
+                        <div className={"text-foreground"}>
+                            Page {pagination.pageIndex + 1} of {pageCount == 0 ? 1 : pageCount}
+                        </div>
+                    </div>
+                    <div className={"ml-0 md:ml-3"}>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger disabled={isLoading} asChild>
+                                <Button className={"border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background"}>
+                                        <span className={"hidden md:block"}>
+                                            Page size:&nbsp;
+                                        </span>
+                                    { pagination.pageSize }
+                                    <ChevronDown/>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="center">
+                                { possiblePageSizes.map((p, i) => <DropdownMenuItem key={i} className={"cursor-pointer"} onSelect={() => setPagination({ ...pagination, pageSize: p })}>
+                                    { p }
+                                </DropdownMenuItem>) }
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                </div>
+                <div className="space-x-2 mr-2">
+                    <Button
+                        className={'cursor-pointer hover:bg-foreground hover:text-background'}
+                        onClick={() => table.previousPage()}
+                        disabled={!table.getCanPreviousPage() || isLoading}
+                    >
+                        Previous
+                    </Button>
+                    <Button
+                        className={'cursor-pointer hover:bg-foreground hover:text-background'}
+                        onClick={() => table.nextPage()}
+                        disabled={!table.getCanNextPage() || isLoading}
+                    >
+                        Next
+                    </Button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+const CredentialTable = () => {
+    const [createCredOpened, setCreateCredOpened] = useState(false)
+    const [isLoading, setIsLoading] = useState(false)
+    const [counter, setCounter] = useState(0)
+
+    const refreshTrigger = () => setCounter(c => c + 1);
+
     return <>
-        <CreateSmtpCredentialDialog isLoading={isLoading} setIsLoading={setIsLoading} opened={createCredOpened} setOpened={setCreateCredOpened}/>
+        <CreateSmtpCredentialDialog isLoading={isLoading}
+                                    setIsLoading={setIsLoading}
+                                    opened={createCredOpened}
+                                    setOpened={setCreateCredOpened}
+                                    refreshTrigger={refreshTrigger}/>
         <div className={"my-3"}>
             <Button className={"text-foreground border-dashed border-2 border-foreground cursor-pointer " +
                     "hover:border-solid hover:text-background hover:bg-foreground hover:bg-foreground"}
@@ -155,114 +290,10 @@ const CredentialTable = () => {
                 <span>Create credential</span>
             </Button>
         </div>
-        <div className={"my-3 w-full"}>
-            <div className="rounded-md border border-foreground">
-                <Table className={"text-foreground"}>
-                    <TableHeader>
-                        {table.getHeaderGroups().map(headerGroup => (
-                            <TableRow key={headerGroup.id}>
-                                {headerGroup.headers.map(header => {
-                                    const canSort = header.column.getCanSort();
-                                    const sortState = header.column.getIsSorted();
-                                    return (
-                                        <TableHead
-                                            key={header.id}
-                                            onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
-                                            className={canSort ? 'cursor-pointer select-none text-foreground' : 'text-foreground'}
-                                        >
-                                            {header.isPlaceholder
-                                                ? null
-                                                : <div className={"flex flex-row gap-1"}>
-                                                    {flexRender(header.column.columnDef.header, header.getContext())}
-                                                    <div className={"flex flex-col justify-center"}>
-                                                        {canSort && (sortState === 'asc' ? <ArrowUp size={15}/> : sortState === 'desc' ? <ArrowDown size={15}/> : <ArrowUpDown size={15}/>)}
-                                                    </div>
-                                                </div>}
-                                        </TableHead>
-                                    );
-                                })}
-                            </TableRow>
-                        ))}
-                    </TableHeader>
-                    <TableBody>
-                        {isLoading ? <TableRow>
-                            <TableCell colSpan={columns.length}
-                                       className="h-24 text-foreground text-xl font-bold">
-                                <div className={"flex flex-row justify-center items-center content-center w-full"}>
-                                    <Spinner/>
-                                </div>
-                            </TableCell>
-                        </TableRow> : table.getRowModel().rows.length ? (
-                            table.getRowModel().rows.map(row => (
-                                <TableRow key={row.id} className={'cursor-pointer'} onClick={() => navigate(`/emails/credential/${row.original.id}`)}>
-                                    {row.getVisibleCells().map(cell => (
-                                        <TableCell key={cell.id}>
-                                            <Link to={`/emails/credential/${row.original.id}`}>
-                                                <div className={"w-full h-full"}>
-                                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                                </div>
-                                            </Link>
-                                        </TableCell>
-                                    ))}
-                                </TableRow>
-                            ))
-                        ) : (
-                            <TableRow>
-                                <TableCell colSpan={columns.length}
-                                           className="h-24 text-center drop-zone cursor-pointer text-foreground text-xl font-bold"
-                                           onClick={() => setCreateCredOpened(true)}>
-                                    No credential found. Press here to create one.
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-
-                <div className="flex items-start md:items-center justify-between space-y-2 md:space-y-0 py-2">
-                    <div className={"flex flex-col md:flex-row items-start md:items-center space-y-2 md:space-y-0 md:space-x-2 ml-2"}>
-                        <div className={"flex flex-col justify-center text-center"}>
-                            <div className={"text-foreground"}>
-                                Page {pagination.pageIndex + 1} of {pageCount == 0 ? 1 : pageCount}
-                            </div>
-                        </div>
-                        <div className={"ml-0 md:ml-3"}>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger disabled={isLoading} asChild>
-                                    <Button className={"border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background"}>
-                                        <span className={"hidden md:block"}>
-                                            Page size:&nbsp;
-                                        </span>
-                                        { pagination.pageSize }
-                                        <ChevronDown/>
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="center">
-                                    { possiblePageSizes.map((p, i) => <DropdownMenuItem key={i} className={"cursor-pointer"} onSelect={() => setPagination({ ...pagination, pageSize: p })}>
-                                        { p }
-                                    </DropdownMenuItem>) }
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </div>
-                    </div>
-                    <div className="space-x-2 mr-2">
-                        <Button
-                            className={'cursor-pointer hover:bg-foreground hover:text-background'}
-                            onClick={() => table.previousPage()}
-                            disabled={!table.getCanPreviousPage() || isLoading}
-                        >
-                            Previous
-                        </Button>
-                        <Button
-                            className={'cursor-pointer hover:bg-foreground hover:text-background'}
-                            onClick={() => table.nextPage()}
-                            disabled={!table.getCanNextPage() || isLoading}
-                        >
-                            Next
-                        </Button>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <CredentialTableImpl key={counter}
+                             setCreateCredOpened={setCreateCredOpened}
+                             isLoading={isLoading}
+                             setIsLoading={setIsLoading}/>
     </>
 }
 

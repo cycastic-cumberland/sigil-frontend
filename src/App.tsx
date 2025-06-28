@@ -5,11 +5,12 @@ import PrivateRoute from "@/PrivateRoute.tsx";
 import {SidebarProvider} from "@/components/ui/sidebar.tsx";
 import {ProjectProvider} from "@/contexts/ProjectContext.tsx";
 import {ThemeProvider} from "@/contexts/ThemeContext.tsx";
+import {Toaster} from "@/components/ui/sonner"
 
 const App = () =>  {
-    // TODO: find out why this is inversed
     return (
         <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+            <Toaster/>
             <AuthorizationProvider>
                 <SidebarProvider>
                     <ProjectProvider>

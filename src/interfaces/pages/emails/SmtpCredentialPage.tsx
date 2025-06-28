@@ -11,10 +11,13 @@ import type {AxiosError} from "axios";
 import ConfirmationDialog from "@/interfaces/components/ConfirmationDialog.tsx";
 import {useProject} from "@/contexts/ProjectContext.tsx";
 import FullSizeSpinner from "@/interfaces/components/FullSizeSpinner.tsx";
+import {notifyApiError} from "@/utils/errors.ts";
+import {toast} from "sonner";
 
 const SmtpCredentialPageImpl = () => {
     const [credential, setCredential] = useState(null as DecryptedSmtpCredentialDto | null)
     const [isLoading, setIsLoading] = useState(false)
+    const [firstLoad, setFirstLoad] = useState(true)
     const [confirmDeleteOpened, setConfirmDeleteOpened] = useState(false)
     const [error, setError] = useState('')
     const { id } = useParams()
@@ -28,22 +31,28 @@ const SmtpCredentialPageImpl = () => {
             }
             const response = await api.get(`emails/credential?id=${encodeURIComponent(id)}`)
             setCredential(response.data as DecryptedSmtpCredentialDto)
+        } catch (e) {
+            notifyApiError(e)
         } finally {
             setIsLoading(false)
         }
     }
 
     useEffect(() => {
-        (async () => await reloadCredential(id))()
+        (async () => {
+            await reloadCredential(id)
+            setFirstLoad(false)
+        })()
     }, [id]);
 
     const onSave = async (c: DecryptedSmtpCredentialDto) => {
-        try{
+        try {
             setIsLoading(true)
             setError('')
 
             await api.post('emails/credential', c)
             await reloadCredential(id)
+            toast.success("SMTP credential saved")
         } catch (e){
             // @ts-ignore
             setError((e as AxiosError).response?.data?.message ?? "")
@@ -61,7 +70,10 @@ const SmtpCredentialPageImpl = () => {
             setError('')
 
             await api.delete(`emails/credential?id=${encodeURIComponent(credential.id)}`)
+            toast.success("SMTP credential deleted")
             navigate('/emails/credentials')
+        } catch (e) {
+            notifyApiError(e)
         } finally {
             setIsLoading(false)
         }
@@ -75,7 +87,7 @@ const SmtpCredentialPageImpl = () => {
                             message={'Are you sure you want to delete this credential?'}
                             acceptText={'Delete'}
                             destructive/>
-        { isLoading ? <FullSizeSpinner/> : !credential ? <div className={"flex flex-col flex-grow w-full justify-center gap-2"}>
+        { firstLoad && isLoading ? <FullSizeSpinner/> : !credential ? <div className={"flex flex-col flex-grow w-full justify-center gap-2"}>
             <div className={"w-full flex flex-row justify-center"}>
                 <Label className={"text-foreground font-bold text-4xl"}>
                     Credential not found
@@ -90,7 +102,9 @@ const SmtpCredentialPageImpl = () => {
             <div className={"w-full"}>
                 <div className={"lg:w-1/2 text-foreground flex flex-col gap-2"}>
                     <SmtpCredentialEditForm submissionText={'Save changes'} error={error} isLoading={isLoading} onSave={onSave} credential={credential}/>
-                    <Button className={"cursor-pointer bg-destructive text-background border-destructive border-1 hover:bg-background hover:text-destructive"} onClick={() => setConfirmDeleteOpened(true)}>Delete credential</Button>
+                    <Button className={"cursor-pointer bg-destructive text-background border-destructive border-1 hover:bg-background hover:text-destructive"}
+                            disabled={isLoading}
+                            onClick={() => setConfirmDeleteOpened(true)}>Delete credential</Button>
                 </div>
             </div>
         </div> }
