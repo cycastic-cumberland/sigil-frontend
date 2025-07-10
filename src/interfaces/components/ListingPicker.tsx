@@ -155,6 +155,7 @@ const ItemRow: FC<{
             setConfirmDeleteOpened(false)
 
             await api.delete(`listings?listingPath=${fullPath}`)
+            toast.success("Listing deleted")
         } catch (e) {
             notifyApiError(e)
         } finally {
@@ -162,7 +163,6 @@ const ItemRow: FC<{
         }
 
         refreshTrigger()
-        toast.success("Listing deleted")
     }
 
     const toListingUrl = (name: string) => {

@@ -9,6 +9,8 @@ import QueuePage from "@/interfaces/pages/emails/QueuePage.tsx";
 import TelemetryPage from "@/interfaces/pages/emails/TelemetryPage.tsx";
 import ProjectBrowserPage from "@/interfaces/pages/projects/ProjectBrowserPage.tsx";
 import ProjectDetailsPage from "@/interfaces/pages/projects/ProjectDetailsPage.tsx";
+import RegisterPage from "@/interfaces/pages/RegisterPage.tsx";
+import CompleteSignupPage from "@/interfaces/pages/CompleteSignupPage.tsx";
 
 export type RouteInfo = { index?: boolean, isPrivate: boolean, path?: string, element: ReactNode };
 
@@ -22,6 +24,16 @@ export const AppRoutes : RouteInfo[] = [
         isPrivate: false,
         path: "/login",
         element: <LoginPage/>
+    },
+    {
+        isPrivate: false,
+        path: "/register",
+        element: <RegisterPage/>
+    },
+    {
+        isPrivate: false,
+        path: "/complete-signup",
+        element: <CompleteSignupPage/>
     },
     {
         isPrivate: true,

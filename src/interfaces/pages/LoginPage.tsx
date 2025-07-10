@@ -1,12 +1,13 @@
 import { Button } from "@/components/ui/button.tsx"
 import { Input } from "@/components/ui/input.tsx"
 import { Label } from "@/components/ui/label.tsx"
-import {type FC, type HTMLAttributes, type SyntheticEvent, useMemo, useRef, useState} from "react"
+import {type FC, type HTMLAttributes, type SyntheticEvent, useEffect, useMemo, useRef, useState} from "react"
 import {cn} from "@/lib/utils.ts";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
-import {useLocation, useNavigate} from "react-router";
-import type {AxiosError} from "axios";
+import {Link, useLocation, useNavigate, useSearchParams} from "react-router";
+import {toast} from "sonner";
+import {notifyApiError} from "@/utils/errors.ts";
 
 const useQuery = () => {
     const { search } = useLocation();
@@ -16,7 +17,6 @@ const useQuery = () => {
 
 const UserAuthForm: FC<HTMLAttributes<HTMLDivElement>> = ({ className, ...props }) => {
     const [isLoading, setIsLoading] = useState<boolean>(false)
-    const [errorType, setErrorType] = useState("")
     const { signInWithEmailAndPassword } = useAuthorization()
     const navigate = useNavigate()
     const emailRef = useRef<HTMLInputElement>(null)
@@ -25,18 +25,17 @@ const UserAuthForm: FC<HTMLAttributes<HTMLDivElement>> = ({ className, ...props 
 
     const onSubmit = async (event: SyntheticEvent) => {
         event.preventDefault()
-        setErrorType("")
         setIsLoading(true)
 
         try {
             const email = emailRef.current?.value;
             const password = passwordRef.current?.value;
             if (!email){
-                setErrorType("Email is required")
+                toast.error("Email is required")
                 return
             }
             if (!password){
-                setErrorType("Password is required")
+                toast.error("Password is required")
                 return
             }
             await signInWithEmailAndPassword(email, password);
@@ -47,7 +46,7 @@ const UserAuthForm: FC<HTMLAttributes<HTMLDivElement>> = ({ className, ...props 
             }
         } catch (e){
             // @ts-ignore
-            setErrorType((e as AxiosError).response?.data?.message ?? "")
+            notifyApiError(e)
         } finally {
             setIsLoading(false)
         }
@@ -93,11 +92,25 @@ const UserAuthForm: FC<HTMLAttributes<HTMLDivElement>> = ({ className, ...props 
                             disabled={isLoading}
                         />
                     </div>
-                    <Button disabled={isLoading} className={`hover:text-foreground cursor-pointer ${errorType ? "bg-destructive text-foreground" : "bg-foreground text-background"}`}>
+                    <Button disabled={isLoading}
+                            type={"submit"}
+                            className={"hover:text-foreground cursor-pointer bg-foreground text-background"}>
                         {isLoading && (
-                            <Spinner />
+                            <Spinner/>
                         )}
-                        { errorType ? errorType : "Sign In with Email" }
+                        Sign In with Email
+                    </Button>
+                    <div className="flex items-center">
+                        <hr className="flex-grow border-t border-muted-foreground"/>
+                        <span className="mx-2 text-sm text-muted-foreground">or</span>
+                        <hr className="flex-grow border-t border-muted-foreground"/>
+                    </div>
+                    <Button disabled={isLoading}
+                            className={'hover:text-background hover:bg-foreground cursor-pointer bg-background text-foreground shadow-none'}
+                            asChild>
+                        <Link to={'/register'}>
+                            Register with Email
+                        </Link>
                     </Button>
                 </div>
             </form>
@@ -106,6 +119,21 @@ const UserAuthForm: FC<HTMLAttributes<HTMLDivElement>> = ({ className, ...props 
 }
 
 const LoginPage = () => {
+    const [searchParams] = useSearchParams()
+    const [errorMessage, setErrorMessage] = useState(null as string | null)
+    const navigate = useNavigate()
+
+    useEffect(() => {
+        setErrorMessage(searchParams.get('error'))
+    }, [searchParams]);
+
+    useEffect(() => {
+        if (errorMessage){
+            toast.error(errorMessage)
+            navigate('/login')
+        }
+    }, [errorMessage]);
+
     return <>
         <div className={"min-h-screen w-full flex flex-row"}>
             <div className={"min-w-1/2 bg-muted hidden lg:flex border-r border-sidebar"}>

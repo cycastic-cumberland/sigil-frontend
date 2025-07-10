@@ -1,14 +1,18 @@
 import axios from 'axios';
 import type {AuthenticationResponseDto} from "@/dto/AuthenticationResponseDto.ts";
 import {getAuth, getSelectedProjectId, removeAuth, storeAuthResponse} from "@/utils/auth.ts";
+import {extractError} from "@/utils/errors.ts";
 
-const BACKEND_AUTHORITY: string = import.meta.env.VITE_BACKEND_AUTHORITY;
-
-console.log("Backend authority:", BACKEND_AUTHORITY)
+export const BACKEND_AUTHORITY: string = import.meta.env.VITE_BACKEND_AUTHORITY;
 
 const api = axios.create({
     baseURL: `${BACKEND_AUTHORITY}/api`,
 });
+
+const redirectWithError = (e: unknown) => {
+    removeAuth()
+    window.location.href = `/login?error=${extractError(e) ?? "Please sign in again"}`;
+}
 
 api.interceptors.request.use(config => {
     const auth = getAuth();
@@ -47,16 +51,14 @@ api.interceptors.response.use(
                 originalRequest.headers.Authorization = `Bearer ${authResponse.authToken}`;
                 return axios(originalRequest);
             } catch (refreshError) {
-                removeAuth()
-                window.location.href = '/login';
+                redirectWithError(error)
                 return Promise.reject(refreshError);
             }
         }
 
         // If already retried or another 401, redirect
         if (status === 401) {
-            removeAuth()
-            window.location.href = '/login';
+            redirectWithError(error)
         }
         return Promise.reject(error);
     }

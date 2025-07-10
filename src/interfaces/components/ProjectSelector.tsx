@@ -14,6 +14,7 @@ import {useSidebar} from "@/components/ui/sidebar.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle} from "@/components/ui/drawer.tsx";
+import type {ProjectDto} from "@/dto/ProjectDto.ts";
 
 const ChangeActiveProjectDialog = () => {
     const [open, setOpen] = useState(false)
@@ -21,6 +22,11 @@ const ChangeActiveProjectDialog = () => {
     const {activeProject, changeActiveProject} = useProject()
     const [counter, setCounter] = useState(0)
     const isDesktop = useMediaQuery("(min-width: 768px)")
+
+    const onSelect = async (project: ProjectDto) => {
+        changeActiveProject(project)
+        setOpen(false)
+    }
 
     return <>
         <Button disabled={isLoading}
@@ -67,7 +73,7 @@ const ChangeActiveProjectDialog = () => {
                     <ProjectTable key={counter}
                                   isLoading={isLoading}
                                   setIsLoading={setIsLoading}
-                                  onSelect={changeActiveProject}
+                                  onSelect={onSelect}
                                   isDialog/>
                 </div>
             </DrawerContent>

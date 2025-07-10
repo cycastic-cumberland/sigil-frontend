@@ -1,6 +1,6 @@
 import type {ProjectDto} from "@/dto/ProjectDto.ts";
 import {createContext, type FC, type ReactNode, useContext, useEffect, useState} from "react";
-import {getSelectedProjectId, removeSelectedProjectId, setSelectedProjectId} from "@/utils/auth.ts";
+import {getAuth, getSelectedProjectId, removeSelectedProjectId, setSelectedProjectId} from "@/utils/auth.ts";
 import api from "@/api.tsx";
 import type {PageDto} from "@/dto/PageDto.ts";
 
@@ -28,6 +28,9 @@ export const ProjectProvider: FC<{ children: ReactNode }> = ({ children }) => {
     }, []);
 
     const fetchActiveProject = async (): Promise<ProjectDto | null> => {
+        if (!getAuth()){
+            return null;
+        }
         const activeProjectId = getSelectedProjectId()
         if (!activeProjectId){
             return null;
