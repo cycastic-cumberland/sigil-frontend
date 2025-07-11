@@ -1,4 +1,13 @@
-import {type FC, type ReactNode, type SyntheticEvent, useEffect, useMemo, useState} from "react";
+import {
+    type FC,
+    type ReactNode,
+    type RefObject,
+    type SyntheticEvent,
+    useEffect,
+    useMemo,
+    useRef,
+    useState
+} from "react";
 import type {FolderItemDto, FolderItemType} from "@/dto/FolderItemDto.ts";
 import {
     type ColumnDef, flexRender,
@@ -9,7 +18,6 @@ import {
 } from "@tanstack/react-table";
 import {Link} from "react-router";
 import type {TanstackRow, TanstackTable} from "@/dto/aliases.ts";
-import api from "@/api.tsx";
 import type {PageDto} from "@/dto/PageDto.ts";
 import {
     DropdownMenu,
@@ -19,14 +27,25 @@ import {
 } from "@/components/ui/dropdown-menu.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
-import {ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, File, Folder, Hash, Text} from "lucide-react";
+import {ArrowDown, ArrowUp, ArrowUpDown, ChartPie, ChevronDown, File, Folder, Hash, Text} from "lucide-react";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table.tsx";
 import type {AttachmentPresignedDto} from "@/dto/AttachmentPresignedDto.ts";
 import ConfirmationDialog from "@/interfaces/components/ConfirmationDialog.tsx";
 import {Tooltip, TooltipContent, TooltipTrigger} from "@/components/ui/tooltip.tsx";
-import {extractAndEncodePathFragments} from "@/utils/path.ts";
-import {notifyApiError} from "@/utils/errors.ts";
+import {extractAndEncodePathFragments, splitByFirst} from "@/utils/path.ts";
+import {extractError, notifyApiError} from "@/utils/errors.ts";
 import {toast} from "sonner";
+import type {PartitionDto} from "@/dto/PartitionDto.ts";
+import {createApi, getServerEphemeralKey} from "@/api.tsx";
+import axios, {type AxiosInstance} from "axios";
+import {
+    base64ToUint8Array,
+    decryptWithPrivateKey,
+    digestMd5,
+    encryptWithPublicKey,
+    uint8ArrayToBase64
+} from "@/utils/cryptography.ts";
+import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
 
 const possiblePageSizes = [5, 10, 20]
 
@@ -70,33 +89,119 @@ const getIcon = (type: FolderItemType): ReactNode => {
             return <File/>
         case "FOLDER":
             return <Folder/>
+        case "PARTITION":
+            return <ChartPie/>
         default:
             throw Error("Unsupported type: " + type)
     }
 }
 
+const getFileNameFromPath = (path: string): string => {
+    return path.substring(path.lastIndexOf('/') + 1);
+}
+
+
 const AttachmentContextMenu: FC<{
     fullPath: string,
     isLoading: boolean,
+    api: AxiosInstance,
+    partitionRef: RefObject<PartitionDto | null>,
+    getPartitionKey: () => Promise<Uint8Array>,
     uploadCompleted?: boolean,
-}> = ({ fullPath, isLoading, uploadCompleted }) => {
+}> = ({ fullPath, isLoading, api, uploadCompleted, partitionRef, getPartitionKey }) => {
     const [isDownloading, setIsDownloading] = useState(false)
+    const toastIdRef = useRef('' as string | number);
 
-    const downloadFile = async () => {
+    const downloadFileDirect = async () => {
         try {
             setIsDownloading(true)
-            const response = await api.get(`listings/attachment/download?listingPath=${fullPath}`)
-            const presigned = response.data as AttachmentPresignedDto
+            const partitionKey = await getPartitionKey()
+            const partitionKeyMd5 = digestMd5(partitionKey)
+
+            const partitionKeyBase64 = uint8ArrayToBase64(partitionKey)
+            const partitionKeyMd5Base64 = uint8ArrayToBase64(partitionKeyMd5)
+            const presignedResponse = await api.get(`listings/attachment/presigned?listingPath=${fullPath}&keyMd5=${encodeURIComponent(partitionKeyMd5Base64)}&presignType=DIRECT_ENCRYPTED`)
+            const presigned = presignedResponse.data as AttachmentPresignedDto
+
+            const controller = new AbortController();
+            const s3Response = await axios.get(presigned.url, {
+                responseType: 'blob',
+                signal: controller.signal,
+                headers: {
+                    'x-amz-server-side-encryption-customer-algorithm': 'AES256',
+                    'x-amz-server-side-encryption-customer-key-md5': partitionKeyMd5Base64,
+                    'x-amz-server-side-encryption-customer-key': partitionKeyBase64,
+                },
+                onDownloadProgress: (progressEvent) => {
+                    const total = progressEvent.total ?? 1;
+                    let percentCompleted = Math.round((progressEvent.loaded * 100) / total);
+                    percentCompleted = percentCompleted > 100 ? 10 : percentCompleted;
+                    toast.loading(`Downloading... ${percentCompleted}%`, {
+                        id: toastIdRef.current,
+                        cancel: {
+                            label: 'Abort',
+                            onClick: () => controller.abort()
+                        }
+                    })
+                }
+            })
+            const fileName = getFileNameFromPath(fullPath)
+            const href = URL.createObjectURL(s3Response.data)
+            const link = document.createElement('a');
+            link.href = href
+            link.download = fileName
+            link.target = '_blank'
+            link.click();
+            link.remove();
+            toast.success("File downloaded", { id: toastIdRef.current, cancel: undefined })
+        } catch (e) {
+            if (axios.isCancel(e)){
+                toast.info("Download aborted")
+            } else {
+                const err = extractError(e) ?? 'Error encountered while proccessing request'
+                toast.error(err, { id: toastIdRef.current, cancel: undefined })
+                throw e
+            }
+        } finally {
+            setIsDownloading(false)
+        }
+    }
+
+    const downloadServerSideKeyDerivation = async () => {
+        try {
+            setIsDownloading(true)
+            const partitionKey = await getPartitionKey()
+            const partitionKeyBase64 = uint8ArrayToBase64(partitionKey)
+
+            const {publicKey, version} = await getServerEphemeralKey()
+            const encryptedPartitionKey = await encryptWithPublicKey(publicKey, Uint8Array.from(partitionKeyBase64.split("").map(x => x.charCodeAt(0))))
+
+            const presignedResponse = await api.get(`listings/attachment/presigned?listingPath=${fullPath}&presignType=SERVER_SIDE_KEY_DERIVATION`, {
+                headers: {
+                    'x-encryption-key': `vault:v${version}:${uint8ArrayToBase64(encryptedPartitionKey)}`
+                }
+            })
+            const presigned = presignedResponse.data as AttachmentPresignedDto
             const link = document.createElement('a')
             link.href = presigned.url
             link.target = '_blank'
             link.click();
             link.remove();
-        } catch (e) {
+        } catch (e: unknown){
             notifyApiError(e)
         } finally {
             setIsDownloading(false)
         }
+    }
+
+    const downloadFile = async () => {
+        if (partitionRef.current!.serverSideKeyDerivation){
+            await downloadServerSideKeyDerivation()
+            return
+        }
+
+        toastIdRef.current = toast.loading("Starting download");
+        await downloadFileDirect()
     }
 
     return <>
@@ -125,9 +230,12 @@ const ItemContextMenu: FC<{
     fullPath: string,
     item: FolderItemDto,
     isLoading: boolean,
-}> = ({ fullPath, item, isLoading }): ReactNode => {
+    api: AxiosInstance,
+    partitionRef: RefObject<PartitionDto | null>,
+    getPartitionKey: () => Promise<Uint8Array>,
+}> = ({ fullPath, item, isLoading, api, partitionRef, getPartitionKey }): ReactNode => {
     return item.type === 'ATTACHMENT' ?
-        <AttachmentContextMenu fullPath={fullPath} isLoading={isLoading} uploadCompleted={item.attachmentUploadCompleted}/> : <>
+        <AttachmentContextMenu fullPath={fullPath} isLoading={isLoading} api={api} partitionRef={partitionRef} getPartitionKey={getPartitionKey} uploadCompleted={item.attachmentUploadCompleted}/> : <>
             <DropdownMenuItem className={'cursor-pointer'}>
                 View/Update
             </DropdownMenuItem>
@@ -144,9 +252,12 @@ const ItemRow: FC<{
     prefix: string,
     refreshTrigger: () => void,
     selectAction: ListingSelectAction,
+    api: AxiosInstance,
+    partitionRef: RefObject<PartitionDto | null>,
+    getPartitionKey: () => Promise<Uint8Array>,
     onListingSelected: (fullPath: string) => void,
-}> = ({ row, currentDir, setCurrentDir, isLoading, setIsLoading, enableLinks, prefix, refreshTrigger, selectAction, onListingSelected }) => {
-    const fullPath = useMemo(() => currentDir + row.original.name, [currentDir, row])
+}> = ({ row, currentDir, setCurrentDir, isLoading, setIsLoading, enableLinks, prefix, refreshTrigger, selectAction, api, partitionRef, getPartitionKey, onListingSelected }) => {
+    const fullPath = useMemo(() => '/' + splitByFirst(currentDir, '/_/')[1] + row.original.name, [currentDir, row])
     const [confirmDeleteOpened, setConfirmDeleteOpened] = useState(false)
 
     const onDelete = async () => {
@@ -165,10 +276,11 @@ const ItemRow: FC<{
         refreshTrigger()
     }
 
-    const toListingUrl = (name: string) => {
+    const toListingUrl = () => {
+        const name = row.original.name
         const currentDirEncoded = encodedListingPath(currentDir)
         const nameEncoded = encodedListingPath(name)
-        return `${prefix}/${currentDirEncoded}/${nameEncoded}/`
+        return `${prefix}/${currentDirEncoded}/${nameEncoded}/${row.original.type === "PARTITION" ? '_/' : ''}`
     }
 
     const getFile = (name: string) => {
@@ -202,7 +314,7 @@ const ItemRow: FC<{
                             acceptText={'Delete'}
                             destructive/>
         <DropdownMenu>
-            <DropdownMenuTrigger asChild disabled={selectAction !== "dropdown" || (isLoading || row.original.type === 'FOLDER')}>
+            <DropdownMenuTrigger asChild disabled={selectAction !== "dropdown" || (isLoading || row.original.type === 'FOLDER' || row.original.type === 'PARTITION')}>
                 <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
@@ -210,12 +322,12 @@ const ItemRow: FC<{
                 >
                     {row.getVisibleCells().map((cell) => (
                         <TableCell key={cell.id} className={cell.column.id === 'type' ? 'max-w-fit' : 'gap-2'} onClick={onCellSelected}>
-                            { row.original.type === 'FOLDER' ? <>
+                            { (row.original.type === 'FOLDER' || row.original.type === 'PARTITION') ? <>
                                     { cell.column.id === 'type' ?
-                                        <LinkWrapper enableLinks={enableLinks} to={toListingUrl(row.original.name)} className={'flex flex-row gap-2 w-full'} >
+                                        <LinkWrapper enableLinks={enableLinks} to={toListingUrl()} className={'flex flex-row gap-2 w-full'} >
                                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                         </LinkWrapper>
-                                        : <LinkWrapper enableLinks={enableLinks} to={toListingUrl(row.original.name)}
+                                        : <LinkWrapper enableLinks={enableLinks} to={toListingUrl()}
                                                 className={'flex flex-row gap-2 w-full'} >
                                         <span className={'truncate'}>
                                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -247,7 +359,10 @@ const ItemRow: FC<{
             <DropdownMenuContent align={'start'}>
                 <ItemContextMenu fullPath={fullPath}
                                  item={row.original}
-                                 isLoading={isLoading}/>
+                                 isLoading={isLoading}
+                                 api={api}
+                                 partitionRef={partitionRef}
+                                 getPartitionKey={getPartitionKey}/>
                 <DropdownMenuItem className={'cursor-pointer text-destructive'} disabled={isLoading} onClick={() => setConfirmDeleteOpened(true)}>
                     Delete
                 </DropdownMenuItem>
@@ -261,16 +376,21 @@ const ListingPicker: FC<{
     setIsLoading: (b: boolean) => void,
     currentDir: string,
     setCurrentDir: (encodedPath: string) => void,
+    partitionRef: RefObject<PartitionDto | null>,
+    partitionKeyRef: RefObject<Uint8Array | null>,
     links?: boolean,
     linkPrefix?: string,
     selectAction?: ListingSelectAction,
     onListingSelected?: (fullPath: string) => void,
-}> = ({ isLoading, setIsLoading, currentDir, setCurrentDir, links, linkPrefix, selectAction, onListingSelected }) => {
+}> = ({ isLoading, setIsLoading, currentDir, setCurrentDir, partitionRef, partitionKeyRef, links, linkPrefix, selectAction, onListingSelected }) => {
     const [items, setItems] = useState([] as FolderItemDto[])
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [pageCount, setPageCount] = useState(0);
     const [sorting, setSorting] = useState<SortingState>([]);
+    const {userPrivateKey} = useAuthorization()
     const encodedPathFragments = useMemo(() => extractAndEncodePathFragments(currentDir), [currentDir])
+    const partitionIdRef = useRef(null as number | null)
+    const api = createApi(partitionIdRef)
     const table: TanstackTable<FolderItemDto> = useReactTable({
         data: items,
         columns: itemsColumnDef,
@@ -298,11 +418,42 @@ const ListingPicker: FC<{
         return updateTableContent(pagination.pageIndex, pagination.pageSize, sortParams)
     }
 
+    const getPartitionKey = async () => {
+        if (partitionKeyRef.current){
+            return partitionKeyRef.current
+        }
+
+        if (!partitionRef.current){
+            throw Error("Partition is not set")
+        }
+
+        const userKey = userPrivateKey!
+        const decryptedPartitionKey = await decryptWithPrivateKey(userKey, base64ToUint8Array(partitionRef.current.userPartitionKey.cipher))
+        partitionKeyRef.current = decryptedPartitionKey
+        return decryptedPartitionKey
+    }
+
     const updateTableContent = async (pageIndex: number, pageSize: number, sortParams: string | null) => {
         try {
             setIsLoading(true)
 
-            let url = `listings/subfolders?folder=${encodeURIComponent(currentDir)}&page=${pageIndex + 1}&pageSize=${pageSize}`
+            let url = ''
+            if (currentDir.includes("/_/")){
+                // eslint-disable-next-line prefer-const
+                let [partitionUrl, listingUrl] = splitByFirst(currentDir, '/_/')
+                listingUrl = '/' + listingUrl
+                if (!partitionIdRef.current || partitionUrl !== (partitionRef?.current?.partitionPath ?? '')){
+                    const resp = await api.get(`partitions/partition?partitionPath=${encodeURIComponent(partitionUrl)}`)
+                    const partitionData = resp.data as PartitionDto
+                    partitionRef.current = partitionData
+                    partitionIdRef.current = partitionData.id
+                    partitionKeyRef.current = null
+                }
+
+                url = `listings/subfolders?folder=${encodeURIComponent(listingUrl)}&page=${pageIndex + 1}&pageSize=${pageSize}`
+            } else {
+                url = `partitions?folder=${encodeURIComponent(currentDir)}&page=${pageIndex + 1}&pageSize=${pageSize}`
+            }
             if (sortParams !== null){
                 url = `${url}&orderBy=${encodeURIComponent(sortParams)}`
             }
@@ -383,6 +534,9 @@ const ListingPicker: FC<{
                                              prefix={linkPrefix ?? '/listings/browser'}
                                              refreshTrigger={refreshTrigger}
                                              selectAction={selectAction ?? "dropdown"}
+                                             api={api}
+                                             partitionRef={partitionRef}
+                                             getPartitionKey={getPartitionKey}
                                              onListingSelected={onListingSelected ?? (() => {throw Error("Listing callback not specified")})}/>
                                 )) }
                             </>

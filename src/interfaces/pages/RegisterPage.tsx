@@ -41,7 +41,7 @@ const RegisterForm: FC<HTMLAttributes<HTMLDivElement> & {
             <div className="grid gap-2">
                 <div className={"flex flex-col gap-2 text-center"}>
                     <h1 className={"text-2xl font-semibold tracking-tight text-foreground"}>
-                        Create a PortfolioToolkit account
+                        Create a Sigil account
                     </h1>
                     <p className={"text-muted-foreground text-sm"}>
                         Enter your credential below

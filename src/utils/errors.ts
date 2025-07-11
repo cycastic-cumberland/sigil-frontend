@@ -12,6 +12,10 @@ export const extractError = (e: unknown): string | undefined => {
         }
     }
 
+    if (e instanceof Error){
+        return e.message
+    }
+
     return undefined
 }
 

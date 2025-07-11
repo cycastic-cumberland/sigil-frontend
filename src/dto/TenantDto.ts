@@ -1,6 +1,6 @@
-export type ProjectDto = {
+export type TenantDto = {
     id?: number
-    projectName: string
+    tenantName: string
     corsSettings: string
     createdAt?: string
     updatedAt?: string

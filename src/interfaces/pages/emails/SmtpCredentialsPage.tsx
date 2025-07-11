@@ -26,7 +26,7 @@ import ProjectGuard from "@/interfaces/layouts/ProjectGuard.tsx";
 import type {AxiosError} from "axios";
 import {Link, useNavigate} from "react-router";
 import SmtpCredentialEditForm from "@/interfaces/components/SmtpCredentialEditForm.tsx";
-import {useProject} from "@/contexts/ProjectContext.tsx";
+import {useTenant} from "@/contexts/TenantContext.tsx";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle} from "@/components/ui/drawer.tsx";
 import {notifyApiError} from "@/utils/errors.ts";
@@ -298,7 +298,7 @@ const CredentialTable = () => {
 }
 
 const SmtpCredentialsPage = () => {
-    const {activeProject} = useProject()
+    const {activeProject} = useTenant()
 
     return <MainLayout>
         <ProjectGuard>

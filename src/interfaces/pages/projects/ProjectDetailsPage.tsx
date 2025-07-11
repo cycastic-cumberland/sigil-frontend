@@ -1,10 +1,10 @@
 import MainLayout from "@/interfaces/layouts/MainLayout.tsx";
 import {Label} from "@/components/ui/label.tsx";
 import {useEffect, useState} from "react";
-import type {ProjectDto} from "@/dto/ProjectDto.ts";
+import type {TenantDto} from "@/dto/TenantDto.ts";
 import FullSizeSpinner from "@/interfaces/components/FullSizeSpinner.tsx";
 import {useNavigate, useParams} from "react-router";
-import {useProject} from "@/contexts/ProjectContext.tsx";
+import {useTenant} from "@/contexts/TenantContext.tsx";
 import ProjectEditForm from "@/interfaces/components/ProjectEditForm.tsx";
 import api from "@/api.tsx";
 import type {AxiosError} from "axios";
@@ -14,12 +14,12 @@ import {notifyApiError} from "@/utils/errors.ts";
 import {toast} from "sonner";
 
 const ProjectDetailsPage = () => {
-    const [project, setProject] = useState(null as ProjectDto | null)
+    const [project, setProject] = useState(null as TenantDto | null)
     const [isLoading, setIsLoading] = useState(true)
     const [confirmDeleteOpened, setConfirmDeleteOpened] = useState(false)
     const [error, setError] = useState('')
     const { id } = useParams()
-    const { getProject, deleteProject, activeProject, changeActiveProject } = useProject()
+    const { getProject, deleteProject, activeProject, changeActiveProject } = useTenant()
     const navigate = useNavigate()
 
     const reloadProject = async (id: number) => {
@@ -44,7 +44,7 @@ const ProjectDetailsPage = () => {
         reloadProject(Number(id)).then(undefined)
     }, [id]);
 
-    const onSave = async (project: ProjectDto) => {
+    const onSave = async (project: TenantDto) => {
         if (!id){
             throw Error("unreachable")
         }
@@ -106,7 +106,7 @@ const ProjectDetailsPage = () => {
         </div> : <div className={"w-full p-5 flex flex-col"}>
             <div className={"my-2"}>
                 <Label className={"text-2xl text-foreground font-bold"}>
-                    { project.projectName }
+                    { project.tenantName }
                 </Label>
             </div>
             <div className={"w-full"}>

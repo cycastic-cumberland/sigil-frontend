@@ -1,12 +1,12 @@
 import {type ChangeEvent, type FC, type SyntheticEvent, useEffect, useState} from "react";
-import type {ProjectDto} from "@/dto/ProjectDto.ts";
+import type {TenantDto} from "@/dto/TenantDto.ts";
 import {Input} from "@/components/ui/input.tsx";
 import {Label} from "@/components/ui/label.tsx";
 import {Button} from "@/components/ui/button.tsx";
 
-const emptyProject = (): ProjectDto => {
+const emptyProject = (): TenantDto => {
     return {
-        projectName: "",
+        tenantName: "",
         corsSettings: "",
     }
 }
@@ -15,8 +15,8 @@ const ProjectEditForm: FC<{
     submissionText?: string,
     error?: string,
     isLoading: boolean,
-    project?: ProjectDto,
-    onSave: (project: ProjectDto) => void
+    project?: TenantDto,
+    onSave: (project: TenantDto) => void
 }> = ({ submissionText, error, isLoading, project, onSave }) => {
     const [formValues, setFormValues] = useState(project ? project : emptyProject())
 
@@ -60,7 +60,7 @@ const ProjectEditForm: FC<{
                 <Label className="w-32">Project name:</Label>
                 <Input
                     className="flex-1 border-foreground"
-                    value={formValues.projectName}
+                    value={formValues.tenantName}
                     onChange={handleChange}
                     id="projectName"
                     required

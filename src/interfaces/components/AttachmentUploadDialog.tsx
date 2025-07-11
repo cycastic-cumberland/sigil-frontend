@@ -1,6 +1,14 @@
-import {type ChangeEvent, type DragEvent, type FC, type SyntheticEvent, useEffect, useRef, useState} from "react";
-import axios, {type AxiosError, type AxiosProgressEvent} from "axios";
-import api from "@/api.tsx";
+import {
+    type ChangeEvent,
+    type DragEvent,
+    type FC,
+    type RefObject,
+    type SyntheticEvent,
+    useEffect,
+    useRef,
+    useState
+} from "react";
+import axios, {type AxiosProgressEvent} from "axios";
 import type {AttachmentPresignedDto} from "@/dto/AttachmentPresignedDto.ts";
 import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from "@/components/ui/dialog.tsx";
 import {Label} from "@/components/ui/label.tsx";
@@ -13,6 +21,11 @@ import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle} from "@/components/ui/drawer.tsx";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
 import {toast} from "sonner";
+import type {PartitionDto} from "@/dto/PartitionDto.ts";
+import {createApi, getServerEphemeralKey} from "@/api.tsx";
+import {digestMd5, encryptWithPublicKey, uint8ArrayToBase64} from "@/utils/cryptography.ts";
+import {splitByFirst} from "@/utils/path.ts";
+import {notifyApiError} from "@/utils/errors.ts";
 
 const AttachmentUploadDialog: FC<{
     isOpened: boolean,
@@ -21,22 +34,26 @@ const AttachmentUploadDialog: FC<{
     setIsLoading: (l: boolean) => void,
     refreshTrigger: () => void,
     currentDir: string,
-}> = ({ isOpened, setIsOpened, isLoading, setIsLoading, refreshTrigger, currentDir }) => {
+    partitionRef: RefObject<PartitionDto | null>,
+    getPartitionKey: () => Promise<Uint8Array>,
+}> = ({ isOpened, setIsOpened, isLoading, setIsLoading, refreshTrigger, currentDir, partitionRef, getPartitionKey }) => {
     const [selectedFile, setSelectedFile] = useState(null as File | null)
     const [selectedPath, setSelectedPath] = useState('')
     const [isDragging, setIsDragging] = useState(false)
-    const [error, setError] = useState('')
     const [progress, setProgress] = useState(0.0)
     const isDesktop = useMediaQuery("(min-width: 768px)")
     const fileDropRef = useRef<HTMLInputElement>(null)
+    const partitionIdRef = useRef(null as number | null)
+    const api = createApi(partitionIdRef)
 
     useEffect(() => {
+        const filePath = '/' + splitByFirst(currentDir, '/_/')[1]
         if (!selectedFile){
-            setSelectedPath(currentDir)
+            setSelectedPath(filePath)
             return
         }
 
-        setSelectedPath(`${currentDir}${selectedFile.name}`)
+        setSelectedPath(`${filePath}${selectedFile.name}`)
     }, [currentDir, selectedFile]);
 
     useEffect(() => {
@@ -45,7 +62,6 @@ const AttachmentUploadDialog: FC<{
         }
 
         setProgress(0.0)
-        setError('')
     }, [isOpened]);
 
     const handlePathChanged = (e: ChangeEvent<HTMLInputElement>) => {
@@ -98,8 +114,17 @@ const AttachmentUploadDialog: FC<{
             throw Error("unreachable")
         }
 
-        const presignedResponse = await api.post('listings/attachment', {
+        partitionIdRef.current = partitionRef.current?.id ?? null
+
+        const partitionKey = await getPartitionKey()
+        const partitionKeyMd5 = digestMd5(partitionKey)
+
+        const partitionKeyBase64 = uint8ArrayToBase64(partitionKey)
+        const partitionKeyMd5Base64 = uint8ArrayToBase64(partitionKeyMd5)
+
+        const presignedResponse = await api.post('listings/attachment/presigned', {
             path: selectedPath,
+            keyMd5: partitionKeyMd5Base64,
             mimeType: file.type,
             contentLength: file.size
         })
@@ -108,7 +133,10 @@ const AttachmentUploadDialog: FC<{
         try {
             await axios.put(presigned.url, file, {
                 headers: {
-                    'Content-Type': 'application/octet-stream'
+                    'content-type': 'application/octet-stream',
+                    'x-amz-server-side-encryption-customer-algorithm': 'AES256',
+                    'x-amz-server-side-encryption-customer-key-md5': partitionKeyMd5Base64,
+                    'x-amz-server-side-encryption-customer-key': partitionKeyBase64,
                 },
 
                 onUploadProgress: uploadEvent
@@ -124,20 +152,46 @@ const AttachmentUploadDialog: FC<{
         }
     }
 
+    const directUpload = async () => {
+        const file = selectedFile;
+        if (!file){
+            throw Error("unreachable")
+        }
+
+        partitionIdRef.current = partitionRef.current?.id ?? null
+
+        const partitionKey = await getPartitionKey()
+        const partitionKeyBase64 = uint8ArrayToBase64(partitionKey)
+
+        const {publicKey, version} = await getServerEphemeralKey()
+        const encryptedPartitionKey = await encryptWithPublicKey(publicKey, Uint8Array.from(partitionKeyBase64.split("").map(x => x.charCodeAt(0))))
+        const data = new FormData();
+        data.append("file", file)
+        await api.post(`listings/attachment?listingPath=${selectedPath}`, data, {
+            headers: {
+                'content-type': 'multipart/form-data',
+                'x-encryption-key': `vault:v${version}:${uint8ArrayToBase64(encryptedPartitionKey)}`
+            },
+
+            onUploadProgress: uploadEvent
+        })
+    }
+
     const onUpload = async () => {
         setIsLoading(true)
-        setError('')
         setProgress(0.0)
         let hasError = false;
         try {
-            await uploadPresigned()
-        } catch (e){
-            const ae = e as AxiosError;
-            if (ae.status === 409){
-                setError('Listing with the same name already exists')
+            if (partitionRef.current!.serverSideKeyDerivation){
+                await directUpload()
             } else {
-                // @ts-ignore
-                setError(ae.response?.data?.message ?? "")
+                await uploadPresigned()
+            }
+        } catch (e){
+            if (axios.isAxiosError(e) && e.status === 409){
+                toast.error('Listing with the same path already exists')
+            } else {
+                notifyApiError(e)
             }
 
             hasError = true
@@ -147,6 +201,7 @@ const AttachmentUploadDialog: FC<{
 
         if (!hasError) {
             refreshTrigger()
+            setIsOpened(false)
         }
     }
 
@@ -196,14 +251,13 @@ const AttachmentUploadDialog: FC<{
                 </Card>
                 <div className="relative w-full">
                     <Button disabled={isLoading || !selectedFile} onClick={onUpload} className={cn('w-full flex flex-grow border-foreground border-2 cursor-pointer',
-                        error ? 'bg-destructive' : '',
                         isLoading ? '' : 'hover:bg-foreground hover:text-background')}>
                         { isLoading && <span
                             className={'absolute left-0 top-0 h-full bg-foreground opacity-50 transition-all duration-300 rounded-md'}
                             style={{ width: `${progress}%` }}
                         /> }
                         { isLoading && <Spinner/> }
-                        { error ? error : 'Upload' }
+                        Upload
                     </Button>
                 </div>
                 <Progress value={progress} />
@@ -255,14 +309,13 @@ const AttachmentUploadDialog: FC<{
                     </Card>
                     <div className="relative w-full">
                         <Button disabled={isLoading || !selectedFile} onClick={onUpload} className={cn('w-full flex flex-grow border-foreground border-2 cursor-pointer',
-                            error ? 'bg-destructive' : '',
                             isLoading ? '' : 'hover:bg-foreground hover:text-background')}>
                             { isLoading && <span
                                 className={'absolute left-0 top-0 h-full bg-foreground opacity-50 transition-all duration-300 rounded-md'}
                                 style={{ width: `${progress}%` }}
                             /> }
                             <Spinner className={isLoading ? '' : 'hidden'}/>
-                            { error ? error : 'Upload' }
+                            Upload
                         </Button>
                     </div>
                     <Progress value={progress} />

@@ -6,7 +6,7 @@ import {type FC, useState} from "react";
 import ProjectTable from "@/interfaces/components/ProjectTable.tsx";
 import {useNavigate} from "react-router";
 import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog.tsx";
-import type {ProjectDto} from "@/dto/ProjectDto.ts";
+import type {TenantDto} from "@/dto/TenantDto.ts";
 import ProjectEditForm from "@/interfaces/components/ProjectEditForm.tsx";
 import type {AxiosError} from "axios";
 import api from "@/api.tsx";
@@ -23,7 +23,7 @@ const CreateProjectDialog: FC<{
     const [error, setError] = useState('')
     const isDesktop = useMediaQuery("(min-width: 768px)")
 
-    const onSave = async (project: ProjectDto) => {
+    const onSave = async (project: TenantDto) => {
         try {
             setError('')
             setIsLoading(true)

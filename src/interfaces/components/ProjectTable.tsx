@@ -9,9 +9,9 @@ import {
     useReactTable
 } from "@tanstack/react-table";
 import {type FC, useEffect, useMemo, useState} from "react";
-import type {ProjectDto} from "@/dto/ProjectDto.ts";
+import type {TenantDto} from "@/dto/TenantDto.ts";
 import {getAuth} from "@/utils/auth.ts";
-import {useProject} from "@/contexts/ProjectContext.tsx";
+import {useTenant} from "@/contexts/TenantContext.tsx";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -22,9 +22,9 @@ import {Button} from "@/components/ui/button.tsx";
 import {ArrowLeft, ArrowRight, ChevronDown} from "lucide-react";
 import {notifyApiError} from "@/utils/errors.ts";
 
-const projectSelectorColumnDef: ColumnDef<ProjectDto>[] = [
+const projectSelectorColumnDef: ColumnDef<TenantDto>[] = [
     {
-        accessorKey: 'projectName',
+        accessorKey: 'tenantName',
         header: 'Name'
     },
     {
@@ -38,14 +38,14 @@ const possiblePageSizes = [5, 10, 20, 50, 100]
 const ProjectTable: FC<{
     isLoading: boolean,
     setIsLoading: (b: boolean) => void,
-    onSelect: (p: ProjectDto) => void,
+    onSelect: (p: TenantDto) => void,
     isDialog?: boolean,
 }> = ({ isLoading, setIsLoading, onSelect, isDialog }) => {
-    const [data, setData] = useState([] as ProjectDto[])
+    const [data, setData] = useState([] as TenantDto[])
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [pageCount, setPageCount] = useState(0);
     const [sorting, setSorting] = useState<SortingState>([]);
-    const {queryProjects} = useProject()
+    const {queryProjects} = useTenant()
     const columns = useMemo(() => projectSelectorColumnDef, [])
     const table = useReactTable({
         data,

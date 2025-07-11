@@ -3,7 +3,7 @@ import {BrowserRouter, Route, Routes} from "react-router";
 import {AppRoutes} from "@/AppRoutes.tsx";
 import PrivateRoute from "@/PrivateRoute.tsx";
 import {SidebarProvider} from "@/components/ui/sidebar.tsx";
-import {ProjectProvider} from "@/contexts/ProjectContext.tsx";
+import {TenantProvider} from "@/contexts/TenantContext.tsx";
 import {ThemeProvider} from "@/contexts/ThemeContext.tsx";
 import {Toaster} from "@/components/ui/sonner"
 
@@ -13,7 +13,7 @@ const App = () =>  {
             <Toaster/>
             <AuthorizationProvider>
                 <SidebarProvider>
-                    <ProjectProvider>
+                    <TenantProvider>
                         <BrowserRouter>
                             <Routes>
                                 { AppRoutes.map((route, index) => {
@@ -24,7 +24,7 @@ const App = () =>  {
                                 }) }
                             </Routes>
                         </BrowserRouter>
-                    </ProjectProvider>
+                    </TenantProvider>
                 </SidebarProvider>
             </AuthorizationProvider>
         </ThemeProvider>

@@ -9,7 +9,7 @@ import SmtpCredentialEditForm from "@/interfaces/components/SmtpCredentialEditFo
 import {Button} from "@/components/ui/button.tsx";
 import type {AxiosError} from "axios";
 import ConfirmationDialog from "@/interfaces/components/ConfirmationDialog.tsx";
-import {useProject} from "@/contexts/ProjectContext.tsx";
+import {useTenant} from "@/contexts/TenantContext.tsx";
 import FullSizeSpinner from "@/interfaces/components/FullSizeSpinner.tsx";
 import {notifyApiError} from "@/utils/errors.ts";
 import {toast} from "sonner";
@@ -112,7 +112,7 @@ const SmtpCredentialPageImpl = () => {
 }
 
 const SmtpCredentialPage = () => {
-    const {activeProject} = useProject()
+    const {activeProject} = useTenant()
 
     return <MainLayout>
         <ProjectGuard>

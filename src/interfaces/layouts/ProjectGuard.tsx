@@ -1,9 +1,9 @@
 import type {FC, ReactNode} from "react";
-import {useProject} from "@/contexts/ProjectContext.tsx";
+import {useTenant} from "@/contexts/TenantContext.tsx";
 import {Label} from "@/components/ui/label.tsx";
 
 const ProjectGuard: FC<{ children?: ReactNode | ReactNode[] }> = ({ children }) => {
-    const {activeProject} = useProject()
+    const {activeProject} = useTenant()
 
     return <>
         { activeProject ? children : <div className={"flex flex-col flex-grow w-full justify-center gap-2"}>

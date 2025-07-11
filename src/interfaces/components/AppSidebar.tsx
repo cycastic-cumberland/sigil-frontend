@@ -12,7 +12,13 @@ import {
 import {DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem} from "@/components/ui/dropdown-menu.tsx";
 import {getAuth} from "@/utils/auth.ts";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
-import {Construction, Folder, LayoutTemplate, Lock, Mail, Menu, Telescope} from "lucide-react";
+import {
+    Building2,
+    ChartPie,
+    Folder,
+    Menu,
+    Users
+} from "lucide-react";
 import {Link, useLocation} from "react-router";
 import {useTheme} from "@/contexts/ThemeContext.tsx";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
@@ -24,12 +30,17 @@ type MenuGroup = {
 
 const fullMenuGroups: MenuGroup[] = [
     {
-        title: "Projects",
+        title: "Tenants",
         items: [
             {
-                name: "All projects",
-                url: '/projects/browser',
-                icon: <Construction/>
+                name: "Active tenants",
+                url: '/tenants/browser',
+                icon: <Building2/>
+            },
+            {
+                name: "Members",
+                url: '/tenants/members',
+                icon: <Users/>
             },
         ]
     },
@@ -41,30 +52,15 @@ const fullMenuGroups: MenuGroup[] = [
                 url: '/listings/browser',
                 icon: <Folder/>
             },
-        ]
-    },
-    {
-        title: "Emails",
-        items: [
             {
-                name: "Templates",
-                url: '/emails/templates',
-                icon: <LayoutTemplate/>
+                name: "Partitions",
+                url: '/listings/partitions',
+                icon: <ChartPie/>
             },
             {
-                name: "Queue",
-                url: '/emails/queue',
-                icon: <Mail/>
-            },
-            {
-                name: "SMTP credentials",
-                url: '/emails/credentials',
-                icon: <Lock/>
-            },
-            {
-                name: "Telemetry",
-                url: '/emails/telemetry',
-                icon: <Telescope/>
+                name: "Members",
+                url: '/listings/members',
+                icon: <Users/>
             },
         ]
     }
