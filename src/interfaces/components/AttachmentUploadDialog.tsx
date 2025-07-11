@@ -22,10 +22,11 @@ import {Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle} fro
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
 import {toast} from "sonner";
 import type {PartitionDto} from "@/dto/PartitionDto.ts";
-import {createApi, getServerEphemeralKey} from "@/api.tsx";
-import {digestMd5, encryptWithPublicKey, uint8ArrayToBase64} from "@/utils/cryptography.ts";
+import {createApi} from "@/api.ts";
+import {digestMd5, uint8ArrayToBase64} from "@/utils/cryptography.ts";
 import {splitByFirst} from "@/utils/path.ts";
 import {notifyApiError} from "@/utils/errors.ts";
+import {useServerCommunication} from "@/contexts/ServerCommunicationContext.tsx";
 
 const AttachmentUploadDialog: FC<{
     isOpened: boolean,
@@ -45,6 +46,7 @@ const AttachmentUploadDialog: FC<{
     const fileDropRef = useRef<HTMLInputElement>(null)
     const partitionIdRef = useRef(null as number | null)
     const api = createApi(partitionIdRef)
+    const {wrapSecret} = useServerCommunication()
 
     useEffect(() => {
         const filePath = '/' + splitByFirst(currentDir, '/_/')[1]
@@ -163,14 +165,13 @@ const AttachmentUploadDialog: FC<{
         const partitionKey = await getPartitionKey()
         const partitionKeyBase64 = uint8ArrayToBase64(partitionKey)
 
-        const {publicKey, version} = await getServerEphemeralKey()
-        const encryptedPartitionKey = await encryptWithPublicKey(publicKey, Uint8Array.from(partitionKeyBase64.split("").map(x => x.charCodeAt(0))))
+        const encryptedPartitionKey = await wrapSecret(Uint8Array.from(partitionKeyBase64.split("").map(x => x.charCodeAt(0))))
         const data = new FormData();
         data.append("file", file)
         await api.post(`listings/attachment?listingPath=${selectedPath}`, data, {
             headers: {
                 'content-type': 'multipart/form-data',
-                'x-encryption-key': `vault:v${version}:${uint8ArrayToBase64(encryptedPartitionKey)}`
+                'x-encryption-key': encryptedPartitionKey
             },
 
             onUploadProgress: uploadEvent

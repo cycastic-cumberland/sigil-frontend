@@ -9,7 +9,7 @@ import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/
 import type {TenantDto} from "@/dto/TenantDto.ts";
 import ProjectEditForm from "@/interfaces/components/ProjectEditForm.tsx";
 import type {AxiosError} from "axios";
-import api from "@/api.tsx";
+import api from "@/api.ts";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {Drawer, DrawerContent, DrawerHeader} from "@/components/ui/drawer.tsx";
 

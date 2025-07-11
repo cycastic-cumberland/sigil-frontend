@@ -28,7 +28,7 @@ import PartitionEditForm from "@/interfaces/components/PartitionEditForm.tsx";
 import {notifyApiError} from "@/utils/errors.ts";
 import axios from "axios";
 import {toast} from "sonner";
-import api from "@/api.tsx";
+import api from "@/api.ts";
 import {base64ToUint8Array, decryptWithPrivateKey} from "@/utils/cryptography.ts";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
 
@@ -78,7 +78,7 @@ const CreatePartitionDialog: FC<{
         <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
                 <DialogTitle>Create a new partition</DialogTitle>
-                <DialogDescription>Partitions help you organize data into different compartments, with different encryption settings.</DialogDescription>
+                <DialogDescription>Partitions organize data into isolated compartments, each with its own encryption settings.</DialogDescription>
             </DialogHeader>
             <div className={"w-full"}>
                 <PartitionEditForm partition={values} isLoading={isLoading} onSave={onSubmit}/>
@@ -88,7 +88,7 @@ const CreatePartitionDialog: FC<{
         <DrawerContent>
             <DrawerHeader>
                 <DrawerTitle>Create a new partition</DrawerTitle>
-                <DrawerDescription>Partitions help you organize data into different compartments, with different encryption settings.</DrawerDescription>
+                <DrawerDescription>Partitions organize data into isolated compartments, each with its own encryption settings.</DrawerDescription>
             </DrawerHeader>
             <div className={"p-5"}>
                 <PartitionEditForm partition={values} isLoading={isLoading} onSave={onSubmit}/>

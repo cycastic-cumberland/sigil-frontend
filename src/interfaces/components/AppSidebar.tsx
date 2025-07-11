@@ -1,5 +1,5 @@
 import {type ReactNode, useEffect, useState} from "react";
-import api from "@/api.tsx";
+import api from "@/api.ts";
 import type {UserInfoDto} from "@/dto/UserInfoDto.ts";
 import {
     Sidebar,

@@ -13,7 +13,7 @@ import type {BaseSmtpCredentialDto, DecryptedSmtpCredentialDto} from "@/dto/Smtp
 import {type FC, useEffect, useMemo, useState} from "react";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
 import type {PageDto} from "@/dto/PageDto.ts";
-import api from "@/api.tsx";
+import api from "@/api.ts";
 import {Table, TableHeader, TableRow, TableHead, TableBody, TableCell} from "@/components/ui/table.tsx";
 import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from "@/components/ui/dialog.tsx";
 import {

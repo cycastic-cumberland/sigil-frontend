@@ -4,7 +4,7 @@ import {Label} from "@/components/ui/label.tsx";
 import {useEffect, useState} from "react";
 import type {DecryptedSmtpCredentialDto} from "@/dto/SmtpCredentialDto.ts";
 import {useNavigate, useParams} from "react-router";
-import api from "@/api.tsx";
+import api from "@/api.ts";
 import SmtpCredentialEditForm from "@/interfaces/components/SmtpCredentialEditForm.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import type {AxiosError} from "axios";

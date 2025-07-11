@@ -6,7 +6,7 @@ import FullSizeSpinner from "@/interfaces/components/FullSizeSpinner.tsx";
 import {useNavigate, useParams} from "react-router";
 import {useTenant} from "@/contexts/TenantContext.tsx";
 import ProjectEditForm from "@/interfaces/components/ProjectEditForm.tsx";
-import api from "@/api.tsx";
+import api from "@/api.ts";
 import type {AxiosError} from "axios";
 import ConfirmationDialog from "@/interfaces/components/ConfirmationDialog.tsx";
 import {Button} from "@/components/ui/button.tsx";

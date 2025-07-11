@@ -10,6 +10,7 @@ import {Spinner} from "@/components/ui/shadcn-io/spinner";
 import {toast} from "sonner";
 
 const DecryptionDialog: FC<{ isLoading: boolean, onSave: (password: string) => void }> = ({ isLoading, onSave }) => {
+    const {localLogout} = useAuthorization()
     const [password, setPassword] = useState("")
 
     const handleSubmit = async (e: SyntheticEvent) => {
@@ -41,6 +42,9 @@ const DecryptionDialog: FC<{ isLoading: boolean, onSave: (password: string) => v
                 <Button disabled={isLoading} type={"submit"} className={'flex flex-grow border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background'}>
                     { isLoading && <Spinner/> }
                     Unlock
+                </Button>
+                <Button disabled={isLoading} type={"button"} onClick={localLogout} className={'flex flex-grow border-destructive bg-destructive text-background border-2 cursor-pointer hover:bg-background hover:text-destructive'}>
+                    Log out
                 </Button>
             </div>
         </form>

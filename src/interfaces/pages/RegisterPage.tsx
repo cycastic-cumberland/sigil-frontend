@@ -7,7 +7,7 @@ import {Button} from "@/components/ui/button.tsx";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
 import {Link} from "react-router";
 import {notifyApiError} from "@/utils/errors.ts";
-import api from "@/api.tsx";
+import api from "@/api.ts";
 import {toast} from "sonner";
 
 const RegisterForm: FC<HTMLAttributes<HTMLDivElement> & {

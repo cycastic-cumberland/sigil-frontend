@@ -4,6 +4,7 @@ import {Input} from "@/components/ui/input.tsx";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
 import {Button} from "@/components/ui/button.tsx";
 import {Label} from "@/components/ui/label.tsx";
+import {Tooltip, TooltipContent, TooltipTrigger} from "@/components/ui/tooltip.tsx";
 
 const emptyPartition = (): UploadPartitionDto => {
     return {
@@ -72,16 +73,23 @@ const PartitionEditForm: FC<{
                 />
             </div>
             <div className="flex flex-row gap-2">
-                <Label className="w-32">SSE:</Label>
-                <div >
-                    <Input
-                        className="flex-1 border-foreground"
-                        checked={formValues.serverSideKeyDerivation}
-                        type={"checkbox"}
-                        onChange={handleChange}
-                        id="serverSideKeyDerivation"
-                        disabled={isLoading}
-                    />
+                <Label className="w-32">Enable SAE:</Label>
+                <div>
+                    <Tooltip>
+                        <TooltipTrigger>
+                            <Input
+                                className="flex-1 border-foreground"
+                                checked={formValues.serverSideKeyDerivation}
+                                type={"checkbox"}
+                                onChange={handleChange}
+                                id="serverSideKeyDerivation"
+                                disabled={isLoading}
+                            />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            Enable Server-Assisted Encryption (SAE) to enhance partition security by splitting key custody between users and Sigil.
+                        </TooltipContent>
+                    </Tooltip>
                 </div>
             </div>
             <Button disabled={isLoading} type={"submit"} className={'flex flex-grow border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background'}>

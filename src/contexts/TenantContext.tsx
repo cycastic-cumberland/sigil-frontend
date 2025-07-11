@@ -1,7 +1,7 @@
 import type {TenantDto} from "@/dto/TenantDto.ts";
 import {createContext, type FC, type ReactNode, useContext, useEffect, useState} from "react";
 import {getAuth, getSelectedProjectId, removeSelectedProjectId, setSelectedProjectId} from "@/utils/auth.ts";
-import api from "@/api.tsx";
+import api from "@/api.ts";
 import type {PageDto} from "@/dto/PageDto.ts";
 
 export type TenantContextType = {

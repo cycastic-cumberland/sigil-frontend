@@ -3,7 +3,6 @@ import type {AuthenticationResponseDto} from "@/dto/AuthenticationResponseDto.ts
 import {getAuth, getSelectedProjectId, removeAuth, storeAuthResponse} from "@/utils/auth.ts";
 import {extractError} from "@/utils/errors.ts";
 import type {RefObject} from "react";
-import {base64ToUint8Array} from "@/utils/cryptography.ts";
 
 export const BACKEND_AUTHORITY: string = import.meta.env.VITE_BACKEND_AUTHORITY;
 
@@ -76,28 +75,3 @@ export const createApi = (partitionIdRef: RefObject<number | null> | null) => {
 const api = createApi(null)
 
 export default api;
-
-export const getServerEphemeralKey = async (): Promise<{ publicKey: CryptoKey, version: number }> => {
-    const response = await api.get("auth/public-key")
-    const data = response.data as { publicKey: string, version: number }
-    const cleanPem = data.publicKey
-        .replace("-----BEGIN PUBLIC KEY-----", "")
-        .replace("-----END PUBLIC KEY-----", "")
-        .replace(/\s/g, "");
-    const pem = base64ToUint8Array(cleanPem)
-    const publicKey = await crypto.subtle.importKey(
-        "spki",
-        pem,
-        {
-            name: 'RSA-OAEP',
-            hash: { name: 'SHA-256' }
-        },
-        false,
-        ["encrypt"]
-    );
-
-    return {
-        publicKey,
-        version: data.version
-    }
-}

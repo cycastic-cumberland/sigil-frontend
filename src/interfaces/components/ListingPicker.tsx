@@ -36,16 +36,16 @@ import {extractAndEncodePathFragments, splitByFirst} from "@/utils/path.ts";
 import {extractError, notifyApiError} from "@/utils/errors.ts";
 import {toast} from "sonner";
 import type {PartitionDto} from "@/dto/PartitionDto.ts";
-import {createApi, getServerEphemeralKey} from "@/api.tsx";
+import {createApi} from "@/api.ts";
 import axios, {type AxiosInstance} from "axios";
 import {
     base64ToUint8Array,
     decryptWithPrivateKey,
     digestMd5,
-    encryptWithPublicKey,
     uint8ArrayToBase64
 } from "@/utils/cryptography.ts";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
+import {useServerCommunication} from "@/contexts/ServerCommunicationContext.tsx";
 
 const possiblePageSizes = [5, 10, 20]
 
@@ -110,7 +110,8 @@ const AttachmentContextMenu: FC<{
     uploadCompleted?: boolean,
 }> = ({ fullPath, isLoading, api, uploadCompleted, partitionRef, getPartitionKey }) => {
     const [isDownloading, setIsDownloading] = useState(false)
-    const toastIdRef = useRef('' as string | number);
+    const toastIdRef = useRef('' as string | number)
+    const {wrapSecret} = useServerCommunication()
 
     const downloadFileDirect = async () => {
         try {
@@ -173,12 +174,11 @@ const AttachmentContextMenu: FC<{
             const partitionKey = await getPartitionKey()
             const partitionKeyBase64 = uint8ArrayToBase64(partitionKey)
 
-            const {publicKey, version} = await getServerEphemeralKey()
-            const encryptedPartitionKey = await encryptWithPublicKey(publicKey, Uint8Array.from(partitionKeyBase64.split("").map(x => x.charCodeAt(0))))
+            const encryptedPartitionKey = await wrapSecret(Uint8Array.from(partitionKeyBase64.split("").map(x => x.charCodeAt(0))))
 
             const presignedResponse = await api.get(`listings/attachment/presigned?listingPath=${fullPath}&presignType=SERVER_SIDE_KEY_DERIVATION`, {
                 headers: {
-                    'x-encryption-key': `vault:v${version}:${uint8ArrayToBase64(encryptedPartitionKey)}`
+                    'x-encryption-key': encryptedPartitionKey
                 }
             })
             const presigned = presignedResponse.data as AttachmentPresignedDto

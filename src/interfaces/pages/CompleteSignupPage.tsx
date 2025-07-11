@@ -4,7 +4,7 @@ import {notifyApiError} from "@/utils/errors.ts";
 import axios from "axios";
 import FullSizeSpinner from "@/interfaces/components/FullSizeSpinner.tsx";
 import {toast} from "sonner";
-import {BACKEND_AUTHORITY} from "@/api.tsx";
+import {BACKEND_AUTHORITY} from "@/api.ts";
 
 const CompleteSignupPage = () => {
     const [searchParams] = useSearchParams()

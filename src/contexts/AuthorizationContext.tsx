@@ -1,10 +1,11 @@
 import {createContext, type FC, type ReactNode, useContext, useState} from "react";
-import api from "../api.tsx"
+import api from "../api.ts"
 import type {AuthenticationResponseDto} from "@/dto/AuthenticationResponseDto.ts";
 import {getAuth, removeAuth, removeSelectedProjectId, storeAuthResponse} from "@/utils/auth.ts";
 // @ts-ignore
 import argon2 from 'argon2-browser/dist/argon2-bundled.min.js';
 import {base64ToUint8Array, decryptAESGCM, digestSha256, uint8ArrayToBase64} from "@/utils/cryptography.ts";
+import type {KdfDetailsDto} from "@/dto/KdfDetailsDto.ts";
 
 export type AuthorizationContextType = {
     userPrivateKey: CryptoKey | null,
@@ -85,8 +86,27 @@ export const AuthorizationProvider: FC<{ children?: ReactNode }> = ({ children }
         setPrivateKey(privateKey)
     }
 
+    const deriveArgon2idHash = async (email: string, password: string): Promise<string> => {
+        const response = await api.get(`auth/kdf?userEmail=${encodeURIComponent(email)}`)
+        const kdfSettings = response.data as KdfDetailsDto
+        if (kdfSettings.algorithm !== 'argon2id'){
+            throw Error("Unsupported hash algorithm: " + kdfSettings.algorithm)
+        }
+
+        const keyLen = 32
+        const encoder = new TextEncoder();
+        const pass = encoder.encode(password)
+        const salt = base64ToUint8Array(kdfSettings.salt);
+        const parameters = kdfSettings.parameters
+        const derivedKey = await deriveKey(pass, salt, parameters.iterations, parameters.memoryKb, parameters.parallelism, keyLen)
+        return uint8ArrayToBase64(derivedKey)
+    }
+
     const signInWithEmailAndPassword = async (email: string, password: string): Promise<void> => {
-        const response = await api.post("auth", { email, password })
+        const response = await api.post("auth", {
+            email,
+            hashedPassword: await deriveArgon2idHash(email, password),
+        })
         const authResponse = response.data as AuthenticationResponseDto;
         storeAuthResponse(authResponse)
         await decryptPrivateKey(password)
