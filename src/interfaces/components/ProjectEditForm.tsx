@@ -7,7 +7,8 @@ import {Button} from "@/components/ui/button.tsx";
 const emptyProject = (): TenantDto => {
     return {
         tenantName: "",
-        corsSettings: "",
+        membership: "MEMBER",
+        permissions: ["MEMBER"]
     }
 }
 
@@ -66,22 +67,6 @@ const ProjectEditForm: FC<{
                     required
                     disabled={isLoading}
                 />
-            </div>
-            <div className="flex flex-row gap-2">
-                <Label className="w-32">Allowed origins:</Label>
-                <Input
-                    className="flex-1 border-foreground"
-                    value={formValues.corsSettings}
-                    onChange={handleChange}
-                    id="corsSettings"
-                    disabled={isLoading}
-                />
-            </div>
-            <div className="flex flex-row gap-2">
-                <Label className="w-32 invisible"/>
-                <p className={"text-muted-foreground text-sm flex-1"}>
-                    Multiple origins are separated by semicolons.
-                </p>
             </div>
             { !formValues.createdAt ? <></> : <div className="flex flex-row gap-2">
                 <Label className="w-32">Created at:</Label>

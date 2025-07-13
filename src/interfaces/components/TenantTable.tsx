@@ -21,11 +21,16 @@ import {
 import {Button} from "@/components/ui/button.tsx";
 import {ArrowLeft, ArrowRight, ChevronDown} from "lucide-react";
 import {notifyApiError} from "@/utils/errors.ts";
+import LinkWrapper from "@/interfaces/components/LinkWrapper.tsx";
 
 const projectSelectorColumnDef: ColumnDef<TenantDto>[] = [
     {
         accessorKey: 'tenantName',
         header: 'Name'
+    },
+    {
+        accessorFn: t => t.membership === "OWNER" ? "Owner" : t.membership === "MODERATOR" ? "Moderator" : "Member",
+        header: 'Membership'
     },
     {
         accessorKey: 'createdAt',
@@ -35,12 +40,13 @@ const projectSelectorColumnDef: ColumnDef<TenantDto>[] = [
 
 const possiblePageSizes = [5, 10, 20, 50, 100]
 
-const ProjectTable: FC<{
+const TenantTable: FC<{
     isLoading: boolean,
     setIsLoading: (b: boolean) => void,
     onSelect: (p: TenantDto) => void,
+    getRowLink?: (p: TenantDto) => string,
     isDialog?: boolean,
-}> = ({ isLoading, setIsLoading, onSelect, isDialog }) => {
+}> = ({ isLoading, setIsLoading, onSelect, getRowLink, isDialog }) => {
     const [data, setData] = useState([] as TenantDto[])
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [pageCount, setPageCount] = useState(0);
@@ -123,7 +129,11 @@ const ProjectTable: FC<{
                             >
                                 {row.getVisibleCells().map((cell) => (
                                     <TableCell key={cell.id}>
-                                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                        <LinkWrapper to={getRowLink ? getRowLink(row.original) : '#'}
+                                                     enableLinks={(!!getRowLink)}
+                                                     onClick={() => onSelect(row.original)}>
+                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                        </LinkWrapper>
                                     </TableCell>
                                 ))}
                             </TableRow>
@@ -185,4 +195,4 @@ const ProjectTable: FC<{
     </div>
 }
 
-export default ProjectTable;
+export default TenantTable;

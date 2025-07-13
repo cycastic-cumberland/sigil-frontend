@@ -4,7 +4,6 @@ export interface UserInfoDto {
     firstName: string
     lastName: string
     roles: string[]
-    projectLimit: number
-    lacpLimit: number
+    publicRsaKey: string,
     joinedAt: string
 }

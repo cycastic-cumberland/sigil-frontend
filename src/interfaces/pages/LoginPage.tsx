@@ -1,19 +1,14 @@
 import { Button } from "@/components/ui/button.tsx"
 import { Input } from "@/components/ui/input.tsx"
 import { Label } from "@/components/ui/label.tsx"
-import {type FC, type HTMLAttributes, type SyntheticEvent, useEffect, useMemo, useRef, useState} from "react"
+import {type FC, type HTMLAttributes, type SyntheticEvent, useEffect, useRef, useState} from "react"
 import {cn} from "@/lib/utils.ts";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
-import {Link, useLocation, useNavigate, useSearchParams} from "react-router";
+import {Link, useNavigate, useSearchParams} from "react-router";
 import {toast} from "sonner";
 import {notifyApiError} from "@/utils/errors.ts";
-
-const useQuery = () => {
-    const { search } = useLocation();
-
-    return useMemo(() => new URLSearchParams(search), [search]);
-}
+import {useQuery} from "@/utils/path.ts";
 
 const UserAuthForm: FC<HTMLAttributes<HTMLDivElement>> = ({ className, ...props }) => {
     const [isLoading, setIsLoading] = useState<boolean>(false)

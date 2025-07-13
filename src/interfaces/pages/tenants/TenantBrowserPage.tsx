@@ -3,7 +3,7 @@ import {Label} from "@/components/ui/label.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import {Plus} from "lucide-react";
 import {type FC, useState} from "react";
-import ProjectTable from "@/interfaces/components/ProjectTable.tsx";
+import TenantTable from "@/interfaces/components/TenantTable.tsx";
 import {useNavigate} from "react-router";
 import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog.tsx";
 import type {TenantDto} from "@/dto/TenantDto.ts";
@@ -59,11 +59,15 @@ const CreateProjectDialog: FC<{
     </Drawer>
 }
 
-const ProjectBrowserPage = () => {
+const TenantBrowserPage = () => {
     const [isLoading, setIsLoading] = useState(false)
     const [dialogOpened, setDialogOpened] = useState(false)
     const [counter, setCounter] = useState(0)
     const navigate = useNavigate()
+
+    const getLink = (t: TenantDto) => {
+        return `/tenant/${t.id}/manage`
+    }
 
     const reloadTrigger = () => setCounter(c => c + 1)
 
@@ -76,7 +80,7 @@ const ProjectBrowserPage = () => {
         <div className={"w-full p-5 flex flex-col"}>
             <div className={"my-2"}>
                 <Label className={"text-2xl text-foreground font-bold"}>
-                    All projects
+                    Active tenants
                 </Label>
             </div>
             <div className={"my-3"}>
@@ -88,13 +92,14 @@ const ProjectBrowserPage = () => {
                 </Button>
             </div>
             <div className={"my-3 w-full"}>
-                <ProjectTable key={counter}
-                              isLoading={isLoading}
-                              setIsLoading={setIsLoading}
-                              onSelect={(p) => { navigate(`/projects/${p.id}`) }}/>
+                <TenantTable key={counter}
+                             isLoading={isLoading}
+                             setIsLoading={setIsLoading}
+                             getRowLink={getLink}
+                             onSelect={(t) => { navigate(getLink(t)) }}/>
             </div>
         </div>
     </MainLayout>
 }
 
-export default ProjectBrowserPage
+export default TenantBrowserPage

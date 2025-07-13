@@ -3,7 +3,7 @@ import {Label} from "@/components/ui/label.tsx";
 import {useEffect, useState} from "react";
 import type {TenantDto} from "@/dto/TenantDto.ts";
 import FullSizeSpinner from "@/interfaces/components/FullSizeSpinner.tsx";
-import {useNavigate, useParams} from "react-router";
+import {useNavigate} from "react-router";
 import {useTenant} from "@/contexts/TenantContext.tsx";
 import ProjectEditForm from "@/interfaces/components/ProjectEditForm.tsx";
 import api from "@/api.ts";
@@ -13,13 +13,13 @@ import {Button} from "@/components/ui/button.tsx";
 import {notifyApiError} from "@/utils/errors.ts";
 import {toast} from "sonner";
 
-const ProjectDetailsPage = () => {
+const TenantDetailsPage = () => {
     const [project, setProject] = useState(null as TenantDto | null)
     const [isLoading, setIsLoading] = useState(true)
     const [confirmDeleteOpened, setConfirmDeleteOpened] = useState(false)
     const [error, setError] = useState('')
-    const { id } = useParams()
-    const { getProject, deleteProject, activeProject, changeActiveProject } = useTenant()
+    const {tenantId} = useTenant()
+    const { getProject, deleteProject, activeProject } = useTenant()
     const navigate = useNavigate()
 
     const reloadProject = async (id: number) => {
@@ -37,15 +37,15 @@ const ProjectDetailsPage = () => {
     }
 
     useEffect(() => {
-        if (!id){
+        if (!tenantId){
             return
         }
 
-        reloadProject(Number(id)).then(undefined)
-    }, [id]);
+        reloadProject(tenantId).then(undefined)
+    }, [tenantId]);
 
     const onSave = async (project: TenantDto) => {
-        if (!id){
+        if (!tenantId){
             throw Error("unreachable")
         }
 
@@ -54,7 +54,7 @@ const ProjectDetailsPage = () => {
             setError('')
 
             await api.post('projects/project', project)
-            await reloadProject(Number(id))
+            await reloadProject(tenantId!)
             toast.success("Project settings saved")
         } catch (e){
             // @ts-ignore
@@ -65,7 +65,7 @@ const ProjectDetailsPage = () => {
     }
 
     const onDelete = async () => {
-        if (!id){
+        if (!tenantId){
             throw Error("unreachable")
         }
 
@@ -73,10 +73,10 @@ const ProjectDetailsPage = () => {
             setIsLoading(true)
             setError('')
 
-            const pid = Number(id)
+            const pid = tenantId!
             await deleteProject(pid)
             if ((activeProject?.id ?? null) === pid){
-                changeActiveProject(null)
+                navigate('/')
             }
 
             toast.success("Project deleted")
@@ -100,13 +100,13 @@ const ProjectDetailsPage = () => {
         { isLoading ? <FullSizeSpinner/> : !project ? <div className={"flex flex-col flex-grow w-full justify-center gap-2"}>
             <div className={"w-full flex flex-row justify-center"}>
                 <Label className={"text-foreground font-bold text-4xl"}>
-                    Project not found
+                    Tenant not found
                 </Label>
             </div>
         </div> : <div className={"w-full p-5 flex flex-col"}>
             <div className={"my-2"}>
                 <Label className={"text-2xl text-foreground font-bold"}>
-                    { project.tenantName }
+                    Manage tenant
                 </Label>
             </div>
             <div className={"w-full"}>
@@ -123,4 +123,4 @@ const ProjectDetailsPage = () => {
     </MainLayout>
 }
 
-export default ProjectDetailsPage
+export default TenantDetailsPage

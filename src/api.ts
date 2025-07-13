@@ -1,17 +1,22 @@
 import axios from 'axios';
 import type {AuthenticationResponseDto} from "@/dto/AuthenticationResponseDto.ts";
-import {getAuth, getSelectedProjectId, removeAuth, storeAuthResponse} from "@/utils/auth.ts";
+import {getAuth, removeAuth, storeAuthResponse} from "@/utils/auth.ts";
 import {extractError} from "@/utils/errors.ts";
-import type {RefObject} from "react";
 
 export const BACKEND_AUTHORITY: string = import.meta.env.VITE_BACKEND_AUTHORITY;
+
+let projectId = null as number | null
+
+export const setProjectId = (id: number | null) => {
+    projectId = id
+}
 
 const redirectWithError = (e: unknown) => {
     removeAuth()
     window.location.href = `/login?error=${extractError(e) ?? "Please sign in again"}`;
 }
 
-export const createApi = (partitionIdRef: RefObject<number | null> | null) => {
+export const createApi = (partitionIdRef: { current: number | null } | null) => {
     const api = axios.create({
         baseURL: `${BACKEND_AUTHORITY}/api`,
     });
@@ -21,7 +26,6 @@ export const createApi = (partitionIdRef: RefObject<number | null> | null) => {
         if (auth) {
             config.headers.Authorization = `Bearer ${auth.authToken}`;
         }
-        const projectId = getSelectedProjectId();
         if (auth && projectId){
             config.headers["X-Tenant-Id"] = projectId.toString()
         }

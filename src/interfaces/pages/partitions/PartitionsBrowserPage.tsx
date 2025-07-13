@@ -8,7 +8,7 @@ import {
 } from "react";
 import {Label} from "@/components/ui/label.tsx";
 import {Button} from "@/components/ui/button.tsx";
-import {ChartPie, File, Plus} from "lucide-react";
+import {File, Plus, Users, Vault} from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -19,7 +19,12 @@ import AttachmentUploadDialog from "@/interfaces/components/AttachmentUploadDial
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
 import {useTenant} from "@/contexts/TenantContext.tsx";
 import ListingPicker from "@/interfaces/components/ListingPicker.tsx";
-import {extractAndEncodePathFragments, type ListingPathFragment} from "@/utils/path.ts";
+import {
+    encodedListingPath,
+    extractAndEncodePathFragments,
+    type ListingPathFragment,
+    splitByFirst
+} from "@/utils/path.ts";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from "@/components/ui/dialog.tsx";
 import {Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle} from "@/components/ui/drawer.tsx";
@@ -28,12 +33,13 @@ import PartitionEditForm from "@/interfaces/components/PartitionEditForm.tsx";
 import {notifyApiError} from "@/utils/errors.ts";
 import axios from "axios";
 import {toast} from "sonner";
-import api from "@/api.ts";
+import api, {createApi} from "@/api.ts";
 import {base64ToUint8Array, decryptWithPrivateKey} from "@/utils/cryptography.ts";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
+import type {PartitionUserDto} from "@/dto/PartitionUserDto.ts";
 
 const extractPath = (path: string): string => {
-    let subPath = path.replace(/^\/listings\/browser\/?/, '');
+    let subPath = path.replace(/^\/tenant\/[^/]+\/partitions\/browser\/?/, '');
     subPath = decodeURIComponent(subPath)
     subPath = subPath ? subPath : '/'
     subPath = subPath.endsWith('/') ? subPath : (subPath + '/')
@@ -97,18 +103,20 @@ const CreatePartitionDialog: FC<{
     </Drawer>
 }
 
-const FileTable: FC<{ currentDir: string }> = ({ currentDir }) => {
+const FileTable: FC<{ currentDir: string, partitionPath: string | null }> = ({ currentDir, partitionPath }) => {
     const [isLoading, setIsLoading] = useState(false)
     const [counter, setCounter] = useState(0)
     const [attachmentUploadOpened, setAttachmentUploadOpened] = useState(false)
     const [createPartitionOpened, setCreatePartitionOpened] = useState(false)
+    const [canManageMembership, setCanManageMembership] = useState(false)
     const {userPrivateKey} = useAuthorization()
+    const {tenantId} = useTenant()
     const partitionRef = useRef(null as PartitionDto | null)
     const partitionKeyRef = useRef(null as Uint8Array | null)
     const navigate = useNavigate()
     const partitionCreationActions: ReactNode[] = [
         (<DropdownMenuItem className={"cursor-pointer"} onClick={() => setCreatePartitionOpened(true)}>
-            <ChartPie/>
+            <Vault/>
             <span>
                 Partition
             </span>
@@ -122,14 +130,31 @@ const FileTable: FC<{ currentDir: string }> = ({ currentDir }) => {
             </span>
         </DropdownMenuItem>)
     ]
-    const creationActions = useMemo(() => currentDir.includes("/_/") ? listingCreationActions : partitionCreationActions, [currentDir])
+    const creationActions = useMemo(() => partitionPath ? listingCreationActions : partitionCreationActions, [partitionPath])
+
+    useEffect(() => {
+        if (!partitionPath){
+            setCanManageMembership(false)
+            return
+        }
+        (async () => {
+            const pResponse = await api.get(`partitions/partition?partitionPath=${encodeURIComponent(partitionPath)}`)
+            const p = pResponse.data as PartitionDto
+
+            const localApi = createApi({ current: p.id })
+            const puResponse = await localApi.get("partitions/members/self")
+            const pu = puResponse.data as PartitionUserDto
+            const manage = pu.permissions.includes("MODERATE")
+            setCanManageMembership(manage)
+        })()
+    }, [partitionPath]);
 
     const refreshTrigger = () => {
         setCounter(c => c + 1)
     }
 
     const onFolderSelected = (path: string) => {
-        const newPath = `/listings/browser${path}`;
+        const newPath = `/tenant/${tenantId}/partitions/browser${path}`;
         if (newPath === window.location.pathname){
             return
         }
@@ -167,19 +192,29 @@ const FileTable: FC<{ currentDir: string }> = ({ currentDir }) => {
                                reloadTrigger={refreshTrigger}
                                currentDir={currentDir}/>
         <div className={"my-3"}>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button className={"text-foreground border-dashed border-2 border-foreground cursor-pointer " +
-                        "hover:border-solid hover:text-background hover:bg-foreground"}
-                            onClick={() => {}} disabled={isLoading}>
-                        { isLoading ? <Spinner/> : <Plus/> }
-                        <span>Create...</span>
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="center">
-                    { creationActions }
-                </DropdownMenuContent>
-            </DropdownMenu>
+            <div className={"flex gap-2"}>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button className={"text-foreground border-dashed border-2 border-foreground cursor-pointer " +
+                            "hover:border-solid hover:text-background hover:bg-foreground"}
+                                disabled={isLoading}>
+                            { isLoading ? <Spinner/> : <Plus/> }
+                            <span>Create...</span>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="center">
+                        { creationActions }
+                    </DropdownMenuContent>
+                </DropdownMenu>
+                { partitionPath && <Button className={"text-background bg-foreground border-2 border-foreground cursor-pointer hover:text-foreground hover:bg-background"}
+                                           disabled={isLoading}
+                                           asChild>
+                    <Link to={`/tenant/${tenantId}/partitions/members/${encodedListingPath(partitionPath)}`}>
+                        { isLoading ? <Spinner/> : <Users/> }
+                        <span>{ canManageMembership ? "Manage" : "Members" }</span>
+                    </Link>
+                </Button> }
+            </div>
         </div>
         <ListingPicker key={counter}
                        isLoading={isLoading}
@@ -194,6 +229,7 @@ const FileTable: FC<{ currentDir: string }> = ({ currentDir }) => {
 
 const CurrentDirectory: FC<{ currentDir: string }> = ({ currentDir }) => {
     const [slices, setSlices] = useState([] as ListingPathFragment[])
+    const {tenantId} = useTenant()
 
     useEffect(() => {
         setSlices(extractAndEncodePathFragments(currentDir))
@@ -204,8 +240,8 @@ const CurrentDirectory: FC<{ currentDir: string }> = ({ currentDir }) => {
         { slices.map((s, i) => <>
             <span key={counter.i++}>
                 <Button className={"cursor-pointer bg-muted hover:bg-foreground hover:text-background mr-1 mb-1 flex flex-row max-w-fit"} asChild>
-                    <Link to={`/listings/browser${s.url}`}>
-                        { s.isPartition && <div ><ChartPie/></div> }
+                    <Link to={`/tenant/${tenantId}/partitions/browser${s.url}`}>
+                        { s.isPartition && <div ><Vault/></div> }
                         { i === 0 ? s.display : s.display.slice(0, s.display.length - 1) }
                     </Link>
                 </Button>
@@ -215,21 +251,24 @@ const CurrentDirectory: FC<{ currentDir: string }> = ({ currentDir }) => {
     </>
 }
 
-const ListingsBrowser = () => {
+const PartitionsBrowserPage = () => {
     const location = useLocation()
     const [currentDir, setCurrentDir] = useState('/')
-    const {activeProject} = useTenant()
+    const partitionPath = useMemo<string | null>(() => {
+        const split = splitByFirst(currentDir, '/_/')
+        return split.length === 1 ? null : split[0]
+    }, [currentDir])
 
     useEffect(() => {
         setCurrentDir(extractPath(location.pathname))
     }, [location]);
 
-    return <MainLayout>
+    return <MainLayout requireDecrypted={true}>
         <ProjectGuard>
             <div className={"w-full p-5 flex flex-col"}>
                 <div className={"my-2"}>
                     <Label className={"text-2xl text-foreground font-bold"}>
-                        Listing browser
+                        { partitionPath ? "Listing browser" : "Partition browser" }
                     </Label>
                     <span className={"flex flex-wrap mt-2"}>
                         <div className={"text-foreground text-sm flex flex-col justify-center mb-1"}>
@@ -238,10 +277,12 @@ const ListingsBrowser = () => {
                         <CurrentDirectory currentDir={currentDir}/>
                     </span>
                 </div>
-                <FileTable key={`${activeProject?.id ?? 0}:${currentDir}`} currentDir={currentDir}/>
+                <FileTable key={currentDir}
+                           partitionPath={partitionPath}
+                           currentDir={currentDir}/>
             </div>
         </ProjectGuard>
     </MainLayout>
 }
 
-export default ListingsBrowser
+export default PartitionsBrowserPage

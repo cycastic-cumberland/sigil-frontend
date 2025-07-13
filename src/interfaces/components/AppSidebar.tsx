@@ -1,5 +1,4 @@
 import {type ReactNode, useEffect, useState} from "react";
-import api from "@/api.ts";
 import type {UserInfoDto} from "@/dto/UserInfoDto.ts";
 import {
     Sidebar,
@@ -14,71 +13,75 @@ import {getAuth} from "@/utils/auth.ts";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
 import {
     Building2,
-    ChartPie,
-    Folder,
+    Folder, List,
     Menu,
-    Users
+    Users, Wrench
 } from "lucide-react";
 import {Link, useLocation} from "react-router";
 import {useTheme} from "@/contexts/ThemeContext.tsx";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
+import {useTenant} from "@/contexts/TenantContext.tsx";
+import format from "@/utils/format.ts";
+import {cn} from "@/lib/utils.ts";
 
 type MenuGroup = {
     title: string,
     items: {name: string, icon: ReactNode, url: string}[]
 }
 
+const startingMeuGroups: MenuGroup[] = []
+
 const fullMenuGroups: MenuGroup[] = [
     {
         title: "Tenants",
         items: [
             {
+                name: "Select tenant",
+                url: '/',
+                icon: <List/>
+            },
+            {
                 name: "Active tenants",
-                url: '/tenants/browser',
+                url: '/tenant/{}/browser',
                 icon: <Building2/>
             },
             {
                 name: "Members",
-                url: '/tenants/members',
+                url: '/tenant/{}/members',
                 icon: <Users/>
             },
         ]
     },
     {
-        title: "Listings",
+        title: "Partitions",
         items: [
             {
                 name: "Browser",
-                url: '/listings/browser',
+                url: '/tenant/{}/partitions/browser',
                 icon: <Folder/>
             },
             {
-                name: "Partitions",
-                url: '/listings/partitions',
-                icon: <ChartPie/>
-            },
-            {
-                name: "Members",
-                url: '/listings/members',
-                icon: <Users/>
+                name: "Manage",
+                url: '/tenant/{}/partitions/manage',
+                icon: <Wrench/>
             },
         ]
     }
 ]
 
 const AppSidebar = () => {
-    const [avatarUrl, setAvatarUrl] = useState("https://ui-avatars.com/api/?name=John+Doe")
+    const [avatarUrl, setAvatarUrl] = useState(null as string | null)
+    const {invalidateAllSessions, localLogout, getUserInfo} = useAuthorization()
     const [selfInfo, setSelfInfo] = useState(null as UserInfoDto | null)
     const {theme, setTheme} = useTheme()
-    const {invalidateAllSessions, localLogout} = useAuthorization()
+    const {tenantId} = useTenant()
     const {state, setOpenMobile} = useSidebar()
     const isDesktop = useMediaQuery("(min-width: 768px)")
     const location = useLocation();
 
     useEffect(() => {
         (async () => {
-            const response = await api.get("auth/self")
-            const myInfo = response.data as UserInfoDto
+            const myInfo = await getUserInfo()
             setSelfInfo(myInfo)
             setAvatarUrl(`https://ui-avatars.com/api/?name=${encodeURIComponent(`${myInfo.firstName} ${myInfo.lastName}`)}`)
         })()
@@ -120,13 +123,13 @@ const AppSidebar = () => {
             </Link> : <Link to={'/'}><img className={"w-8 aspect-square"} src={"/icon.svg"} alt={"logo"}/></Link> }
         </SidebarHeader>
         <SidebarContent className={"bg-sidebar-accent"}>
-            { fullMenuGroups.map((mg, i) => <SidebarGroup key={i}>
+            { (tenantId ? fullMenuGroups : startingMeuGroups).map((mg, i) => <SidebarGroup key={i}>
                 <SidebarGroupLabel className={"text-foreground"}>{ mg.title }</SidebarGroupLabel>
                 <SidebarGroupContent className={"text-foreground"}>
                     <SidebarMenu>
                         { mg.items.map((mi, j) => <SidebarMenuItem key={j}>
                             <SidebarMenuButton asChild>
-                                <Link to={mi.url} className={"hover:bg-sidebar-primary hover:text-sidebar-primary-foreground"}>
+                                <Link to={format(mi.url, tenantId)} className={"hover:bg-sidebar-primary hover:text-sidebar-primary-foreground"}>
                                     { mi.icon }
                                     <span>{ mi.name }</span>
                                 </Link>
@@ -139,8 +142,8 @@ const AppSidebar = () => {
         <SidebarFooter className={"bg-sidebar-accent"}>
             <ul className={"flex w-full min-w-0 flex-row gap-1"}>
                 { state === 'expanded' && <div className={"w-full flex flex-row m-0"}>
-                    <span className={"relative flex size-8 shrink-0 overflow-hidden h-8 w-8 rounded-lg"}>
-                        <img src={avatarUrl} alt={"pfp"}/>
+                    <span className={cn("relative flex size-8 shrink-0 overflow-hidden h-8 w-8 rounded-lg", !avatarUrl ? 'invisible' : '')}>
+                        <img src={avatarUrl ?? "https://ui-avatars.com/api/?name=John+Doe"} alt={"pfp"}/>
                     </span>
                     <div className={"grid flex-1 ml-2 text-left text-sm leading-tight"}>
                         <span className={"truncate font-medium text-foreground"}>

@@ -1,7 +1,19 @@
+import {useLocation} from "react-router";
+import {useMemo} from "react";
+
 export type ListingPathFragment = {
     display: string,
     url: string,
     isPartition: boolean,
+}
+
+export const useQuery = () => {
+    const { search } = useLocation();
+    return useMemo(() => new URLSearchParams(search), [search]);
+}
+
+export const encodedListingPath = (path: string): string => {
+    return path.split("/").filter(s => s).map(encodeURIComponent).join("/")
 }
 
 export const splitByFirst= (str: string, separator: string): string[] => {

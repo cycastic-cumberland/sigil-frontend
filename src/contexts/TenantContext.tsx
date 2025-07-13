@@ -1,12 +1,14 @@
 import type {TenantDto} from "@/dto/TenantDto.ts";
 import {createContext, type FC, type ReactNode, useContext, useEffect, useState} from "react";
-import {getAuth, getSelectedProjectId, removeSelectedProjectId, setSelectedProjectId} from "@/utils/auth.ts";
-import api from "@/api.ts";
+import {getAuth} from "@/utils/auth.ts";
+import api, {setProjectId} from "@/api.ts";
 import type {PageDto} from "@/dto/PageDto.ts";
+import {useParams} from "react-router";
+import {notifyApiError} from "@/utils/errors.ts";
 
 export type TenantContextType = {
+    tenantId: number | null,
     activeProject: TenantDto | null,
-    changeActiveProject: (project: TenantDto | null) => void,
     queryProjects: (userId: number, page: number, pageSize: number, orderBy: string | null) => Promise<PageDto<TenantDto>>,
     getProject: (id: number) => Promise<TenantDto>,
     deleteProject: (id: number) => Promise<void>,
@@ -20,23 +22,41 @@ export const useTenant = () => {
 
 export const TenantProvider: FC<{ children: ReactNode }> = ({ children }) => {
     const [activeProject, setActiveProject] = useState(null as TenantDto | null)
+    const [tenantIdState, setTenantIdState] = useState(null as number | null)
+    const { tenantId } = useParams();
 
     useEffect(() => {
-        (async () => {
-            setActiveProject(await fetchActiveProject())
-        })()
-    }, []);
+        try {
+            if (!tenantId){
+                setTenantIdState(null)
+                return
+            }
+            const parsedId = Number(tenantId)
+            setTenantIdState(parsedId)
+        } catch (e){
+            console.error(e)
+            setTenantIdState(null)
+        }
+    }, [tenantId]);
 
-    const fetchActiveProject = async (): Promise<TenantDto | null> => {
+    useEffect(() => {
+        setProjectId(tenantIdState)
+
+        if (tenantIdState){
+            fetchActiveProject(tenantIdState)
+                .then(t => setActiveProject(t))
+                .catch(e => notifyApiError(e))
+        } else {
+            setActiveProject(null)
+        }
+    }, [tenantIdState]);
+
+    const fetchActiveProject = async (activeProjectId: number): Promise<TenantDto | null> => {
         if (!getAuth()){
             return null;
         }
-        const activeProjectId = getSelectedProjectId()
-        if (!activeProjectId){
-            return null;
-        }
 
-        return await getProject(Number(activeProjectId))
+        return await getProject(activeProjectId)
     }
 
     const queryProjects = async (userId: number, page: number, pageSize: number, orderBy: string | null): Promise<PageDto<TenantDto>> => {
@@ -49,15 +69,6 @@ export const TenantProvider: FC<{ children: ReactNode }> = ({ children }) => {
         return response.data as PageDto<TenantDto>
     }
 
-    const changeActiveProject = (project: TenantDto | null) => {
-        if (!project){
-            removeSelectedProjectId()
-        } else if (project.id) {
-            setSelectedProjectId(project.id)
-        }
-        setActiveProject(project)
-    }
-
     const getProject = async (id: number): Promise<TenantDto> => {
         const response = await api.get(`tenants/tenant?id=${id}`)
         return response.data as TenantDto
@@ -67,9 +78,9 @@ export const TenantProvider: FC<{ children: ReactNode }> = ({ children }) => {
         return api.delete(`tenants/tenant?id=${id}`)
     }
 
-    const value = {
+    const value: TenantContextType = {
+        tenantId: tenantIdState,
         activeProject,
-        changeActiveProject,
         queryProjects,
         getProject,
         deleteProject

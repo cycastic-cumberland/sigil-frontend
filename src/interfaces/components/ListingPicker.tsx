@@ -2,7 +2,6 @@ import {
     type FC,
     type ReactNode,
     type RefObject,
-    type SyntheticEvent,
     useEffect,
     useMemo,
     useRef,
@@ -16,7 +15,6 @@ import {
     type SortingState,
     useReactTable
 } from "@tanstack/react-table";
-import {Link} from "react-router";
 import type {TanstackRow, TanstackTable} from "@/dto/aliases.ts";
 import type {PageDto} from "@/dto/PageDto.ts";
 import {
@@ -27,12 +25,12 @@ import {
 } from "@/components/ui/dropdown-menu.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
-import {ArrowDown, ArrowUp, ArrowUpDown, ChartPie, ChevronDown, File, Folder, Hash, Text} from "lucide-react";
+import {ArrowDown, ArrowUp, ArrowUpDown, Vault, ChevronDown, File, Folder, Hash, Text} from "lucide-react";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table.tsx";
 import type {AttachmentPresignedDto} from "@/dto/AttachmentPresignedDto.ts";
 import ConfirmationDialog from "@/interfaces/components/ConfirmationDialog.tsx";
 import {Tooltip, TooltipContent, TooltipTrigger} from "@/components/ui/tooltip.tsx";
-import {extractAndEncodePathFragments, splitByFirst} from "@/utils/path.ts";
+import {encodedListingPath, extractAndEncodePathFragments, splitByFirst} from "@/utils/path.ts";
 import {extractError, notifyApiError} from "@/utils/errors.ts";
 import {toast} from "sonner";
 import type {PartitionDto} from "@/dto/PartitionDto.ts";
@@ -46,6 +44,8 @@ import {
 } from "@/utils/cryptography.ts";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
 import {useServerCommunication} from "@/contexts/ServerCommunicationContext.tsx";
+import {useTenant} from "@/contexts/TenantContext.tsx";
+import LinkWrapper from "@/interfaces/components/LinkWrapper.tsx";
 
 const possiblePageSizes = [5, 10, 20]
 
@@ -90,7 +90,7 @@ const getIcon = (type: FolderItemType): ReactNode => {
         case "FOLDER":
             return <Folder/>
         case "PARTITION":
-            return <ChartPie/>
+            return <Vault/>
         default:
             throw Error("Unsupported type: " + type)
     }
@@ -209,21 +209,6 @@ const AttachmentContextMenu: FC<{
             Download
         </DropdownMenuItem>
     </>
-}
-
-
-const encodedListingPath = (path: string): string => {
-    return path.split("/").filter(s => s).map(encodeURIComponent).join("/")
-}
-
-const LinkWrapper: FC<{
-    to: string,
-    enableLinks: boolean,
-    className?: string,
-    onClick?: (e: SyntheticEvent) => void,
-    children: ReactNode | ReactNode[]
-}> = ({ to, enableLinks, className, onClick, children }) => {
-    return enableLinks ? <Link to={to} onClick={onClick} className={className}>{ children }</Link> : children
 }
 
 const ItemContextMenu: FC<{
@@ -388,6 +373,7 @@ const ListingPicker: FC<{
     const [pageCount, setPageCount] = useState(0);
     const [sorting, setSorting] = useState<SortingState>([]);
     const {userPrivateKey} = useAuthorization()
+    const {tenantId} = useTenant()
     const encodedPathFragments = useMemo(() => extractAndEncodePathFragments(currentDir), [currentDir])
     const partitionIdRef = useRef(null as number | null)
     const api = createApi(partitionIdRef)
@@ -508,17 +494,17 @@ const ListingPicker: FC<{
                             ? <>
                                 { encodedPathFragments.length <= 1 ? <></> : <TableRow className={"cursor-pointer"} onClick={() => setCurrentDir(encodedPathFragments[encodedPathFragments.length - 2].url)}>
                                     <TableCell className={'max-w-fit'}>
-                                        <LinkWrapper enableLinks={links ?? false} to={`${linkPrefix ?? '/listings/browser'}${encodedPathFragments[encodedPathFragments.length - 2].url}`} className={'flex flex-row gap-2 w-full'} >
+                                        <LinkWrapper enableLinks={links ?? false} to={`${linkPrefix ?? `/tenant/${tenantId}/partitions/browser`}${encodedPathFragments[encodedPathFragments.length - 2].url}`} className={'flex flex-row gap-2 w-full'} >
                                             { getIcon('FOLDER') }
                                         </LinkWrapper>
                                     </TableCell>
                                     <TableCell className={'flex flex-row gap-2'}>
-                                        <LinkWrapper enableLinks={links ?? false} to={`${linkPrefix ?? '/listings/browser'}${encodedPathFragments[encodedPathFragments.length - 2].url}`} className={'flex flex-row gap-2 w-full'} >
+                                        <LinkWrapper enableLinks={links ?? false} to={`${linkPrefix ?? `/tenant/${tenantId}/partitions/browser`}${encodedPathFragments[encodedPathFragments.length - 2].url}`} className={'flex flex-row gap-2 w-full'} >
                                             <span>..</span>
                                         </LinkWrapper>
                                     </TableCell>
                                     <TableCell className={'w-1/5'}>
-                                        <LinkWrapper enableLinks={links ?? false} to={`${linkPrefix ?? '/listings/browser'}${encodedPathFragments[encodedPathFragments.length - 2].url}`} className={'flex flex-row gap-2 w-full'} >
+                                        <LinkWrapper enableLinks={links ?? false} to={`${linkPrefix ?? `/tenant/${tenantId}/partitions/browser`}${encodedPathFragments[encodedPathFragments.length - 2].url}`} className={'flex flex-row gap-2 w-full'} >
                                             <span className={'invisible'}>a</span>
                                         </LinkWrapper>
                                     </TableCell>
@@ -531,7 +517,7 @@ const ListingPicker: FC<{
                                              isLoading={isLoading}
                                              setIsLoading={setIsLoading}
                                              enableLinks={links ?? false}
-                                             prefix={linkPrefix ?? '/listings/browser'}
+                                             prefix={linkPrefix ?? `/tenant/${tenantId}/partitions/browser`}
                                              refreshTrigger={refreshTrigger}
                                              selectAction={selectAction ?? "dropdown"}
                                              api={api}
