@@ -1,5 +1,6 @@
 import MD5 from 'crypto-js/md5';
 import { enc } from 'crypto-js';
+import type {Prf} from "@/dto/webauthn.ts";
 
 export const base64ToUint8Array = (base64: string) =>
     Uint8Array.from(window.atob(base64), v => v.charCodeAt(0));
@@ -25,14 +26,14 @@ export const digestMd5 = (data: Uint8Array) => {
     return new Uint8Array(hash.match(/.{2}/g)!.map(h => parseInt(h, 16)));
 }
 
-export const decryptAESGCM = async (encryptedData: Uint8Array, iv: Uint8Array, keyRaw: Uint8Array): Promise<Uint8Array> => {
-    const key = await crypto.subtle.importKey(
+export const decryptAESGCM = async (encryptedData: Uint8Array, iv: Uint8Array, inputKey: Uint8Array | CryptoKey): Promise<Uint8Array> => {
+    const key = inputKey instanceof CryptoKey ? inputKey : await crypto.subtle.importKey(
         "raw",
-        keyRaw,
+        inputKey,
         { name: "AES-GCM" },
         false,
         ["decrypt"]
-    );
+    )
 
     const plaintextBuffer = await crypto.subtle.decrypt(
         {
@@ -47,7 +48,7 @@ export const decryptAESGCM = async (encryptedData: Uint8Array, iv: Uint8Array, k
     return new Uint8Array(plaintextBuffer)
 }
 
-export async function encryptWithPublicKey<T extends string | Uint8Array>(key: CryptoKey, data: T): Promise<T> {
+export const encryptWithPublicKey = async <T extends string | Uint8Array>(key: CryptoKey, data: T): Promise<T> => {
     let encodeBase64 = false;
 
     let bytes = data as Uint8Array
@@ -69,7 +70,7 @@ export async function encryptWithPublicKey<T extends string | Uint8Array>(key: C
     return uint8ArrayToBase64(plainBuf) as T
 }
 
-export async function decryptWithPrivateKey<T extends string | Uint8Array>(key: CryptoKey, data: T): Promise<T> {
+export const decryptWithPrivateKey = async <T extends string | Uint8Array>(key: CryptoKey, data: T): Promise<T> => {
     let encodeBase64 = false;
 
     let bytes = data as Uint8Array
@@ -89,4 +90,36 @@ export async function decryptWithPrivateKey<T extends string | Uint8Array>(key: 
     }
 
     return uint8ArrayToBase64(plainBuf) as T
+}
+
+export const signWithSHA256withRSAPSS = async (key: CryptoKey, data: Uint8Array): Promise<Uint8Array> => {
+    const sig = await crypto.subtle.sign(
+        {
+            name: "RSA-PSS",
+            saltLength: 32,
+        },
+        key,
+        data
+    );
+    return new Uint8Array(sig)
+}
+
+export const deriveEncryptionKeyFromWebAuthnPrf = async (prf: Prf) => {
+    const ikm = prf.results.first
+    const keyDerivationKey = await crypto.subtle.importKey(
+        "raw",
+        ikm,
+        "HKDF",
+        false,
+        ["deriveKey"],
+    );
+    const encryptionKey = await crypto.subtle.deriveKey(
+        { name: "HKDF", info: new Uint8Array(), salt: new Uint8Array(32), hash: "SHA-256" },
+        keyDerivationKey,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["encrypt", "decrypt"],
+    );
+
+    return encryptionKey
 }

@@ -4,18 +4,31 @@ import type {AuthenticationResponseDto} from "@/dto/AuthenticationResponseDto.ts
 import {getAuth, removeAuth, storeAuthResponse} from "@/utils/auth.ts";
 // @ts-ignore
 import argon2 from 'argon2-browser/dist/argon2-bundled.min.js';
-import {base64ToUint8Array, decryptAESGCM, digestSha256, uint8ArrayToBase64} from "@/utils/cryptography.ts";
+import {
+    base64ToUint8Array,
+    decryptAESGCM,
+    deriveEncryptionKeyFromWebAuthnPrf,
+    signWithSHA256withRSAPSS,
+    uint8ArrayToBase64
+} from "@/utils/cryptography.ts";
 import type {KdfDetailsDto} from "@/dto/KdfDetailsDto.ts";
 import {MAGIC_CONSTANT_SAVE_ENCRYPTION_KEY} from "@/utils/debug.ts";
 import type {UserInfoDto} from "@/dto/UserInfoDto.ts";
+import type {CipherDto} from "@/dto/CipherDto.ts";
+import {getRpIdFromUrl} from "@/utils/path.ts";
+import type {Prf} from "@/dto/webauthn.ts";
+import type {EnvelopDto} from "@/dto/EnvelopDto.ts";
 
 export type AuthorizationContextType = {
     userPrivateKey: CryptoKey | null,
-    getUserInfo: () => Promise<UserInfoDto>,
-    signInWithEmailAndPassword: (email: string, password: string) => Promise<void>
-    invalidateAllSessions: (userId: number) => Promise<void>
+    getUserInfo: (reload?: boolean) => Promise<UserInfoDto>,
+    signInWithEmailAndPassword: (email: string, password: string) => Promise<void>,
+    signInWithEmailAndPasskey: (email: string) => Promise<void>,
+    invalidateAllSessions: (userId: number) => Promise<void>,
     localLogout: () => void,
     decryptPrivateKey: (password: string) => Promise<void>,
+    transientDecryptPrivateKey: (password: string, cipher: CipherDto) => Promise<Uint8Array>,
+    getEnvelop: () => Promise<EnvelopDto>,
 }
 
 const AuthorizationContext = createContext(null as never as AuthorizationContextType)
@@ -24,100 +37,186 @@ export const useAuthorization = () => {
     return useContext(AuthorizationContext)
 }
 
-const deriveKey = async (password: Uint8Array, salt: Uint8Array, iterations: number, memoryCost: number, parallelism: number, keyLen: number): Promise<Uint8Array> => {
+const deriveKey = async (pass: Uint8Array, salt: Uint8Array, time: number, mem: number, parallelism: number, hashLen: number): Promise<Uint8Array> => {
     const result = await argon2.hash({
-        pass: password,
+        pass,
         type: argon2.ArgonType.Argon2id,
         salt,
-        time: iterations,
-        mem: memoryCost,
+        time,
+        mem,
         parallelism,
-        hashLen: keyLen,
+        hashLen ,
     })
 
     return result.hash
+}
+
+const decryptPcks8PrivateKey = async (pass: Uint8Array, salt: Uint8Array, parallelism: number, iterations: number, memoryCost: number, cipher: CipherDto): Promise<Uint8Array> => {
+    const keyLen = 32
+    const derivedKey = await deriveKey(pass, salt, iterations, memoryCost, parallelism, keyLen)
+
+    const iv = base64ToUint8Array(cipher.iv ?? "")
+    const cipherText = base64ToUint8Array(cipher.cipher)
+    try {
+        return await decryptAESGCM(cipherText, iv, derivedKey)
+    } catch (e){
+        if (e instanceof DOMException && e.name === "OperationError"){
+            throw Error("Incorrect password")
+        }
+        throw e
+    }
+}
+
+const createPrivateKey = (pkcs8: Uint8Array, isSign: boolean) => {
+    return crypto.subtle.importKey(
+        "pkcs8",
+        pkcs8,
+        {
+            name: isSign ? 'RSA-PSS' : 'RSA-OAEP',
+            hash: { name: 'SHA-256' }
+        },
+        false,
+        [isSign ? "sign" : "decrypt"]
+    )
+}
+
+const transientDecryptPrivateKey = async (password: string, cipher: CipherDto) => {
+    const authResponse = getAuth()
+    if (!authResponse){
+        throw Error("User not logged in")
+    }
+
+    const kdfSettings = authResponse.kdfSettings;
+    const parts = kdfSettings.split('$').filter(s => s)
+    if (parts[0] !== "argon2id"){
+        throw Error("Unsupported KDF")
+    }
+    const salt = base64ToUint8Array(parts[1]);
+    const parameters = base64ToUint8Array(parts[2])
+    const parametersView = new DataView(parameters.buffer, parameters.byteOffset, parameters.byteLength)
+    const parallelism = parametersView.getUint32(0, true)
+    const iterations = parametersView.getUint32(8, true)
+    const memoryCost = parametersView.getUint32(4, true)
+
+    const encoder = new TextEncoder();
+    const pass = encoder.encode(password)
+    return await decryptPcks8PrivateKey(pass, salt, parallelism, iterations, memoryCost, cipher)
 }
 
 export const AuthorizationProvider: FC<{ children?: ReactNode }> = ({ children }) => {
     const userInfoRef = useRef(null as UserInfoDto | null)
     const [privateKey, setPrivateKey] = useState(null as CryptoKey | null)
 
-    const decryptPrivateKey = async (password: string) => {
-        const authResponse = getAuth()
-        if (!authResponse){
-            localLogout()
-            return
-        }
-
-        const kdfSettings = authResponse.kdfSettings;
-        const parts = kdfSettings.split('$').filter(s => s)
-        if (parts[0] !== "argon2id"){
-            throw Error("Unsupported KDF")
-        }
-
-        const keyLen = 32
-        const encoder = new TextEncoder();
-        const pass = encoder.encode(password)
-        const salt = base64ToUint8Array(parts[1]);
-        const parameters = base64ToUint8Array(parts[2])
-        const parametersView = new DataView(parameters.buffer, parameters.byteOffset, parameters.byteLength)
-        const parallelism = parametersView.getUint32(0, true)
-        const iterations = parametersView.getUint32(8, true)
-        const memoryCost = parametersView.getUint32(4, true)
-        const derivedKey = await deriveKey(pass, salt, iterations, memoryCost, parallelism, keyLen)
-        const kidBase64 = uint8ArrayToBase64(await digestSha256(derivedKey))
-
-        const cipher = authResponse.wrappedUserKey
-        if (kidBase64 !== cipher.kid){
-            const err = Error("Incorrect password")
-            console.error(err)
-            throw err
-        }
-
-        const iv = base64ToUint8Array(cipher.iv ?? "")
-        const cipherText = base64ToUint8Array(cipher.cipher)
-        const decryptedPrivateKey = await decryptAESGCM(cipherText, iv, derivedKey)
-        const privateKey = await crypto.subtle.importKey(
-            "pkcs8",
-            decryptedPrivateKey,
-            {
-                name: 'RSA-OAEP',
-                hash: { name: 'SHA-256' }
-            },
-            false,
-            ["decrypt"]
-        );
-        setPrivateKey(privateKey)
+    const getEnvelop = async () => {
+        const response = await api.get("auth/envelop")
+        return response.data as EnvelopDto
     }
 
-    const deriveArgon2idHash = async (email: string, password: string): Promise<string> => {
+    const decryptPrivateKey = async (password: string) => {
+        const data = await getEnvelop()
+        if (!data.passwordCipher){
+            throw Error("Password not enabled")
+        }
+        const pkcs8 = await transientDecryptPrivateKey(password, data.passwordCipher)
+        setPrivateKey(await createPrivateKey(pkcs8, false))
+    }
+
+    const signInInternal = async (email: string, signatureVerificationWindow: number, pkcs8: Uint8Array) => {
+        const signingPrivateKey = await createPrivateKey(pkcs8, true)
+
+        const unixTimestamp = Math.floor(Date.now() / 1000);
+        const payload = `${email.toUpperCase()}:${Math.floor(unixTimestamp / signatureVerificationWindow)}`
+        const encoder = new TextEncoder();
+        const encodedPayload = encoder.encode(payload)
+        const signature = uint8ArrayToBase64(await signWithSHA256withRSAPSS(signingPrivateKey, encodedPayload))
+        const authResponse = await api.post("auth", {
+            payload,
+            algorithm: "SHA256withRSA/PSS",
+            signature,
+        })
+        const authData = authResponse.data as AuthenticationResponseDto;
+        storeAuthResponse(authData)
+        const encryptionPrivateKey = await createPrivateKey(pkcs8, false)
+        setPrivateKey(encryptionPrivateKey)
+    }
+
+    const signInWithEmailAndPassword = async (email: string, password: string): Promise<void> => {
         const response = await api.get(`auth/kdf?userEmail=${encodeURIComponent(email)}`)
         const kdfSettings = response.data as KdfDetailsDto
         if (kdfSettings.algorithm !== 'argon2id'){
             throw Error("Unsupported hash algorithm: " + kdfSettings.algorithm)
         }
 
-        const keyLen = 32
-        const encoder = new TextEncoder();
-        const pass = encoder.encode(password)
         const salt = base64ToUint8Array(kdfSettings.salt);
         const parameters = kdfSettings.parameters
-        const derivedKey = await deriveKey(pass, salt, parameters.iterations, parameters.memoryKb, parameters.parallelism, keyLen)
-        return uint8ArrayToBase64(derivedKey)
+        const encoder = new TextEncoder();
+        const pass = encoder.encode(password)
+        const pkcs8 = await decryptPcks8PrivateKey(pass, salt, parameters.parallelism, parameters.iterations, parameters.memoryKb, kdfSettings.wrappedUserKey)
+        await signInInternal(email, kdfSettings.signatureVerificationWindow, pkcs8)
     }
 
-    const signInWithEmailAndPassword = async (email: string, password: string): Promise<void> => {
-        const response = await api.post("auth", {
-            email,
-            hashedPassword: await deriveArgon2idHash(email, password),
+    const signInWithEmailAndPasskey = async (email: string) => {
+        const response = await api.get(`auth/kdf?userEmail=${encodeURIComponent(email)}&method=WEBAUTHN`)
+        const kdfSettings = response.data as KdfDetailsDto
+        if (kdfSettings.algorithm !== 'argon2id'){
+            throw Error("Unsupported hash algorithm: " + kdfSettings.algorithm)
+        }
+
+        const encoder = new TextEncoder();
+        const uid = encoder.encode(email.toUpperCase())
+        const webAuthnCredentials = kdfSettings.webAuthnCredential
+        const loginCredential = await navigator.credentials.get({
+            publicKey: {
+                challenge: uid,
+                allowCredentials: [
+                    {
+                        id: base64ToUint8Array(webAuthnCredentials.credentialId),
+                        transports: webAuthnCredentials.transports,
+                        type: "public-key",
+                    },
+                ],
+                rpId: getRpIdFromUrl(window.location.href),
+                userVerification: "required",
+                extensions: {
+                    prf: {
+                        eval: {
+                            first: base64ToUint8Array(webAuthnCredentials.salt),
+                        },
+                    },
+                },
+            },
         })
-        const authResponse = response.data as AuthenticationResponseDto;
-        storeAuthResponse(authResponse)
-        await decryptPrivateKey(password)
+
+        if (!loginCredential){
+            throw Error("Failed to read passkey")
+        }
+
+        if (!(loginCredential instanceof PublicKeyCredential)){
+            throw Error("Device not supported")
+        }
+
+        const prf = loginCredential.getClientExtensionResults().prf as Prf
+        const encryptionKey = await deriveEncryptionKeyFromWebAuthnPrf(prf)
+        if (!webAuthnCredentials.wrappedUserKey.iv){
+            throw Error("Nonce not found")
+        }
+        const nonce = base64ToUint8Array(webAuthnCredentials.wrappedUserKey.iv)
+        const cipherText = base64ToUint8Array(webAuthnCredentials.wrappedUserKey.cipher)
+        let pkcs8: Uint8Array = new Uint8Array()
+        try {
+            pkcs8 = await decryptAESGCM(cipherText, nonce, encryptionKey)
+        } catch (e){
+            if (e instanceof DOMException && e.name === "OperationError"){
+                throw Error("User don't have passkey enrolled or invalid passkey detected")
+            }
+            throw e
+        }
+
+        await signInInternal(email, kdfSettings.signatureVerificationWindow, pkcs8)
     }
 
-    const getUserInfo = async () => {
-        if (userInfoRef.current){
+    const getUserInfo = async (reload?: boolean) => {
+        if (userInfoRef.current && !reload){
             return userInfoRef.current
         }
 
@@ -142,10 +241,13 @@ export const AuthorizationProvider: FC<{ children?: ReactNode }> = ({ children }
     const value: AuthorizationContextType = {
         userPrivateKey: privateKey,
         signInWithEmailAndPassword,
+        signInWithEmailAndPasskey,
         getUserInfo,
         invalidateAllSessions,
         localLogout,
+        transientDecryptPrivateKey,
         decryptPrivateKey,
+        getEnvelop,
     }
 
     return <AuthorizationContext.Provider value={value}>

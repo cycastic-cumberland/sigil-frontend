@@ -3,12 +3,11 @@ import {Label} from "@/components/ui/label.tsx";
 import {useSidebar} from "@/components/ui/sidebar.tsx";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
-import {Lock, LockOpen} from "lucide-react";
+import {Lock, LockOpen, Menu} from "lucide-react";
 import {Tooltip, TooltipContent, TooltipTrigger} from "@/components/ui/tooltip.tsx";
-import * as React from "react";
 import {Button} from "@/components/ui/button.tsx";
 import {useState} from "react";
-import DecryptPrivateKeyDialog from "@/interfaces/components/DecryptPrivateKeyForm.tsx";
+import DecryptPrivateKeyDialog from "@/interfaces/components/PrivateKeyDecryptionDialog.tsx";
 
 const UserUnlocked = () => {
     return <Tooltip>
@@ -29,14 +28,14 @@ const UserLocked = () => {
         <Tooltip>
             <TooltipTrigger asChild>
                 <Button
-                    className="cursor-pointer group"
+                    className="cursor-pointer group text-destructive hover:text-destructive"
                     variant={"outline"}
                     onClick={() => setOpenDialog(true)}
                 >
                     <div className="relative flex items-center justify-center w-full">
                         <Lock
                             size={15}
-                            className="transform transition duration-300 group-hover:-translate-x-4 group-hover:ml-2"
+                            className="transform transition duration-300 group-hover:mr-2"
                         />
                         <p className="overflow-hidden whitespace-nowrap w-0 opacity-0 transition-[width,opacity,margin] duration-300 group-hover:w-auto group-hover:opacity-100">
                             Encrypted
@@ -51,7 +50,7 @@ const UserLocked = () => {
     </>
 }
 
-const AppTopbar = () => {
+const AppTopBar = () => {
     const {activeProject} = useTenant()
     const {toggleSidebar} = useSidebar()
     const {userPrivateKey} = useAuthorization()
@@ -65,7 +64,7 @@ const AppTopbar = () => {
                         T
                     </h1>
                 </div>
-                <img className={"h-8 aspect-square"} src={"/icon.svg"} alt={"logo"}/>
+                <Menu size={30}/>
             </div>
         </button> }
         <div className={`flex items-center gap-2 ${isDesktop ? 'ml-5' : ''}`}>
@@ -79,4 +78,4 @@ const AppTopbar = () => {
     </div>
 }
 
-export default AppTopbar;
+export default AppTopBar;

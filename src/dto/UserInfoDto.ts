@@ -5,5 +5,6 @@ export interface UserInfoDto {
     lastName: string
     roles: string[]
     publicRsaKey: string,
+    hasWebAuthnCredential: boolean,
     joinedAt: string
 }

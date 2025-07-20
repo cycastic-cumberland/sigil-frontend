@@ -15,6 +15,7 @@ import {Check, ChevronsUpDown} from "lucide-react";
 import api from "@/api.ts";
 import type {PageDto} from "@/dto/PageDto.ts";
 import {cn} from "@/lib/utils.ts";
+import {Spinner} from "@/components/ui/shadcn-io/spinner";
 
 const emptyPartitionUserDto = (): PartitionUserDto => {
     return  {
@@ -26,13 +27,15 @@ const emptyPartitionUserDto = (): PartitionUserDto => {
 }
 
 const PartitionMemberEditForm: FC<{
-    isLoading: boolean,
+    disabled: boolean,
+    isLoading?: boolean,
     partitionMember?: PartitionUserDto,
     onSave: (project: PartitionUserDto) => void
-}> = ({ isLoading, partitionMember, onSave }) => {
+}> = ({ disabled, isLoading, partitionMember, onSave }) => {
     const [formValues, setFormValues] = useState(partitionMember ? { ...partitionMember } : emptyPartitionUserDto())
     const [emailPopoverOpened, setEmailPopoverOpened] = useState(false)
     const [permissionsPopoverOpened, setPermissionsPopoverOpened] = useState(false)
+    const [searching, setSearching] = useState(false)
     const [isCreate, setIsCreate] = useState(!partitionMember)
     const {activeProject} = useTenant()
     const canListTenantMembers = useMemo(() => isCreate &&
@@ -50,6 +53,7 @@ const PartitionMemberEditForm: FC<{
     }, [partitionMember]);
 
     useEffect(() => {
+        setSearching(true)
         const handler = setTimeout(() => {
             setDebouncedQuery(query);
         }, 300); // 300ms debounce
@@ -66,9 +70,14 @@ const PartitionMemberEditForm: FC<{
         }
 
         (async () => {
-            const response = await api.get(`tenants/members/prefix?emailPrefix=${encodeURIComponent(debouncedQuery)}&page=1&pageSize=20`)
-            const data = response.data as PageDto<string>
-            setSearchResult(data.items)
+            try {
+                setSearching(true)
+                const response = await api.get(`tenants/members/prefix?emailPrefix=${encodeURIComponent(debouncedQuery)}&page=1&pageSize=20`)
+                const data = response.data as PageDto<string>
+                setSearchResult(data.items)
+            } finally {
+                setSearching(false)
+            }
         })()
     }, [canListTenantMembers, debouncedQuery]);
 
@@ -107,19 +116,19 @@ const PartitionMemberEditForm: FC<{
         <div className="grid gap-2">
             <div className="flex flex-row gap-2">
                 <Label className="w-32">Email:</Label>
-                { !canListTenantMembers ? <Input
+                { !canListTenantMembers || !isCreate ? <Input
                     className="flex-1 border-foreground"
                     value={formValues.email}
                     onChange={handleChange}
                     id="email"
                     required
-                    disabled={isLoading}
+                    disabled={disabled || !isCreate}
                 /> : <>
                     <Input
                         className="hidden"
                         value={formValues.email}
                         required
-                        disabled={isLoading}
+                        disabled={disabled}
                     />
                     <Popover open={emailPopoverOpened} onOpenChange={setEmailPopoverOpened}>
                         <PopoverTrigger asChild>
@@ -142,7 +151,7 @@ const PartitionMemberEditForm: FC<{
                                               value={query}
                                               onInput={handleChange}/>
                                 <CommandEmpty>
-                                    { query ? "No user found" : "Start typing to search" }
+                                    { searching ? "Searching..." : query ? "No user found" : "Start typing to search" }
                                 </CommandEmpty>
                                 <CommandGroup>
                                     {searchResults.map((value) => (
@@ -174,6 +183,7 @@ const PartitionMemberEditForm: FC<{
                         <Button
                             variant="outline"
                             role="combobox"
+                            disabled={disabled}
                             aria-expanded={permissionsPopoverOpened}
                             className="flex-1 justify-between"
                         >
@@ -207,7 +217,8 @@ const PartitionMemberEditForm: FC<{
                     </PopoverContent>
                 </Popover>
             </div>
-            <Button disabled={isLoading} type={"submit"} className={'flex flex-grow border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background'}>
+            <Button disabled={disabled} type={"submit"} className={'flex flex-grow border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background'}>
+                { isLoading && <Spinner/> }
                 { isCreate ? "Create" : "Save" }
             </Button>
         </div>

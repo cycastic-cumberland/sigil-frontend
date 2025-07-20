@@ -8,7 +8,7 @@ import {
 } from "react";
 import {Label} from "@/components/ui/label.tsx";
 import {Button} from "@/components/ui/button.tsx";
-import {File, Plus, Users, Vault} from "lucide-react";
+import {File, KeyRound, Plus, Users, Vault} from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -34,8 +34,6 @@ import {notifyApiError} from "@/utils/errors.ts";
 import axios from "axios";
 import {toast} from "sonner";
 import api, {createApi} from "@/api.ts";
-import {base64ToUint8Array, decryptWithPrivateKey} from "@/utils/cryptography.ts";
-import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
 import type {PartitionUserDto} from "@/dto/PartitionUserDto.ts";
 
 const extractPath = (path: string): string => {
@@ -109,7 +107,6 @@ const FileTable: FC<{ currentDir: string, partitionPath: string | null }> = ({ c
     const [attachmentUploadOpened, setAttachmentUploadOpened] = useState(false)
     const [createPartitionOpened, setCreatePartitionOpened] = useState(false)
     const [canManageMembership, setCanManageMembership] = useState(false)
-    const {userPrivateKey} = useAuthorization()
     const {tenantId} = useTenant()
     const partitionRef = useRef(null as PartitionDto | null)
     const partitionKeyRef = useRef(null as Uint8Array | null)
@@ -127,6 +124,12 @@ const FileTable: FC<{ currentDir: string, partitionPath: string | null }> = ({ c
             <File/>
             <span>
                 Attachment
+            </span>
+        </DropdownMenuItem>),
+        (<DropdownMenuItem className={"cursor-pointer"} disabled={true}>
+            <KeyRound/>
+            <span>
+                Password
             </span>
         </DropdownMenuItem>)
     ]
@@ -161,21 +164,6 @@ const FileTable: FC<{ currentDir: string, partitionPath: string | null }> = ({ c
         navigate(newPath)
     }
 
-    const getPartitionKey = async () => {
-        if (partitionKeyRef.current){
-            return partitionKeyRef.current
-        }
-
-        if (!partitionRef.current){
-            throw Error("Partition is not set")
-        }
-
-        const userKey = userPrivateKey!
-        const decryptedPartitionKey = await decryptWithPrivateKey(userKey, base64ToUint8Array(partitionRef.current.userPartitionKey.cipher))
-        partitionKeyRef.current = decryptedPartitionKey
-        return decryptedPartitionKey
-    }
-
     return <>
         <AttachmentUploadDialog isOpened={attachmentUploadOpened}
                                 setIsOpened={setAttachmentUploadOpened}
@@ -183,8 +171,7 @@ const FileTable: FC<{ currentDir: string, partitionPath: string | null }> = ({ c
                                 setIsLoading={setIsLoading}
                                 refreshTrigger={refreshTrigger}
                                 currentDir={currentDir}
-                                partitionRef={partitionRef}
-                                getPartitionKey={getPartitionKey}/>
+                                partitionRef={partitionRef}/>
         <CreatePartitionDialog isLoading={isLoading}
                                setIsLoading={setIsLoading}
                                isOpened={createPartitionOpened}
@@ -263,7 +250,7 @@ const PartitionsBrowserPage = () => {
         setCurrentDir(extractPath(location.pathname))
     }, [location]);
 
-    return <MainLayout requireDecrypted={true}>
+    return <MainLayout>
         <ProjectGuard>
             <div className={"w-full p-5 flex flex-col"}>
                 <div className={"my-2"}>

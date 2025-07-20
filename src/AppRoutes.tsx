@@ -7,6 +7,7 @@ import TenantDetailsPage from "@/interfaces/pages/tenants/TenantDetailsPage.tsx"
 import RegisterPage from "@/interfaces/pages/RegisterPage.tsx";
 import CompleteSignupPage from "@/interfaces/pages/CompleteSignupPage.tsx";
 import PartitionMembersPage from "@/interfaces/pages/partitions/PartitionMembersPage.tsx";
+import SelfDetailsPage from "@/interfaces/pages/users/SelfDetailsPage.tsx";
 
 export type RouteInfo = { index?: boolean, isPrivate: boolean, path?: string, element: ReactNode };
 
@@ -33,7 +34,7 @@ export const AppRoutes : RouteInfo[] = [
     },
     {
         isPrivate: true,
-        path: "/tenant/:tenantId/browser",
+        path: "/tenant/browser",
         element: <TenantBrowserPage/>
     },
     {
@@ -50,5 +51,10 @@ export const AppRoutes : RouteInfo[] = [
         isPrivate: true,
         path: "/tenant/:tenantId/partitions/members/*",
         element: <PartitionMembersPage/>
+    },
+    {
+        isPrivate: true,
+        path: "/users/self",
+        element: <SelfDetailsPage/>
     },
 ]

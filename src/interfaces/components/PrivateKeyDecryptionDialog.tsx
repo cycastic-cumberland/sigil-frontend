@@ -9,9 +9,7 @@ import {Input} from "@/components/ui/input.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
 
-
-const DecryptionDialog: FC<{ isLoading: boolean, onSave: (password: string) => void }> = ({ isLoading, onSave }) => {
-    const {localLogout} = useAuthorization()
+export const PrivateKeyDecryptionForm: FC<{ isLoading: boolean, onSave: (password: string) => void }> = ({ isLoading, onSave }) => {
     const [password, setPassword] = useState("")
 
     const handleSubmit = async (e: SyntheticEvent) => {
@@ -44,16 +42,13 @@ const DecryptionDialog: FC<{ isLoading: boolean, onSave: (password: string) => v
                     { isLoading && <Spinner/> }
                     Unlock
                 </Button>
-                <Button disabled={isLoading} type={"button"} onClick={localLogout} className={'flex flex-grow border-destructive bg-destructive text-background border-2 cursor-pointer hover:bg-background hover:text-destructive'}>
-                    Log out
-                </Button>
             </div>
         </form>
     </div>
 }
 
 
-const DecryptPrivateKeyForm: FC<{
+const PrivateKeyDecryptionDialog: FC<{
     openDialog: boolean,
     onComplete?: () => void,
     onReject?: () => void,
@@ -93,21 +88,29 @@ const DecryptPrivateKeyForm: FC<{
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
                     <DialogTitle>Enter your password</DialogTitle>
-                    <DialogDescription>Enter your password to unlock this feature</DialogDescription>
+                    <DialogDescription>Enter your password to unlock this feature.</DialogDescription>
                 </DialogHeader>
-                <DecryptionDialog isLoading={isLoading} onSave={onSubmit}/>
+                <PrivateKeyDecryptionForm isLoading={isLoading} onSave={onSubmit}/>
             </DialogContent>
-        </Dialog> : <Drawer open={openDialog} onOpenChange={onReject}>
+        </Dialog> : <Drawer open={openDialog} onOpenChange={o => {
+        if (o) {
+            return
+        }
+
+        if (onReject){
+            onReject()
+        }
+    }}>
             <DrawerContent>
                 <DrawerHeader>
                     <DrawerTitle>Enter your password</DrawerTitle>
-                    <DrawerDescription>Enter your password to unlock this feature</DrawerDescription>
+                    <DrawerDescription>Enter your password to unlock this feature.</DrawerDescription>
                 </DrawerHeader>
                 <div className={"p-5"}>
-                    <DecryptionDialog isLoading={isLoading} onSave={onSubmit}/>
+                    <PrivateKeyDecryptionForm isLoading={isLoading} onSave={onSubmit}/>
                 </div>
             </DrawerContent>
         </Drawer>
 }
 
-export default DecryptPrivateKeyForm
+export default PrivateKeyDecryptionDialog

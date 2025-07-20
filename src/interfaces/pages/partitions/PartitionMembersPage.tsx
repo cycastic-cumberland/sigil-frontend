@@ -43,10 +43,11 @@ import {
     uint8ArrayToBase64
 } from "@/utils/cryptography.ts";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
-import DecryptPrivateKeyOverlay from "@/interfaces/layouts/DecryptPrivateKeyOverlay.tsx";
 import {useTenant} from "@/contexts/TenantContext.tsx";
-import DecryptPrivateKeyDialog from "@/interfaces/components/DecryptPrivateKeyForm.tsx";
-import * as React from "react";
+import {
+    PrivateKeyDecryptionForm
+} from "@/interfaces/components/PrivateKeyDecryptionDialog.tsx";
+import ConfirmationDialog from "@/interfaces/components/ConfirmationDialog.tsx";
 
 const itemsColumnDef: ColumnDef<PartitionUserDto>[] = [
     {
@@ -180,7 +181,7 @@ const PartitionMemberTable: FC<{
                                 key={row.id}
                                 data-state={row.getIsSelected() && "selected"}
                                 className={"cursor-pointer"}
-                                onClick={() => {}}
+                                onClick={() => navigate(getManageUserUrl(row.original))}
                             >
                                 {row.getVisibleCells().map((cell) => (
                                     <TableCell key={cell.id}>
@@ -253,21 +254,14 @@ const PartitionMemberTable: FC<{
 const PartitionMemberTableWithAddButton: FC<{
     isLoading: boolean,
     setIsLoading: (l: boolean) => void,
-    partition: PartitionDto | null,
+    partition: PartitionDto,
     api: AxiosInstance,
 }> = ({ isLoading, setIsLoading, partition, api }) => {
     const [dialogOpened, setDialogOpened] = useState(false)
-    const [enableDecryption, setEnableDecryption] = useState(false)
     const [counter, setCounter] = useState(0)
     const {tenantId} = useTenant()
-    const {userPrivateKey} = useAuthorization()
+    const {userPrivateKey, decryptPrivateKey} = useAuthorization()
     const isDesktop = useMediaQuery("(min-width: 768px)")
-
-    useEffect(() => {
-        if (userPrivateKey){
-            setEnableDecryption(false)
-        }
-    }, [userPrivateKey]);
 
     const getPartitionKey = async () => {
         const userKey = userPrivateKey!
@@ -316,6 +310,7 @@ const PartitionMemberTableWithAddButton: FC<{
                 permissions
             })
 
+            setDialogOpened(false)
             setCounter(c => c + 1)
         } catch (e) {
             if (axios.isAxiosError(e) && e.status === 409){
@@ -325,36 +320,56 @@ const PartitionMemberTableWithAddButton: FC<{
             }
         } finally {
             setIsLoading(false)
-            setDialogOpened(false)
         }
     }
 
-    if (!partition){
-        return <></>
-    }
+    const onDecrypt = async (password: string) => {
+        try {
+            setIsLoading(true)
+
+            await decryptPrivateKey(password)
+        } catch (e: unknown) {
+            if (e instanceof Error){
+                toast.error(e.message)
+            } else {
+                toast.error("Failed to unlock user's session")
+            }
+        } finally {
+            setIsLoading(false)
+        }
+    };
 
     return <>
-        <DecryptPrivateKeyDialog openDialog={enableDecryption}
-                                 onReject={() => setEnableDecryption(false)}
-                                 onComplete={() => setDialogOpened(true)}/>
         { isDesktop ? <Dialog open={dialogOpened} onOpenChange={setDialogOpened}>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Add member</DialogTitle>
-                    <DialogDescription>Add a new tenant member to this partition.</DialogDescription>
+                    <DialogDescription>
+                        { userPrivateKey
+                            ? "Add a new tenant member to this partition."
+                            : "Enter your password to continue"}
+                    </DialogDescription>
                 </DialogHeader>
                 <div className={"w-full"}>
-                    <PartitionMemberEditForm isLoading={isLoading} onSave={onMemberAdded}/>
+                    { userPrivateKey
+                        ? <PartitionMemberEditForm disabled={isLoading} onSave={onMemberAdded}/>
+                        : <PrivateKeyDecryptionForm isLoading={isLoading} onSave={onDecrypt}/> }
                 </div>
             </DialogContent>
         </Dialog> : <Drawer open={dialogOpened} onOpenChange={setDialogOpened}>
             <DrawerContent>
                 <DrawerHeader>
                     <DrawerTitle>Add member</DrawerTitle>
-                    <DrawerDescription>Add a new tenant member to this partition.</DrawerDescription>
+                    <DrawerDescription>
+                        { userPrivateKey
+                            ? "Add a new tenant member to this partition."
+                            : "Enter your password to continue"}
+                    </DrawerDescription>
                 </DrawerHeader>
                 <div className={"w-full px-3 pb-3"}>
-                    <PartitionMemberEditForm isLoading={isLoading} onSave={onMemberAdded}/>
+                    { userPrivateKey
+                        ? <PartitionMemberEditForm disabled={isLoading} onSave={onMemberAdded}/>
+                        : <PrivateKeyDecryptionForm isLoading={isLoading} onSave={onDecrypt}/> }
                 </div>
             </DrawerContent>
         </Drawer> }
@@ -367,7 +382,7 @@ const PartitionMemberTableWithAddButton: FC<{
                 </Link>
             </Button>
             { partition.permissions.includes("MODERATE") && <Button className={"text-foreground border-dashed border-2 border-foreground cursor-pointer hover:border-solid hover:text-background hover:bg-foreground"}
-                    onClick={() => userPrivateKey ? setDialogOpened(true) : setEnableDecryption(true)}
+                    onClick={() => setDialogOpened(true)}
                     disabled={isLoading}>
                 { isLoading ? <Spinner/> : <Plus/> }
                 <span>Add member</span>
@@ -384,9 +399,118 @@ const PartitionMemberTableWithAddButton: FC<{
 const ManagePartitionMember: FC<{
     isLoading: boolean,
     setIsLoading: (l: boolean) => void,
+    partition: PartitionDto,
+    api: AxiosInstance,
     userEmail: string
-}> = () => {
-    return <></>
+}> = ({ isLoading, setIsLoading, partition, api, userEmail }) => {
+    const [confirmDeleteOpened, setConfirmDeleteOpened] = useState(false)
+    const [user, setUser] = useState(null as PartitionUserDto | null)
+    const [selfInfo, setSelfInfo] = useState(null as UserInfoDto | null)
+    const {getUserInfo} = useAuthorization()
+    const {tenantId} = useTenant()
+    const location = useLocation()
+    const navigate = useNavigate()
+
+    const fetchSelf = async () => {
+        try {
+            setIsLoading(true)
+            setSelfInfo(await getUserInfo())
+        } catch (e){
+            notifyApiError(e)
+        } finally{
+            setIsLoading(false)
+        }
+    }
+
+    const fetchUser = async (email: string) => {
+        try {
+            setIsLoading(true)
+            const response = await api.get(`partitions/members/member?email=${encodeURIComponent(email)}`)
+            const p = response.data as PartitionUserDto
+            setUser(p)
+        } catch (e){
+            notifyApiError(e)
+        } finally{
+            setIsLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        fetchUser(userEmail).then(undefined)
+    }, [userEmail]);
+
+    useEffect(() => {
+        fetchSelf().then(undefined)
+    }, []);
+
+    const onSave = async (partitionUser: PartitionUserDto) => {
+        let permissions = 0
+        if (partitionUser.permissions.includes("WRITE")){
+            permissions = permissions | 1
+        }
+        if (partitionUser.permissions.includes("MODERATE")){
+            permissions = permissions | 2
+        }
+
+        try {
+            setIsLoading(true)
+
+            await api.patch('partitions/members', {
+                email: partitionUser.email,
+                permissions
+            })
+
+            toast.success("Member updated")
+            navigate(location.pathname)
+        } catch (e){
+            notifyApiError(e)
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    const onDelete = async () => {
+        try {
+            setIsLoading(true)
+
+            await api.delete(`partitions/members?email=${encodeURIComponent(userEmail)}`)
+            toast.success("Member removed")
+            navigate(`/tenant/${tenantId}/partitions/browser/`)
+        } catch (e){
+            notifyApiError(e)
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    return <>
+        <ConfirmationDialog confirmationOpened={confirmDeleteOpened}
+                            setConfirmationOpened={setConfirmDeleteOpened}
+                            onAccepted={onDelete}
+                            title={'Remove member'}
+                            message={selfInfo?.email === (user?.email ?? '') ? 'Do you want to remove yourself from this partition?' : 'Are you sure you want to remove this member?'}
+                            acceptText={'Remove'}
+                            destructive/>
+        <div className={"my-3 flex gap-2"}>
+            <Button className={"text-background bg-foreground border-2 border-foreground cursor-pointer hover:border-solid hover:text-foreground hover:bg-background"}
+                    asChild>
+                <Link to={location.pathname}>
+                    <ArrowLeft/>
+                    <span>Back to members</span>
+                </Link>
+            </Button>
+        </div>
+        <div className={"my-3 w-full"}>
+            <div className={"lg:w-1/2 text-foreground flex flex-col gap-2"}>
+                { user && <PartitionMemberEditForm partitionMember={user}
+                                                   disabled={isLoading || selfInfo?.email === user.email || !partition.permissions.includes("MODERATE")}
+                                                   onSave={onSave}/> }
+                { (partition.permissions.includes("MODERATE") || (!!selfInfo && userEmail === selfInfo.email)) && <Button className={"cursor-pointer bg-destructive text-background border-destructive border-1 hover:bg-background hover:text-destructive"} onClick={() => setConfirmDeleteOpened(true)}>
+                    Remove member
+                </Button> }
+            </div>
+        </div>
+    </>
 }
 
 const PartitionMembersPage = () => {
@@ -405,10 +529,12 @@ const PartitionMembersPage = () => {
 
     useEffect(() => {
         const path = extractPath(location.pathname)
-        getPartition(path).then(p => {
-            setPartition(p)
-            partitionIdRef.current = p.id
-        })
+        getPartition(path)
+            .then(p => {
+                setPartition(p)
+                partitionIdRef.current = p.id
+            })
+            .catch(e => notifyApiError(e))
     }, [location]);
 
     useEffect(() => {
@@ -427,14 +553,16 @@ const PartitionMembersPage = () => {
                     { userEmail ? "Manage partition member" : (!!partition && partition.permissions.includes("MODERATE")) ? "Manage partition members" : "Partition members" }
                 </Label>
             </div>
-            { userEmail
+            { partition && (userEmail
                 ? <ManagePartitionMember isLoading={isLoading}
                                          setIsLoading={setIsLoading}
-                                         userEmail={userEmail}/>
+                                         userEmail={userEmail}
+                                         api={localApi}
+                                         partition={partition}/>
                 : <PartitionMemberTableWithAddButton isLoading={isLoading}
                                                      setIsLoading={setIsLoading}
                                                      partition={partition}
-                                                     api={localApi}/> }
+                                                     api={localApi}/>) }
         </div>
     </MainLayout>
 }

@@ -6,7 +6,7 @@ import {useNavigate} from "react-router";
 import type {TenantDto} from "@/dto/TenantDto.ts";
 
 const getTenantLink = (t: TenantDto): string => {
-    return `/tenant/${t.id}/browser`
+    return `/tenant/${t.id}/partitions/browser/`
 }
 
 const DashboardPage = () => {

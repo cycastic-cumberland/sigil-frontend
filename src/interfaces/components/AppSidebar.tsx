@@ -29,11 +29,9 @@ type MenuGroup = {
     items: {name: string, icon: ReactNode, url: string}[]
 }
 
-const startingMeuGroups: MenuGroup[] = []
-
-const fullMenuGroups: MenuGroup[] = [
+const startingMeuGroups: MenuGroup[] = [
     {
-        title: "Tenants",
+        title: "User",
         items: [
             {
                 name: "Select tenant",
@@ -42,9 +40,32 @@ const fullMenuGroups: MenuGroup[] = [
             },
             {
                 name: "Active tenants",
-                url: '/tenant/{}/browser',
+                url: '/tenant/browser',
                 icon: <Building2/>
             },
+        ]
+    },
+]
+
+const fullMenuGroups: MenuGroup[] = [
+    {
+        title: "User",
+        items: [
+            {
+                name: "Select tenant",
+                url: '/',
+                icon: <List/>
+            },
+            {
+                name: "Active tenants",
+                url: '/tenant/browser',
+                icon: <Building2/>
+            },
+        ]
+    },
+    {
+        title: "Tenants",
+        items: [
             {
                 name: "Members",
                 url: '/tenant/{}/members',
@@ -114,13 +135,13 @@ const AppSidebar = () => {
     return  <Sidebar className={"bg-sidebar-accent border-r border-sidebar"} collapsible="icon">
         <SidebarHeader className={"bg-sidebar-accent flex flex-col justify-center border-b border-sidebar min-h-16"}>
             { state === 'expanded' ? <Link to={"/"} className={"w-full flex flex-row px-5 py-1 appearance-none bg-transparent border-none m-0 focus:outline-none"}>
-                <img className={"w-8 aspect-square"} src={"/icon.svg"} alt={"logo"}/>
+                <img className={"w-8 aspect-square"} src={theme === 'dark' ? '/icon-dark.svg' : "/icon-light.svg"} alt={"logo"}/>
                 <div className={"w-full flex flex-col"}>
-                    <h1 className={"text-2xl font-semibold tracking-tight text-foreground"}>
-                        PortfolioToolkit
+                    <h1 className={"text-2xl font-semibold tracking-tight text-foreground ml-2"}>
+                        Sigil
                     </h1>
                 </div>
-            </Link> : <Link to={'/'}><img className={"w-8 aspect-square"} src={"/icon.svg"} alt={"logo"}/></Link> }
+            </Link> : <Link to={'/'}><img className={"w-8 aspect-square"} src={theme === 'dark' ? '/icon-dark.svg' : "/icon-light.svg"} alt={"logo"}/></Link> }
         </SidebarHeader>
         <SidebarContent className={"bg-sidebar-accent"}>
             { (tenantId ? fullMenuGroups : startingMeuGroups).map((mg, i) => <SidebarGroup key={i}>
@@ -141,7 +162,7 @@ const AppSidebar = () => {
         </SidebarContent>
         <SidebarFooter className={"bg-sidebar-accent"}>
             <ul className={"flex w-full min-w-0 flex-row gap-1"}>
-                { state === 'expanded' && <div className={"w-full flex flex-row m-0"}>
+                { state === 'expanded' && <Link to={"/users/self"} className={"w-full flex flex-row m-0"}>
                     <span className={cn("relative flex size-8 shrink-0 overflow-hidden h-8 w-8 rounded-lg", !avatarUrl ? 'invisible' : '')}>
                         <img src={avatarUrl ?? "https://ui-avatars.com/api/?name=John+Doe"} alt={"pfp"}/>
                     </span>
@@ -153,7 +174,7 @@ const AppSidebar = () => {
                             { selfInfo?.email }
                         </span>
                     </div>
-                </div> }
+                </Link> }
                 <div className={"min-w-fit"}>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>

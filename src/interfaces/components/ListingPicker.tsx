@@ -46,6 +46,7 @@ import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
 import {useServerCommunication} from "@/contexts/ServerCommunicationContext.tsx";
 import {useTenant} from "@/contexts/TenantContext.tsx";
 import LinkWrapper from "@/interfaces/components/LinkWrapper.tsx";
+import PrivateKeyDecryptionDialog from "@/interfaces/components/PrivateKeyDecryptionDialog.tsx";
 
 const possiblePageSizes = [5, 10, 20]
 
@@ -107,9 +108,11 @@ const AttachmentContextMenu: FC<{
     api: AxiosInstance,
     partitionRef: RefObject<PartitionDto | null>,
     getPartitionKey: () => Promise<Uint8Array>,
+    requireDecrypt: () => void,
     uploadCompleted?: boolean,
-}> = ({ fullPath, isLoading, api, uploadCompleted, partitionRef, getPartitionKey }) => {
+}> = ({ fullPath, isLoading, api, uploadCompleted, partitionRef, getPartitionKey, requireDecrypt }) => {
     const [isDownloading, setIsDownloading] = useState(false)
+    const {userPrivateKey} = useAuthorization()
     const toastIdRef = useRef('' as string | number)
     const {wrapSecret} = useServerCommunication()
 
@@ -158,6 +161,7 @@ const AttachmentContextMenu: FC<{
         } catch (e) {
             if (axios.isCancel(e)){
                 toast.info("Download aborted")
+                toast.info("Download aborted", { id: toastIdRef.current, cancel: undefined })
             } else {
                 const err = extractError(e) ?? 'Error encountered while proccessing request'
                 toast.error(err, { id: toastIdRef.current, cancel: undefined })
@@ -205,7 +209,9 @@ const AttachmentContextMenu: FC<{
     }
 
     return <>
-        <DropdownMenuItem className={'cursor-pointer'} disabled={isDownloading || isLoading || !(uploadCompleted ?? false)} onClick={downloadFile}>
+        <DropdownMenuItem className={'cursor-pointer'}
+                          disabled={isDownloading || isLoading || !(uploadCompleted ?? false)}
+                          onClick={() => userPrivateKey ? downloadFile() : requireDecrypt()}>
             Download
         </DropdownMenuItem>
     </>
@@ -218,9 +224,16 @@ const ItemContextMenu: FC<{
     api: AxiosInstance,
     partitionRef: RefObject<PartitionDto | null>,
     getPartitionKey: () => Promise<Uint8Array>,
-}> = ({ fullPath, item, isLoading, api, partitionRef, getPartitionKey }): ReactNode => {
+    requireDecrypt: () => void,
+}> = ({ fullPath, item, isLoading, api, partitionRef, getPartitionKey, requireDecrypt }): ReactNode => {
     return item.type === 'ATTACHMENT' ?
-        <AttachmentContextMenu fullPath={fullPath} isLoading={isLoading} api={api} partitionRef={partitionRef} getPartitionKey={getPartitionKey} uploadCompleted={item.attachmentUploadCompleted}/> : <>
+        <AttachmentContextMenu fullPath={fullPath}
+                               isLoading={isLoading}
+                               api={api}
+                               partitionRef={partitionRef}
+                               getPartitionKey={getPartitionKey}
+                               uploadCompleted={item.attachmentUploadCompleted}
+                               requireDecrypt={requireDecrypt}/> : <>
             <DropdownMenuItem className={'cursor-pointer'}>
                 View/Update
             </DropdownMenuItem>
@@ -241,7 +254,8 @@ const ItemRow: FC<{
     partitionRef: RefObject<PartitionDto | null>,
     getPartitionKey: () => Promise<Uint8Array>,
     onListingSelected: (fullPath: string) => void,
-}> = ({ row, currentDir, setCurrentDir, isLoading, setIsLoading, enableLinks, prefix, refreshTrigger, selectAction, api, partitionRef, getPartitionKey, onListingSelected }) => {
+    requireDecrypt: () => void,
+}> = ({ row, currentDir, setCurrentDir, isLoading, setIsLoading, enableLinks, prefix, refreshTrigger, selectAction, api, partitionRef, getPartitionKey, onListingSelected, requireDecrypt }) => {
     const fullPath = useMemo(() => '/' + splitByFirst(currentDir, '/_/')[1] + row.original.name, [currentDir, row])
     const [confirmDeleteOpened, setConfirmDeleteOpened] = useState(false)
 
@@ -347,10 +361,11 @@ const ItemRow: FC<{
                                  isLoading={isLoading}
                                  api={api}
                                  partitionRef={partitionRef}
-                                 getPartitionKey={getPartitionKey}/>
-                <DropdownMenuItem className={'cursor-pointer text-destructive'} disabled={isLoading} onClick={() => setConfirmDeleteOpened(true)}>
+                                 getPartitionKey={getPartitionKey}
+                                 requireDecrypt={requireDecrypt}/>
+                { (!!partitionRef.current && partitionRef.current.permissions.includes("WRITE")) && <DropdownMenuItem className={'cursor-pointer text-destructive'} disabled={isLoading} onClick={() => setConfirmDeleteOpened(true)}>
                     Delete
-                </DropdownMenuItem>
+                </DropdownMenuItem> }
             </DropdownMenuContent>
         </DropdownMenu>
     </>
@@ -372,6 +387,7 @@ const ListingPicker: FC<{
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [pageCount, setPageCount] = useState(0);
     const [sorting, setSorting] = useState<SortingState>([]);
+    const [enableDecryption, setEnableDecryption] = useState(false)
     const {userPrivateKey} = useAuthorization()
     const {tenantId} = useTenant()
     const encodedPathFragments = useMemo(() => extractAndEncodePathFragments(currentDir), [currentDir])
@@ -455,6 +471,9 @@ const ListingPicker: FC<{
     }
 
     return <>
+        <PrivateKeyDecryptionDialog openDialog={enableDecryption}
+                                    onComplete={() => { setEnableDecryption(false); toast.success("Decryption completed, please retry"); }}
+                                    onReject={() => setEnableDecryption(false)}/>
         <div className={"my-3 w-full"}>
             <div className="rounded-md border border-foreground">
                 <Table className={"text-foreground"}>
@@ -523,6 +542,7 @@ const ListingPicker: FC<{
                                              api={api}
                                              partitionRef={partitionRef}
                                              getPartitionKey={getPartitionKey}
+                                             requireDecrypt={() => setEnableDecryption(true)}
                                              onListingSelected={onListingSelected ?? (() => {throw Error("Listing callback not specified")})}/>
                                 )) }
                             </>

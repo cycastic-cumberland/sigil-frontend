@@ -1,5 +1,6 @@
 import {useLocation} from "react-router";
 import {useMemo} from "react";
+import psl, {type ParsedDomain} from 'psl';
 
 export type ListingPathFragment = {
     display: string,
@@ -56,3 +57,10 @@ export const extractAndEncodePathFragments = (dir: string): ListingPathFragment[
         }
     }
 }
+
+export const getRpIdFromUrl = (urlString: string) => {
+    const { hostname } = new URL(urlString);
+    const { domain } = psl.parse(hostname) as ParsedDomain;
+    return domain || hostname;
+}
+

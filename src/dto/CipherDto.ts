@@ -1,8 +1,7 @@
-export type CipherDecryptionMethod = "USER_PASSWORD" | "UNWRAPPED_USER_KEY" | "SERVER_SIDE"
+export type CipherDecryptionMethod = "USER_PASSWORD" | "UNWRAPPED_USER_KEY" | "SERVER_SIDE" | "UNWRAPPED_PARTITION_KEY" | "WEBAUTHN_KEY"
 
 export type CipherDto = {
     decryptionMethod: CipherDecryptionMethod,
-    kid: string,
     iv: string | null,
     cipher: string
 }

@@ -6,5 +6,4 @@ export type AuthenticationResponseDto = {
     authToken: string,
     kdfSettings: string,
     publicRsaKey: string,
-    wrappedUserKey: CipherDto,
 }
