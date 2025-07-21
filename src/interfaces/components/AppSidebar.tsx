@@ -9,7 +9,6 @@ import {
     SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail, useSidebar
 } from "@/components/ui/sidebar.tsx";
 import {DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem} from "@/components/ui/dropdown-menu.tsx";
-import {getAuth} from "@/utils/auth.ts";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
 import {
     Building2,
@@ -92,7 +91,7 @@ const fullMenuGroups: MenuGroup[] = [
 
 const AppSidebar = () => {
     const [avatarUrl, setAvatarUrl] = useState(null as string | null)
-    const {invalidateAllSessions, localLogout, getUserInfo} = useAuthorization()
+    const {localLogout, getUserInfo} = useAuthorization()
     const [selfInfo, setSelfInfo] = useState(null as UserInfoDto | null)
     const {theme, setTheme} = useTheme()
     const {tenantId} = useTenant()
@@ -113,16 +112,6 @@ const AppSidebar = () => {
             setOpenMobile(false)
         }
     }, [location, isDesktop]);
-
-
-    const invalidateSessions = async () => {
-        const authInfo = getAuth()
-        if (!authInfo){
-            throw Error("unreachable");
-        }
-        await invalidateAllSessions(authInfo.userId)
-        localLogout()
-    }
 
     const toggleTheme = () => {
         if (theme === 'system' || theme === 'light'){
@@ -188,11 +177,13 @@ const AppSidebar = () => {
                             <DropdownMenuItem className={"cursor-pointer"} onSelect={toggleTheme}>
                                 { theme === 'light' ? "Dark mode" : "Light mode" }
                             </DropdownMenuItem>
+                            { state === 'collapsed' && <DropdownMenuItem className={"cursor-pointer"} asChild>
+                                <Link to={'/users/self'}>
+                                    Profile
+                                </Link>
+                            </DropdownMenuItem> }
                             <DropdownMenuItem className={"cursor-pointer"} onSelect={localLogout}>
                                 Log out
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className={"text-destructive cursor-pointer"} onSelect={invalidateSessions}>
-                                Invalidate all sessions
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>

@@ -41,7 +41,7 @@ const PasskeyAuthForm: FC<{
         e.preventDefault()
         try {
             setIsLoading(true)
-            await signInWithEmailAndPasskey(email)
+            await signInWithEmailAndPasskey(email.trim())
             redirect()
         } catch (e){
             if (e instanceof Error && e.name === "NotAllowedError"){
@@ -142,7 +142,7 @@ const PasswordAuthForm: FC<{
         e.preventDefault()
         try {
             setIsLoading(true)
-            await signInWithEmailAndPassword(formValues.email, formValues.password)
+            await signInWithEmailAndPassword(formValues.email.trim(), formValues.password)
             redirect()
         } catch (e){
             notifyApiError(e)

@@ -4,7 +4,7 @@ import {
     type FC,
     type RefObject,
     type SyntheticEvent,
-    useEffect,
+    useEffect, useMemo,
     useRef,
     useState
 } from "react";
@@ -30,6 +30,17 @@ import {useServerCommunication} from "@/contexts/ServerCommunicationContext.tsx"
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
 import {PrivateKeyDecryptionForm} from "@/interfaces/components/PrivateKeyDecryptionDialog.tsx";
 
+const splitFile = (file: File, partSize: number) => {
+    const parts: Blob[] = [];
+    let start = 0;
+    while (start < file.size) {
+        const end = Math.min(start + partSize, file.size);
+        parts.push(file.slice(start, end));
+        start = end;
+    }
+    return parts;
+}
+
 const AttachmentUploadDialog: FC<{
     isOpened: boolean,
     setIsOpened: (b: boolean) => void,
@@ -42,7 +53,13 @@ const AttachmentUploadDialog: FC<{
     const [selectedFile, setSelectedFile] = useState(null as File | null)
     const [selectedPath, setSelectedPath] = useState('')
     const [isDragging, setIsDragging] = useState(false)
-    const [progress, setProgress] = useState(0.0)
+    const [totalFileSize, setTotalFileSize] = useState(0.0)
+    const [uploadedFileSize, setUploadedFileSize] = useState(0.0)
+    const progress = useMemo(() => {
+        const total = totalFileSize <= 0.0 ? 1.0 : totalFileSize
+        const percent = (uploadedFileSize * 100.0) / total
+        return percent > 100.0 ? 10.0 : percent
+    }, [totalFileSize, uploadedFileSize])
     const {userPrivateKey, decryptPrivateKey} = useAuthorization()
     const partitionKeyRef = useRef(null as Uint8Array | null)
     const isDesktop = useMediaQuery("(min-width: 768px)")
@@ -66,7 +83,8 @@ const AttachmentUploadDialog: FC<{
             setSelectedFile(null)
         }
 
-        setProgress(0.0)
+        setTotalFileSize(0.0)
+        setUploadedFileSize(0.0)
     }, [isOpened]);
 
     const handlePathChanged = (e: ChangeEvent<HTMLInputElement>) => {
@@ -114,10 +132,26 @@ const AttachmentUploadDialog: FC<{
     }
 
     const uploadEvent = (progressEvent: AxiosProgressEvent) => {
-        const total = progressEvent.total ?? 1;
-        let percentCompleted = Math.round((progressEvent.loaded * 100) / total);
-        percentCompleted = percentCompleted > 100 ? 10 : percentCompleted;
-        setProgress(percentCompleted);
+        const loaded = progressEvent.loaded
+        setUploadedFileSize(c => c + loaded);
+    }
+
+    const uploadPresignedPart = async <T extends number | null> (url: string, partitionKeyMd5Base64: string, partitionKeyBase64: string, file: Blob, part: T) => {
+        const response = await axios.put(url, file, {
+            headers: {
+                'content-type': 'application/octet-stream',
+                'x-amz-server-side-encryption-customer-algorithm': 'AES256',
+                'x-amz-server-side-encryption-customer-key-md5': partitionKeyMd5Base64,
+                'x-amz-server-side-encryption-customer-key': partitionKeyBase64,
+            },
+
+            onUploadProgress: uploadEvent
+        })
+
+        return {
+            part,
+            etag: response.headers.etag as string
+        }
     }
 
     const uploadPresigned = async () => {
@@ -126,6 +160,7 @@ const AttachmentUploadDialog: FC<{
             throw Error("unreachable")
         }
 
+        setTotalFileSize(file.size)
         partitionIdRef.current = partitionRef.current?.id ?? null
 
         const partitionKey = await getPartitionKey()
@@ -143,19 +178,37 @@ const AttachmentUploadDialog: FC<{
         const presigned = presignedResponse.data as AttachmentPresignedDto;
 
         try {
-            await axios.put(presigned.url, file, {
-                headers: {
-                    'content-type': 'application/octet-stream',
-                    'x-amz-server-side-encryption-customer-algorithm': 'AES256',
-                    'x-amz-server-side-encryption-customer-key-md5': partitionKeyMd5Base64,
-                    'x-amz-server-side-encryption-customer-key': partitionKeyBase64,
-                },
+            if (!presigned.multipartId){
+              await uploadPresignedPart(presigned.url, partitionKeyMd5Base64, partitionKeyBase64, file, null)
+               await api.post('listings/attachment/complete', {
+                   id: presigned.id
+               })
+            } else {
+               const split = splitFile(file, presigned.chunkSize)
+               const firstUpload = uploadPresignedPart(presigned.url, partitionKeyMd5Base64, partitionKeyBase64, split[0], 1)
+               const promises = split.slice(1).map((b, i) => {
+                   return (async () => {
+                       const partNumber = i + 2
+                       const response = await api.post("listings/attachment/presigned/multipart", {
+                           id: presigned.id,
+                           uploadId: presigned.multipartId,
+                           partNumber,
+                           keyMd5: partitionKeyMd5Base64
+                       })
 
-                onUploadProgress: uploadEvent
-            })
-            await api.post('listings/attachment/complete', {
-                id: presigned.id
-            })
+                       const partPresigned = response.data as AttachmentPresignedDto
+                       return await uploadPresignedPart(partPresigned.url, partitionKeyMd5Base64, partitionKeyBase64, b, partNumber)
+                   })()
+               })
+
+               promises.push(firstUpload)
+               const result = await Promise.all(promises)
+                await api.post('listings/attachment/complete', {
+                    id: presigned.id,
+                    uploadId: presigned.multipartId,
+                    multipartUploadResult: result,
+                })
+            }
             setIsOpened(false)
             toast.success("Attachment uploaded")
         } catch (e){
@@ -170,6 +223,7 @@ const AttachmentUploadDialog: FC<{
             throw Error("unreachable")
         }
 
+        setTotalFileSize(file.size)
         partitionIdRef.current = partitionRef.current?.id ?? null
 
         const partitionKey = await getPartitionKey()
@@ -190,7 +244,8 @@ const AttachmentUploadDialog: FC<{
 
     const onUpload = async () => {
         setIsLoading(true)
-        setProgress(0.0)
+        setTotalFileSize(0.0)
+        setUploadedFileSize(0.0)
         let hasError = false;
         try {
             if (partitionRef.current!.serverSideKeyDerivation){

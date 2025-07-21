@@ -12,22 +12,23 @@ const emptyProject = (): TenantDto => {
     }
 }
 
-const ProjectEditForm: FC<{
+const TenantEditForm: FC<{
     submissionText?: string,
     error?: string,
     isLoading: boolean,
-    project?: TenantDto,
-    onSave: (project: TenantDto) => void
-}> = ({ submissionText, error, isLoading, project, onSave }) => {
-    const [formValues, setFormValues] = useState(project ? project : emptyProject())
+    tenant?: TenantDto,
+    onSave: (project: TenantDto) => void,
+    disableSave?: boolean,
+}> = ({ submissionText, error, isLoading, tenant, onSave, disableSave }) => {
+    const [formValues, setFormValues] = useState(tenant ? tenant : emptyProject())
 
     useEffect(() => {
-        if (project) {
-            setFormValues({ ...project });
+        if (tenant) {
+            setFormValues({ ...tenant });
         } else {
             setFormValues(emptyProject());
         }
-    }, [project]);
+    }, [tenant]);
 
     const handleChange = (
         e: ChangeEvent<HTMLInputElement>
@@ -58,12 +59,12 @@ const ProjectEditForm: FC<{
                 disabled={isLoading}
             />
             <div className="flex flex-row gap-2">
-                <Label className="w-32">Project name:</Label>
+                <Label className="w-32">Tenant name:</Label>
                 <Input
                     className="flex-1 border-foreground"
                     value={formValues.tenantName}
                     onChange={handleChange}
-                    id="projectName"
+                    id="tenantName"
                     required
                     disabled={isLoading}
                 />
@@ -86,11 +87,11 @@ const ProjectEditForm: FC<{
                     disabled={true}
                 />
             </div> }
-            <Button disabled={isLoading} type={"submit"} className={`flex flex-grow border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background ${error ? 'bg-destructive' : ''}`}>
+            { !disableSave && <Button disabled={isLoading} type={"submit"} className={`flex flex-grow border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background ${error ? 'bg-destructive' : ''}`}>
                 { error ? error : submissionText ? submissionText : 'Create' }
-            </Button>
+            </Button> }
         </div>
     </form>
 }
 
-export default ProjectEditForm
+export default TenantEditForm

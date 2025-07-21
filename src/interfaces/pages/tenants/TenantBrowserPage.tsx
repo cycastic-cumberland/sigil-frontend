@@ -7,7 +7,7 @@ import TenantTable from "@/interfaces/components/TenantTable.tsx";
 import {useNavigate} from "react-router";
 import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog.tsx";
 import type {TenantDto} from "@/dto/TenantDto.ts";
-import ProjectEditForm from "@/interfaces/components/ProjectEditForm.tsx";
+import TenantEditForm from "@/interfaces/components/TenantEditForm.tsx";
 import type {AxiosError} from "axios";
 import api from "@/api.ts";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
@@ -46,14 +46,14 @@ const CreateProjectDialog: FC<{
                 <DialogTitle>Create project</DialogTitle>
             </DialogHeader>
             <div className={"w-full"}>
-                <ProjectEditForm isLoading={isLoading} error={error} onSave={onSave}/>
+                <TenantEditForm isLoading={isLoading} error={error} onSave={onSave}/>
             </div>
         </DialogContent>
     </Dialog> : <Drawer open={opened} onOpenChange={setOpened}>
         <DrawerContent>
             <DrawerHeader>Create project</DrawerHeader>
             <div className={"w-full px-3 pb-3"}>
-                <ProjectEditForm isLoading={isLoading} error={error} onSave={onSave}/>
+                <TenantEditForm isLoading={isLoading} error={error} onSave={onSave}/>
             </div>
         </DrawerContent>
     </Drawer>

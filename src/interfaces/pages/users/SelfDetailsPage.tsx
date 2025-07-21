@@ -18,12 +18,14 @@ import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from "@/components/ui/dialog.tsx";
 import {PrivateKeyDecryptionForm} from "@/interfaces/components/PrivateKeyDecryptionDialog.tsx";
 import {Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle} from "@/components/ui/drawer.tsx";
+import {getAuth} from "@/utils/auth.ts";
+import {Tooltip, TooltipContent, TooltipTrigger} from "@/components/ui/tooltip.tsx";
 
 const SelfDetailsPage = () => {
     const [isLoading, setIsLoading] = useState(false)
     const [enrollPasskeyDialog, setEnrollPasskeyDialog] = useState(false)
     const [user, setUser] = useState(null as UserInfoDto | null)
-    const {getUserInfo, transientDecryptPrivateKey, getEnvelop} = useAuthorization()
+    const {getUserInfo, transientDecryptPrivateKey, getEnvelop, invalidateAllSessions, localLogout} = useAuthorization()
     const isDesktop = useMediaQuery("(min-width: 768px)")
 
     useEffect(() => {
@@ -84,7 +86,16 @@ const SelfDetailsPage = () => {
             return
         }
 
-        const prf = regCredential.getClientExtensionResults().prf as Prf
+        let prf: Prf | undefined
+        try {
+            prf = regCredential.getClientExtensionResults()?.prf as Prf | undefined
+        } catch (e){
+            console.error(e)
+        }
+        if (!prf){
+            toast.error("This browser does not support WebAuthn PRF")
+            return
+        }
         const encryptionKey = await deriveEncryptionKeyFromWebAuthnPrf(prf)
         const nonce = crypto.getRandomValues(new Uint8Array(12));
         const encryptedPkcs8 = await crypto.subtle.encrypt(
@@ -130,6 +141,22 @@ const SelfDetailsPage = () => {
         }
     }
 
+    const invalidateSessions = async () => {
+        try {
+            setIsLoading(true)
+            const authInfo = getAuth()
+            if (!authInfo){
+                toast.error("A serious error has occurred")
+                return
+            }
+            await invalidateAllSessions(authInfo.userId)
+            localLogout()
+        } catch (e){
+            notifyApiError(e)
+        } finally {
+            setIsLoading(false)
+        }
+    }
 
     return <MainLayout>
         { isDesktop ? <Dialog open={enrollPasskeyDialog} onOpenChange={setEnrollPasskeyDialog} >
@@ -224,6 +251,26 @@ const SelfDetailsPage = () => {
                     </form>
                 </div>
             </div>
+            <div className={"my-2"}>
+                <Label className={"text-2xl text-destructive font-bold"}>
+                    Danger zone
+                </Label>
+            </div>
+                <div className={"my-3 w-full"}>
+                    <div className={"lg:w-1/2 text-foreground flex flex-col gap-2"}>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button className={"cursor-pointer bg-destructive text-background border-destructive border-1 hover:bg-background hover:text-destructive"}
+                                        onClick={invalidateSessions}>
+                                    Invalidate all sessions
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Log out all active sessions</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </div>
+                </div>
         </div> }
     </MainLayout>
 }

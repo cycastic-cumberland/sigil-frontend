@@ -48,6 +48,7 @@ import {
     PrivateKeyDecryptionForm
 } from "@/interfaces/components/PrivateKeyDecryptionDialog.tsx";
 import ConfirmationDialog from "@/interfaces/components/ConfirmationDialog.tsx";
+import FullSizeSpinner from "@/interfaces/components/FullSizeSpinner.tsx";
 
 const itemsColumnDef: ColumnDef<PartitionUserDto>[] = [
     {
@@ -553,7 +554,7 @@ const PartitionMembersPage = () => {
                     { userEmail ? "Manage partition member" : (!!partition && partition.permissions.includes("MODERATE")) ? "Manage partition members" : "Partition members" }
                 </Label>
             </div>
-            { partition && (userEmail
+            { partition ? (userEmail
                 ? <ManagePartitionMember isLoading={isLoading}
                                          setIsLoading={setIsLoading}
                                          userEmail={userEmail}
@@ -562,7 +563,8 @@ const PartitionMembersPage = () => {
                 : <PartitionMemberTableWithAddButton isLoading={isLoading}
                                                      setIsLoading={setIsLoading}
                                                      partition={partition}
-                                                     api={localApi}/>) }
+                                                     api={localApi}/>)
+                : <FullSizeSpinner/> }
         </div>
     </MainLayout>
 }

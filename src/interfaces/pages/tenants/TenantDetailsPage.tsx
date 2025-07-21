@@ -5,7 +5,7 @@ import type {TenantDto} from "@/dto/TenantDto.ts";
 import FullSizeSpinner from "@/interfaces/components/FullSizeSpinner.tsx";
 import {useNavigate} from "react-router";
 import {useTenant} from "@/contexts/TenantContext.tsx";
-import ProjectEditForm from "@/interfaces/components/ProjectEditForm.tsx";
+import TenantEditForm from "@/interfaces/components/TenantEditForm.tsx";
 import api from "@/api.ts";
 import type {AxiosError} from "axios";
 import ConfirmationDialog from "@/interfaces/components/ConfirmationDialog.tsx";
@@ -14,7 +14,7 @@ import {notifyApiError} from "@/utils/errors.ts";
 import {toast} from "sonner";
 
 const TenantDetailsPage = () => {
-    const [project, setProject] = useState(null as TenantDto | null)
+    const [tenant, setTenant] = useState(null as TenantDto | null)
     const [isLoading, setIsLoading] = useState(true)
     const [confirmDeleteOpened, setConfirmDeleteOpened] = useState(false)
     const [error, setError] = useState('')
@@ -28,7 +28,7 @@ const TenantDetailsPage = () => {
             if (!id){
                 return;
             }
-            setProject(await getProject(id))
+            setTenant(await getProject(id))
         } catch (e) {
             notifyApiError(e)
         } finally {
@@ -53,7 +53,7 @@ const TenantDetailsPage = () => {
             setIsLoading(true)
             setError('')
 
-            await api.post('projects/project', project)
+            await api.post('tenants/tenant', project)
             await reloadProject(tenantId!)
             toast.success("Project settings saved")
         } catch (e){
@@ -97,7 +97,7 @@ const TenantDetailsPage = () => {
                             message={'Are you sure you want to delete this project? This action is irreversible.'}
                             acceptText={'Delete'}
                             destructive/>
-        { isLoading ? <FullSizeSpinner/> : !project ? <div className={"flex flex-col flex-grow w-full justify-center gap-2"}>
+        { isLoading ? <FullSizeSpinner/> : !tenant ? <div className={"flex flex-col flex-grow w-full justify-center gap-2"}>
             <div className={"w-full flex flex-row justify-center"}>
                 <Label className={"text-foreground font-bold text-4xl"}>
                     Tenant not found
@@ -106,17 +106,21 @@ const TenantDetailsPage = () => {
         </div> : <div className={"w-full p-5 flex flex-col"}>
             <div className={"my-2"}>
                 <Label className={"text-2xl text-foreground font-bold"}>
-                    Manage tenant
+                    {(!!tenant && tenant.membership === "OWNER") ? "Manage tenant" : "Tenant details"}
                 </Label>
             </div>
             <div className={"w-full"}>
                 <div className={"lg:w-1/2 text-foreground flex flex-col gap-2"}>
-                    <ProjectEditForm submissionText={"Save"}
-                                     error={error}
-                                     isLoading={isLoading}
-                                     onSave={onSave}
-                                     project={project}/>
-                    <Button className={"cursor-pointer bg-destructive text-background border-destructive border-1 hover:bg-background hover:text-destructive"} onClick={() => setConfirmDeleteOpened(true)}>Delete project</Button>
+                    <TenantEditForm submissionText={"Save"}
+                                    error={error}
+                                    isLoading={isLoading}
+                                    onSave={onSave}
+                                    tenant={tenant} disableSave={!!tenant && tenant.membership !== "OWNER"}/>
+                    {(!!tenant && tenant.membership === "OWNER") && <Button className={"cursor-pointer bg-destructive text-background border-destructive border-1 hover:bg-background hover:text-destructive"}
+                            onClick={() => setConfirmDeleteOpened(true)}
+                            disabled>
+                        Delete tenant
+                    </Button>}
                 </div>
             </div>
         </div> }
