@@ -44,11 +44,9 @@ import {
 } from "@/utils/cryptography.ts";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
 import {useTenant} from "@/contexts/TenantContext.tsx";
-import {
-    PrivateKeyDecryptionForm
-} from "@/interfaces/components/PrivateKeyDecryptionDialog.tsx";
 import ConfirmationDialog from "@/interfaces/components/ConfirmationDialog.tsx";
 import FullSizeSpinner from "@/interfaces/components/FullSizeSpinner.tsx";
+import {PrivateKeyDecryptor} from "@/interfaces/components/PrivateKeyDecryptor.tsx";
 
 const itemsColumnDef: ColumnDef<PartitionUserDto>[] = [
     {
@@ -261,7 +259,7 @@ const PartitionMemberTableWithAddButton: FC<{
     const [dialogOpened, setDialogOpened] = useState(false)
     const [counter, setCounter] = useState(0)
     const {tenantId} = useTenant()
-    const {userPrivateKey, decryptPrivateKey} = useAuthorization()
+    const {userPrivateKey} = useAuthorization()
     const isDesktop = useMediaQuery("(min-width: 768px)")
 
     const getPartitionKey = async () => {
@@ -324,22 +322,6 @@ const PartitionMemberTableWithAddButton: FC<{
         }
     }
 
-    const onDecrypt = async (password: string) => {
-        try {
-            setIsLoading(true)
-
-            await decryptPrivateKey(password)
-        } catch (e: unknown) {
-            if (e instanceof Error){
-                toast.error(e.message)
-            } else {
-                toast.error("Failed to unlock user's session")
-            }
-        } finally {
-            setIsLoading(false)
-        }
-    };
-
     return <>
         { isDesktop ? <Dialog open={dialogOpened} onOpenChange={setDialogOpened}>
             <DialogContent>
@@ -348,13 +330,13 @@ const PartitionMemberTableWithAddButton: FC<{
                     <DialogDescription>
                         { userPrivateKey
                             ? "Add a new tenant member to this partition."
-                            : "Enter your password to continue"}
+                            : "Unlock this session to continue"}
                     </DialogDescription>
                 </DialogHeader>
                 <div className={"w-full"}>
                     { userPrivateKey
                         ? <PartitionMemberEditForm disabled={isLoading} onSave={onMemberAdded}/>
-                        : <PrivateKeyDecryptionForm isLoading={isLoading} onSave={onDecrypt}/> }
+                        : <PrivateKeyDecryptor isLoading={isLoading} setIsLoading={setIsLoading}/>}
                 </div>
             </DialogContent>
         </Dialog> : <Drawer open={dialogOpened} onOpenChange={setDialogOpened}>
@@ -364,13 +346,13 @@ const PartitionMemberTableWithAddButton: FC<{
                     <DrawerDescription>
                         { userPrivateKey
                             ? "Add a new tenant member to this partition."
-                            : "Enter your password to continue"}
+                            : "Unlock this session to continue"}
                     </DrawerDescription>
                 </DrawerHeader>
                 <div className={"w-full px-3 pb-3"}>
                     { userPrivateKey
                         ? <PartitionMemberEditForm disabled={isLoading} onSave={onMemberAdded}/>
-                        : <PrivateKeyDecryptionForm isLoading={isLoading} onSave={onDecrypt}/> }
+                        : <PrivateKeyDecryptor isLoading={isLoading} setIsLoading={setIsLoading}/> }
                 </div>
             </DrawerContent>
         </Drawer> }

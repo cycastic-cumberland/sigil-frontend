@@ -16,10 +16,10 @@ import type {CipherDto} from "@/dto/CipherDto.ts";
 import type {Prf} from "@/dto/webauthn.ts";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from "@/components/ui/dialog.tsx";
-import {PrivateKeyDecryptionForm} from "@/interfaces/components/PrivateKeyDecryptionDialog.tsx";
 import {Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle} from "@/components/ui/drawer.tsx";
 import {getAuth} from "@/utils/auth.ts";
 import {Tooltip, TooltipContent, TooltipTrigger} from "@/components/ui/tooltip.tsx";
+import {PasswordBasedPrivateKeyDecryptor} from "@/interfaces/components/PrivateKeyDecryptor.tsx";
 
 const SelfDetailsPage = () => {
     const [isLoading, setIsLoading] = useState(false)
@@ -165,7 +165,7 @@ const SelfDetailsPage = () => {
                     <DialogTitle>Verification required</DialogTitle>
                     <DialogDescription>Reenter your password to proceed.</DialogDescription>
                 </DialogHeader>
-                <PrivateKeyDecryptionForm isLoading={isLoading} onSave={attemptEnrollPasskey}/>
+                <PasswordBasedPrivateKeyDecryptor isLoading={isLoading} onSave={attemptEnrollPasskey}/>
             </DialogContent>
         </Dialog> : <Drawer open={enrollPasskeyDialog} onOpenChange={setEnrollPasskeyDialog}>
             <DrawerContent>
@@ -174,7 +174,7 @@ const SelfDetailsPage = () => {
                     <DrawerDescription>Reenter your password to proceed.</DrawerDescription>
                 </DrawerHeader>
                 <div className={"p-5"}>
-                    <PrivateKeyDecryptionForm isLoading={isLoading} onSave={attemptEnrollPasskey}/>
+                    <PasswordBasedPrivateKeyDecryptor isLoading={isLoading} onSave={attemptEnrollPasskey}/>
                 </div>
             </DrawerContent>
         </Drawer> }

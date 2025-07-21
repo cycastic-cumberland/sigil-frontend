@@ -1,52 +1,8 @@
-import {type ChangeEvent, type FC, type SyntheticEvent, useState} from "react";
-import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
+import {type FC, useState} from "react";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from "@/components/ui/dialog.tsx";
 import {Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle} from "@/components/ui/drawer.tsx";
-import {toast} from "sonner";
-import {Label} from "@/components/ui/label.tsx";
-import {Input} from "@/components/ui/input.tsx";
-import {Button} from "@/components/ui/button.tsx";
-import {Spinner} from "@/components/ui/shadcn-io/spinner";
-
-export const PrivateKeyDecryptionForm: FC<{ isLoading: boolean, onSave: (password: string) => void }> = ({ isLoading, onSave }) => {
-    const [password, setPassword] = useState("")
-
-    const handleSubmit = async (e: SyntheticEvent) => {
-        e.preventDefault();
-        onSave(password)
-    };
-
-    const handleChange = (
-        e: ChangeEvent<HTMLInputElement>
-    ) => {
-        const { value } = e.target;
-        setPassword(value)
-    };
-
-    return <div className={"w-full"}>
-        <form onSubmit={handleSubmit}>
-            <div className="grid gap-2">
-                <div className="flex flex-row gap-2">
-                    <Label className="w-32">Password:</Label>
-                    <Input
-                        className="flex-1 border-foreground"
-                        value={password}
-                        onChange={handleChange}
-                        type={"password"}
-                        required
-                        disabled={isLoading}
-                    />
-                </div>
-                <Button disabled={isLoading} type={"submit"} className={'flex flex-grow border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background'}>
-                    { isLoading && <Spinner/> }
-                    Unlock
-                </Button>
-            </div>
-        </form>
-    </div>
-}
-
+import {PrivateKeyDecryptor} from "@/interfaces/components/PrivateKeyDecryptor.tsx";
 
 const PrivateKeyDecryptionDialog: FC<{
     openDialog: boolean,
@@ -54,27 +10,7 @@ const PrivateKeyDecryptionDialog: FC<{
     onReject?: () => void,
 }> = ({ openDialog, onComplete, onReject }) => {
     const [isLoading, setIsLoading] = useState(false)
-    const {decryptPrivateKey} = useAuthorization()
     const isDesktop = useMediaQuery("(min-width: 768px)")
-
-    const onSubmit = async (password: string) => {
-        try {
-            setIsLoading(true)
-
-            await decryptPrivateKey(password)
-            if (onComplete){
-                onComplete()
-            }
-        } catch (e: unknown) {
-            if (e instanceof Error){
-                toast.error(e.message)
-            } else {
-                toast.error("Failed to unlock user's session")
-            }
-        } finally {
-            setIsLoading(false)
-        }
-    };
 
     return isDesktop ? <Dialog open={openDialog} onOpenChange={o => {
         if (o) {
@@ -87,10 +23,12 @@ const PrivateKeyDecryptionDialog: FC<{
     }} >
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                    <DialogTitle>Enter your password</DialogTitle>
-                    <DialogDescription>Enter your password to unlock this feature.</DialogDescription>
+                    <DialogTitle>Unlock your private key</DialogTitle>
+                    <DialogDescription>Unlock your session with one of the method bellow.</DialogDescription>
                 </DialogHeader>
-                <PrivateKeyDecryptionForm isLoading={isLoading} onSave={onSubmit}/>
+                <PrivateKeyDecryptor isLoading={isLoading}
+                                     setIsLoading={setIsLoading}
+                                     onSuccess={onComplete}/>
             </DialogContent>
         </Dialog> : <Drawer open={openDialog} onOpenChange={o => {
         if (o) {
@@ -103,11 +41,13 @@ const PrivateKeyDecryptionDialog: FC<{
     }}>
             <DrawerContent>
                 <DrawerHeader>
-                    <DrawerTitle>Enter your password</DrawerTitle>
-                    <DrawerDescription>Enter your password to unlock this feature.</DrawerDescription>
+                    <DrawerTitle>Unlock your private key</DrawerTitle>
+                    <DrawerDescription>Unlock your session with one of the method bellow.</DrawerDescription>
                 </DrawerHeader>
                 <div className={"p-5"}>
-                    <PrivateKeyDecryptionForm isLoading={isLoading} onSave={onSubmit}/>
+                    <PrivateKeyDecryptor isLoading={isLoading}
+                                         setIsLoading={setIsLoading}
+                                         onSuccess={onComplete}/>
                 </div>
             </DrawerContent>
         </Drawer>

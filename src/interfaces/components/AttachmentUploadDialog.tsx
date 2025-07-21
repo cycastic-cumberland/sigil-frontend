@@ -28,7 +28,7 @@ import {splitByFirst} from "@/utils/path.ts";
 import {notifyApiError} from "@/utils/errors.ts";
 import {useServerCommunication} from "@/contexts/ServerCommunicationContext.tsx";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
-import {PrivateKeyDecryptionForm} from "@/interfaces/components/PrivateKeyDecryptionDialog.tsx";
+import {PrivateKeyDecryptor} from "@/interfaces/components/PrivateKeyDecryptor.tsx";
 
 const splitFile = (file: File, partSize: number) => {
     const parts: Blob[] = [];
@@ -60,7 +60,7 @@ const AttachmentUploadDialog: FC<{
         const percent = (uploadedFileSize * 100.0) / total
         return percent > 100.0 ? 10.0 : percent
     }, [totalFileSize, uploadedFileSize])
-    const {userPrivateKey, decryptPrivateKey} = useAuthorization()
+    const {userPrivateKey} = useAuthorization()
     const partitionKeyRef = useRef(null as Uint8Array | null)
     const isDesktop = useMediaQuery("(min-width: 768px)")
     const fileDropRef = useRef<HTMLInputElement>(null)
@@ -271,22 +271,6 @@ const AttachmentUploadDialog: FC<{
         }
     }
 
-    const onDecrypt = async (password: string) => {
-        try {
-            setIsLoading(true)
-
-            await decryptPrivateKey(password)
-        } catch (e: unknown) {
-            if (e instanceof Error){
-                toast.error(e.message)
-            } else {
-                toast.error("Failed to unlock user's session")
-            }
-        } finally {
-            setIsLoading(false)
-        }
-    }
-
     return isDesktop ? <Dialog open={isOpened} onOpenChange={setIsOpened}>
         <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
@@ -294,12 +278,12 @@ const AttachmentUploadDialog: FC<{
                 <DialogDescription>
                     { userPrivateKey
                         ? "Upload an attachment to the folder specified bellow. The listed folder does not have to exist yet."
-                        : "Enter your password to continue"}
+                        : "Unlock this session to continue"}
                 </DialogDescription>
             </DialogHeader>
             <div className={"w-full flex flex-col gap-2"}>
                 { !userPrivateKey
-                    ? <PrivateKeyDecryptionForm isLoading={isLoading} onSave={onDecrypt}/>
+                    ? <PrivateKeyDecryptor isLoading={isLoading} setIsLoading={setIsLoading}/>
                     : <>
                         <div className="flex flex-row gap-2">
                             <Label className="w-32">File path:</Label>
@@ -357,12 +341,12 @@ const AttachmentUploadDialog: FC<{
                 <DrawerDescription>
                     { userPrivateKey
                         ? "Upload an attachment to the folder specified bellow. The listed folder does not have to exist yet."
-                        : "Enter your password to continue"}
+                        : "Unlock this session to continue"}
                 </DrawerDescription>
             </DrawerHeader>
             <div className={'w-full pb-3 px-3'}>
                 { !userPrivateKey
-                    ? <PrivateKeyDecryptionForm isLoading={isLoading} onSave={onDecrypt}/>
+                    ? <PrivateKeyDecryptor isLoading={isLoading} setIsLoading={setIsLoading}/>
                     : <div className={"w-full flex flex-col gap-2"}>
                         <div className="flex flex-row gap-2">
                             <Label className="w-32">File path:</Label>

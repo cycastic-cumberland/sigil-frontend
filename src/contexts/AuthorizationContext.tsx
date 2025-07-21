@@ -27,6 +27,7 @@ export type AuthorizationContextType = {
     invalidateAllSessions: (userId: number) => Promise<void>,
     localLogout: () => void,
     decryptPrivateKey: (password: string) => Promise<void>,
+    decryptWithWebAuthn: () => Promise<void>,
     transientDecryptPrivateKey: (password: string, cipher: CipherDto) => Promise<Uint8Array>,
     getEnvelop: () => Promise<EnvelopDto>,
 }
@@ -103,6 +104,49 @@ const transientDecryptPrivateKey = async (password: string, cipher: CipherDto) =
     return await decryptPcks8PrivateKey(pass, salt, parallelism, iterations, memoryCost, cipher)
 }
 
+const deriveWebAuthnKeyEncryptionKey = async (challenge: Uint8Array, credentialId: Uint8Array, salt: Uint8Array, transports: AuthenticatorTransport[]) => {
+    const loginCredential = await navigator.credentials.get({
+        publicKey: {
+            challenge,
+            allowCredentials: [
+                {
+                    id: credentialId,
+                    transports,
+                    type: "public-key",
+                },
+            ],
+            rpId: getRpIdFromUrl(window.location.href),
+            userVerification: "required",
+            extensions: {
+                prf: {
+                    eval: {
+                        first: salt,
+                    },
+                },
+            },
+        },
+    })
+
+    if (!loginCredential){
+        throw Error("Failed to read passkey")
+    }
+
+    if (!(loginCredential instanceof PublicKeyCredential)){
+        throw Error("Device not supported")
+    }
+
+    let prf: Prf | undefined
+    try {
+        prf = loginCredential.getClientExtensionResults()?.prf as Prf | undefined
+    } catch (e){
+        console.error(e)
+    }
+    if (!prf){
+        throw Error("This browser does not support WebAuthn PRF")
+    }
+    return await deriveEncryptionKeyFromWebAuthnPrf(prf)
+}
+
 export const AuthorizationProvider: FC<{ children?: ReactNode }> = ({ children }) => {
     const userInfoRef = useRef(null as UserInfoDto | null)
     const [privateKey, setPrivateKey] = useState(null as CryptoKey | null)
@@ -165,41 +209,14 @@ export const AuthorizationProvider: FC<{ children?: ReactNode }> = ({ children }
         const encoder = new TextEncoder();
         const uid = encoder.encode(email.toUpperCase())
         const webAuthnCredentials = kdfSettings.webAuthnCredential
-        const loginCredential = await navigator.credentials.get({
-            publicKey: {
-                challenge: uid,
-                allowCredentials: [
-                    {
-                        id: base64ToUint8Array(webAuthnCredentials.credentialId),
-                        transports: webAuthnCredentials.transports,
-                        type: "public-key",
-                    },
-                ],
-                rpId: getRpIdFromUrl(window.location.href),
-                userVerification: "required",
-                extensions: {
-                    prf: {
-                        eval: {
-                            first: base64ToUint8Array(webAuthnCredentials.salt),
-                        },
-                    },
-                },
-            },
-        })
-
-        if (!loginCredential){
-            throw Error("Failed to read passkey")
-        }
-
-        if (!(loginCredential instanceof PublicKeyCredential)){
-            throw Error("Device not supported")
-        }
-
-        const prf = loginCredential.getClientExtensionResults().prf as Prf
-        const encryptionKey = await deriveEncryptionKeyFromWebAuthnPrf(prf)
         if (!webAuthnCredentials.wrappedUserKey.iv){
             throw Error("Nonce not found")
         }
+        const encryptionKey = await deriveWebAuthnKeyEncryptionKey(uid,
+            base64ToUint8Array(webAuthnCredentials.credentialId),
+            base64ToUint8Array(webAuthnCredentials.salt),
+            webAuthnCredentials.transports)
+
         const nonce = base64ToUint8Array(webAuthnCredentials.wrappedUserKey.iv)
         const cipherText = base64ToUint8Array(webAuthnCredentials.wrappedUserKey.cipher)
         let pkcs8: Uint8Array = new Uint8Array()
@@ -213,6 +230,42 @@ export const AuthorizationProvider: FC<{ children?: ReactNode }> = ({ children }
         }
 
         await signInInternal(email, kdfSettings.signatureVerificationWindow, pkcs8)
+    }
+
+    const decryptWithWebAuthn = async () => {
+        const auth = getAuth()
+        if (!auth){
+            throw Error("User not signed in")
+        }
+        const envelop = await getEnvelop()
+        if (!envelop.webAuthnCipher){
+            throw Error("WebAuthn not enabled")
+        }
+
+        const webAuthnCredentials = envelop.webAuthnCipher
+        if (!webAuthnCredentials.wrappedUserKey.iv){
+            throw Error("Nonce not found")
+        }
+        const encoder = new TextEncoder();
+        const uid = encoder.encode(auth.userEmail.toUpperCase())
+        const encryptionKey = await deriveWebAuthnKeyEncryptionKey(uid,
+            base64ToUint8Array(webAuthnCredentials.credentialId),
+            base64ToUint8Array(webAuthnCredentials.salt),
+            webAuthnCredentials.transports)
+
+        const nonce = base64ToUint8Array(webAuthnCredentials.wrappedUserKey.iv)
+        const cipherText = base64ToUint8Array(webAuthnCredentials.wrappedUserKey.cipher)
+        let pkcs8: Uint8Array = new Uint8Array()
+        try {
+            pkcs8 = await decryptAESGCM(cipherText, nonce, encryptionKey)
+        } catch (e){
+            if (e instanceof DOMException && e.name === "OperationError"){
+                throw Error("User don't have passkey enrolled or invalid passkey detected")
+            }
+            throw e
+        }
+        const encryptionPrivateKey = await createPrivateKey(pkcs8, false)
+        setPrivateKey(encryptionPrivateKey)
     }
 
     const getUserInfo = async (reload?: boolean) => {
@@ -247,6 +300,7 @@ export const AuthorizationProvider: FC<{ children?: ReactNode }> = ({ children }
         localLogout,
         transientDecryptPrivateKey,
         decryptPrivateKey,
+        decryptWithWebAuthn,
         getEnvelop,
     }
 
