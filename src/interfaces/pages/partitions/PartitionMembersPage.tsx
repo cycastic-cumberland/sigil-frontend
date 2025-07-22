@@ -136,7 +136,7 @@ const PartitionMemberTable: FC<{
     }, [pagination, sorting, partition]);
 
     const getManageUserUrl = (u: PartitionUserDto) => {
-        return location.pathname + `?user=${u.email}`
+        return location.pathname + `?user=${encodeURIComponent(u.email)}`
     }
 
     return <div className={"my-3 w-full"}>
