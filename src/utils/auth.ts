@@ -1,5 +1,9 @@
 import type {AuthenticationResponseDto} from "@/dto/AuthenticationResponseDto.ts";
 
+const passwordValidationRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[`~!@#$%^&*()_+{}|:"<>?\[\]\\;',.]).{8,}$/;
+
+export const validatePassword = (password: string) => passwordValidationRegex.test(password)
+
 export const storeAuthResponse = (response: AuthenticationResponseDto) => {
     localStorage.setItem("auth", JSON.stringify(response))
 }

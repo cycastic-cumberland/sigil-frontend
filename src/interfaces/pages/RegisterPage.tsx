@@ -44,7 +44,7 @@ const RegisterForm: FC<HTMLAttributes<HTMLDivElement> & {
                         Create a Sigil account
                     </h1>
                     <p className={"text-muted-foreground text-sm"}>
-                        Enter your credential below
+                        Enter your email to continue
                     </p>
                 </div>
                 <div className="grid gap-1">
@@ -60,62 +60,6 @@ const RegisterForm: FC<HTMLAttributes<HTMLDivElement> & {
                         autoCapitalize="none"
                         autoComplete="email"
                         autoCorrect="off"
-                        disabled={isLoading}
-                        required
-                    />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                    <div>
-                        <Label className="sr-only" htmlFor="firstName">First Name</Label>
-                        <Input
-                            id="firstName"
-                            placeholder="First Name"
-                            value={formValues.firstName}
-                            onChange={handleChange}
-                            className="text-foreground"
-                            disabled={isLoading}
-                            required
-                        />
-                    </div>
-                    <div>
-                        <Label className="sr-only" htmlFor="lastName">Last Name</Label>
-                        <Input
-                            id="lastName"
-                            placeholder="Last Name"
-                            value={formValues.lastName}
-                            onChange={handleChange}
-                            className="text-foreground"
-                            disabled={isLoading}
-                            required
-                        />
-                    </div>
-                </div>
-                <div className="grid gap-1">
-                    <Label className="sr-only" htmlFor="password">
-                        Password
-                    </Label>
-                    <Input
-                        id="password"
-                        value={formValues.password}
-                        onChange={handleChange}
-                        className={"text-foreground"}
-                        placeholder="Password"
-                        type="password"
-                        disabled={isLoading}
-                        required
-                    />
-                </div>
-                <div className="grid gap-1">
-                    <Label className="sr-only" htmlFor="password">
-                        Confirm your password
-                    </Label>
-                    <Input
-                        id="confirmPassword"
-                        value={formValues.confirmPassword}
-                        onChange={handleChange}
-                        className={"text-foreground"}
-                        placeholder="Confirm your password"
-                        type="password"
                         disabled={isLoading}
                         required
                     />
@@ -137,7 +81,7 @@ const RegisterForm: FC<HTMLAttributes<HTMLDivElement> & {
                         className={'hover:text-background hover:bg-foreground cursor-pointer bg-background text-foreground shadow-none'}
                         asChild>
                     <Link to={'/login'}>
-                        Log in with Email
+                        Log in with email
                     </Link>
                 </Button>
             </div>
@@ -180,18 +124,9 @@ const RegisterPage = () => {
     const [isLoading, setIsLoading] = useState(false)
     const [formData, setFormData] = useState({
         email: '',
-        password: '',
-        confirmPassword: '',
-        firstName: '',
-        lastName: ''
     } as RegisterUserDto)
 
     const onSubmit = async (data: RegisterUserDto) => {
-        if (data.password !== data.confirmPassword){
-            toast.error("Password does not match")
-            return
-        }
-
         try {
             setIsLoading(true)
             setFormData(data)
@@ -209,10 +144,11 @@ const RegisterPage = () => {
         try {
             setIsLoading(true)
 
-            await api.post('auth/register', {
+            await api.post('auth/register/resend', {
                 email: formData.email
             })
             setEmailSent(true)
+            toast.success("Invitation resent")
         } catch (e: unknown){
             notifyApiError(e)
         } finally {

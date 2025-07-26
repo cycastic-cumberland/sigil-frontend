@@ -5,11 +5,15 @@ import {type ChangeEvent, type FC, type HTMLAttributes, type SyntheticEvent, use
 import {cn} from "@/lib/utils.ts";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
-import {useNavigate, useSearchParams} from "react-router";
+import {Link, useNavigate, useSearchParams} from "react-router";
 import {toast} from "sonner";
-import {notifyApiError} from "@/utils/errors.ts";
+import {ExceptionCodes, notifyApiError} from "@/utils/errors.ts";
 import {useQuery} from "@/utils/path.ts";
-import {KeyRound, RectangleEllipsis} from "lucide-react";
+import {Eye, EyeOff, KeyRound, RectangleEllipsis} from "lucide-react";
+import axios from "axios";
+
+const isRegistrationInProgress = (e: unknown) =>
+    (axios.isAxiosError(e) && (e.response?.data?.exceptionCode ?? null) === ExceptionCodes.registrationInProgress)
 
 const PasskeyAuthForm: FC<{
     isLoading: boolean,
@@ -18,7 +22,7 @@ const PasskeyAuthForm: FC<{
     setEmail: (e: string) => void,
     toggleAuthType: () => void,
 }> = ({ isLoading, setIsLoading, email, setEmail, toggleAuthType }) => {
-    const { signInWithEmailAndPasskey } = useAuthorization()
+    const { signInWithEmailAndPasskey, resendInvitation } = useAuthorization()
     const navigate = useNavigate()
     const query = useQuery()
 
@@ -44,7 +48,24 @@ const PasskeyAuthForm: FC<{
             await signInWithEmailAndPasskey(email.trim())
             redirect()
         } catch (e){
-            if (e instanceof Error && e.name === "NotAllowedError"){
+            if (isRegistrationInProgress(e)){
+                toast("Registration in progress", {
+                    action: {
+                        label: "Resend invitation",
+                        onClick: async () => {
+                            try {
+                                setIsLoading(true)
+                                await resendInvitation(email)
+                                toast.success("Invitation resent")
+                            } catch (e){
+                                notifyApiError(e)
+                            } finally {
+                                setIsLoading(false)
+                            }
+                        }
+                    }
+                })
+            } else if (e instanceof Error && e.name === "NotAllowedError"){
                 toast.error("Operation not allowed")
             } else {
                 notifyApiError(e)
@@ -105,7 +126,8 @@ const PasswordAuthForm: FC<{
     toggleAuthType: () => void,
 }> = ({ isLoading, setIsLoading, email, setEmail, toggleAuthType }) => {
     const [formValues, setFormValues] = useState({ email: '', password: '' })
-    const { signInWithEmailAndPassword } = useAuthorization()
+    const [showPassword, setShowPassword] = useState(false)
+    const { signInWithEmailAndPassword, resendInvitation } = useAuthorization()
     const navigate = useNavigate()
     const query = useQuery()
 
@@ -140,12 +162,32 @@ const PasswordAuthForm: FC<{
 
     const onSubmit = async (e: SyntheticEvent) => {
         e.preventDefault()
+        const email = formValues.email.trim()
         try {
             setIsLoading(true)
-            await signInWithEmailAndPassword(formValues.email.trim(), formValues.password)
+            await signInWithEmailAndPassword(email, formValues.password)
             redirect()
         } catch (e){
-            notifyApiError(e)
+            if (isRegistrationInProgress(e)){
+                toast("Registration in progress", {
+                    action: {
+                        label: "Resend invitation",
+                        onClick: async () => {
+                            try {
+                                setIsLoading(true)
+                                await resendInvitation(email)
+                                toast.success("Invitation resent")
+                            } catch (e){
+                                notifyApiError(e)
+                            } finally {
+                                setIsLoading(false)
+                            }
+                        }
+                    }
+                })
+            } else{
+                notifyApiError(e)
+            }
         } finally {
             setIsLoading(false)
         }
@@ -182,16 +224,26 @@ const PasswordAuthForm: FC<{
                 <Label className="sr-only" htmlFor="password">
                     Password
                 </Label>
-                <Input
-                    id="password"
-                    value={formValues.password}
-                    onChange={handleChange}
-                    className={"text-foreground"}
-                    placeholder="Password"
-                    type="password"
-                    disabled={isLoading}
-                    required
-                />
+                <div className="relative flex-1 items-center flex-grow">
+                    <Input
+                        id="password"
+                        value={formValues.password}
+                        onChange={handleChange}
+                        className={"text-foreground"}
+                        placeholder="Password"
+                        type={showPassword ? "text" : "password"}
+                        disabled={isLoading}
+                        required
+                    />
+                    <button
+                        type="button"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 cursor-pointer"
+                        tabIndex={-1}
+                    >
+                        {showPassword ? <EyeOff className="h-5 w-5 text-foreground" /> : <Eye className="h-5 w-5 text-muted-foreground" />}
+                    </button>
+                </div>
             </div>
             <Button disabled={isLoading}
                     className={"hover:text-foreground cursor-pointer bg-foreground text-background"}>
@@ -215,7 +267,7 @@ const UserAuthForm: FC<HTMLAttributes<HTMLDivElement>> = ({ className, ...props 
     const [email, setEmail] = useState('')
 
     return (
-        <div className={cn("grid gap-6", className)} {...props}>
+        <div className={cn("grid gap-1", className)} {...props}>
             { showPassword
                 ? <PasswordAuthForm isLoading={isLoading}
                                     setIsLoading={setIsLoading}
@@ -227,6 +279,18 @@ const UserAuthForm: FC<HTMLAttributes<HTMLDivElement>> = ({ className, ...props 
                                    email={email}
                                    setEmail={setEmail}
                                    toggleAuthType={() => setShowPassword(true)}/>}
+            <div className="flex items-center">
+                <hr className="flex-grow border-t border-muted-foreground"/>
+                <span className="mx-2 text-sm text-muted-foreground">or</span>
+                <hr className="flex-grow border-t border-muted-foreground"/>
+            </div>
+            <Button disabled={isLoading}
+                    className={'hover:text-background hover:bg-foreground cursor-pointer bg-background text-foreground shadow-none'}
+                    asChild>
+                <Link to={'/register'}>
+                    Register
+                </Link>
+            </Button>
         </div>
     )
 }
@@ -253,9 +317,14 @@ const LoginPage = () => {
 
             </div>
             <div className={"flex flex-col justify-center w-full bg-background"}>
+                <div className={"flex flex-grow"}/>
                 <div className={"flex flex-row w-full justify-center"}>
                     <UserAuthForm className={"w-2/3"}/>
                 </div>
+                <div className={"flex flex-grow"}/>
+                <Link to={"https://github.com/cycastic-cumberland/sigil-backend.git"} target={"_blank"} className={"text-center text-xs mb-2 underline"}>
+                    Github
+                </Link>
             </div>
         </div>
     </>

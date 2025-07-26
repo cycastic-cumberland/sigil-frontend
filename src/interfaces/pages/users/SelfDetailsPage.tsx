@@ -8,12 +8,10 @@ import {notifyApiError} from "@/utils/errors.ts";
 import {Input} from "@/components/ui/input.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import {KeyRound} from "lucide-react";
-import {deriveEncryptionKeyFromWebAuthnPrf, uint8ArrayToBase64} from "@/utils/cryptography.ts";
-import {getRpIdFromUrl} from "@/utils/path.ts";
+import {uint8ArrayToBase64} from "@/utils/cryptography.ts";
 import {toast} from "sonner";
 import api from "@/api.ts";
 import type {CipherDto} from "@/dto/CipherDto.ts";
-import type {Prf} from "@/dto/webauthn.ts";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from "@/components/ui/dialog.tsx";
 import {Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle} from "@/components/ui/drawer.tsx";
@@ -25,7 +23,7 @@ const SelfDetailsPage = () => {
     const [isLoading, setIsLoading] = useState(false)
     const [enrollPasskeyDialog, setEnrollPasskeyDialog] = useState(false)
     const [user, setUser] = useState(null as UserInfoDto | null)
-    const {getUserInfo, transientDecryptPrivateKey, getEnvelop, invalidateAllSessions, localLogout} = useAuthorization()
+    const {getUserInfo, generateWebAuthnPrfKey, transientDecryptPrivateKey, getEnvelop, invalidateAllSessions, localLogout} = useAuthorization()
     const isDesktop = useMediaQuery("(min-width: 768px)")
 
     useEffect(() => {
@@ -43,71 +41,18 @@ const SelfDetailsPage = () => {
     }, []);
 
     const enrollPasskey = async (u: UserInfoDto, pkcs8: Uint8Array) => {
-        const encoder = new TextEncoder();
-        const uid = encoder.encode(u.email.toUpperCase())
-        const salt = crypto.getRandomValues(new Uint8Array(32))
-        const regCredential = await navigator.credentials.create({
-            publicKey: {
-                challenge: uid,
-                rp: {
-                    name: "Sigil",
-                    id: getRpIdFromUrl(window.location.href),
-                },
-                user: {
-                    id: uid,
-                    name: u.email,
-                    displayName: `${u.firstName} ${u.lastName}`,
-                },
-                pubKeyCredParams: [
-                    { alg: -8, type: "public-key" },   // Ed25519
-                    { alg: -7, type: "public-key" },   // ES256
-                    { alg: -257, type: "public-key" }, // RS256
-                ],
-                authenticatorSelection: {
-                    userVerification: "required",
-                },
-                extensions: {
-                    prf: {
-                        eval: {
-                            first: salt,
-                        },
-                    },
-                },
-            },
-        })
-
-        if (!regCredential){
-            toast.error("Failed to enroll passkey")
-            return
-        }
-
-        if (!(regCredential instanceof PublicKeyCredential)){
-            toast.error("Device not supported")
-            return
-        }
-
-        let prf: Prf | undefined
-        try {
-            prf = regCredential.getClientExtensionResults()?.prf as Prf | undefined
-        } catch (e){
-            console.error(e)
-        }
-        if (!prf){
-            toast.error("This browser does not support WebAuthn PRF")
-            return
-        }
-        const encryptionKey = await deriveEncryptionKeyFromWebAuthnPrf(prf)
+        const {encryptionKey, rawId, salt, transports} = await generateWebAuthnPrfKey(u)
         const nonce = crypto.getRandomValues(new Uint8Array(12));
         const encryptedPkcs8 = await crypto.subtle.encrypt(
             { name: "AES-GCM", iv: nonce },
             encryptionKey,
             pkcs8
-        );
+        )
 
         await api.post('auth/webauthn/enroll', {
-            credentialId: uint8ArrayToBase64(new Uint8Array(regCredential.rawId)),
+            credentialId: uint8ArrayToBase64(rawId),
             salt: uint8ArrayToBase64(salt),
-            transports: (regCredential.response as AuthenticatorAttestationResponse).getTransports() as AuthenticatorTransport[],
+            transports,
             wrappedUserKey: {
                 decryptionMethod: "WEBAUTHN_KEY",
                 iv: uint8ArrayToBase64(nonce),

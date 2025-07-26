@@ -1,6 +1,10 @@
 import axios, {type AxiosError} from "axios";
 import {toast} from "sonner";
 
+export const ExceptionCodes = {
+    registrationInProgress: 'C400T011'
+}
+
 export const extractError = (e: unknown): string | undefined => {
     if (axios.isAxiosError(e)){
         const axiosError = e as AxiosError;

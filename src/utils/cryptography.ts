@@ -1,6 +1,10 @@
 import MD5 from 'crypto-js/md5';
-import { enc } from 'crypto-js';
+import {enc} from 'crypto-js';
 import type {Prf} from "@/dto/webauthn.ts";
+// @ts-ignore
+import argon2 from 'argon2-browser/dist/argon2-bundled.min.js';
+
+export type EncodedKeyPair = { publicKey: Uint8Array, privateKey: Uint8Array }
 
 export const base64ToUint8Array = (base64: string) =>
     Uint8Array.from(window.atob(base64), v => v.charCodeAt(0));
@@ -113,13 +117,49 @@ export const deriveEncryptionKeyFromWebAuthnPrf = async (prf: Prf) => {
         false,
         ["deriveKey"],
     );
-    const encryptionKey = await crypto.subtle.deriveKey(
-        { name: "HKDF", info: new Uint8Array(), salt: new Uint8Array(32), hash: "SHA-256" },
+    return await crypto.subtle.deriveKey(
+        {name: "HKDF", info: new Uint8Array(), salt: new Uint8Array(32), hash: "SHA-256"},
         keyDerivationKey,
-        { name: "AES-GCM", length: 256 },
+        {name: "AES-GCM", length: 256},
         false,
         ["encrypt", "decrypt"],
-    );
-
-    return encryptionKey
+    )
 }
+
+export const generateRsaOaepWithSha256KeyPair = () => {
+    return crypto.subtle.generateKey(
+        {
+            name: "RSA-OAEP",
+            modulusLength: 2048,
+            publicExponent: new Uint8Array([0x01, 0x00, 0x01]),
+            hash: "SHA-256",
+        },
+        true,
+        ["encrypt", "decrypt"]
+    );
+}
+
+export const generateEncodedRsaOaepWithSha256KeyPair = async (): Promise<EncodedKeyPair> => {
+    const keyPair = await generateRsaOaepWithSha256KeyPair()
+    const publicDer  = await crypto.subtle.exportKey("spki", keyPair.publicKey);
+    const privateDer = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
+    return {
+        publicKey: new Uint8Array(publicDer), // X.509
+        privateKey: new Uint8Array(privateDer), // PKCS#8
+    }
+}
+
+export const deriveArgon2idKey = async (pass: Uint8Array, salt: Uint8Array, time: number, mem: number, parallelism: number, hashLen: number): Promise<Uint8Array> => {
+    const result = await argon2.hash({
+        pass,
+        type: argon2.ArgonType.Argon2id,
+        salt,
+        time,
+        mem,
+        parallelism,
+        hashLen ,
+    })
+
+    return result.hash
+}
+

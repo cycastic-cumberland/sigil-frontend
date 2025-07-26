@@ -2,28 +2,35 @@ import {createContext, type FC, type ReactNode, useContext, useRef, useState} fr
 import api from "../api.ts"
 import type {AuthenticationResponseDto} from "@/dto/AuthenticationResponseDto.ts";
 import {getAuth, removeAuth, storeAuthResponse} from "@/utils/auth.ts";
-// @ts-ignore
-import argon2 from 'argon2-browser/dist/argon2-bundled.min.js';
 import {
     base64ToUint8Array,
-    decryptAESGCM,
+    decryptAESGCM, deriveArgon2idKey,
     deriveEncryptionKeyFromWebAuthnPrf,
     signWithSHA256withRSAPSS,
     uint8ArrayToBase64
 } from "@/utils/cryptography.ts";
 import type {KdfDetailsDto} from "@/dto/KdfDetailsDto.ts";
 import {MAGIC_CONSTANT_SAVE_ENCRYPTION_KEY} from "@/utils/debug.ts";
-import type {UserInfoDto} from "@/dto/UserInfoDto.ts";
+import type {BaseUserInfoDto, UserInfoDto} from "@/dto/UserInfoDto.ts";
 import type {CipherDto} from "@/dto/CipherDto.ts";
 import {getRpIdFromUrl} from "@/utils/path.ts";
 import type {Prf} from "@/dto/webauthn.ts";
 import type {EnvelopDto} from "@/dto/EnvelopDto.ts";
+
+export type WebAuthnPrfKey = {
+    encryptionKey: CryptoKey,
+    rawId: Uint8Array,
+    salt: Uint8Array,
+    transports: AuthenticatorTransport[]
+}
 
 export type AuthorizationContextType = {
     userPrivateKey: CryptoKey | null,
     getUserInfo: (reload?: boolean) => Promise<UserInfoDto>,
     signInWithEmailAndPassword: (email: string, password: string) => Promise<void>,
     signInWithEmailAndPasskey: (email: string) => Promise<void>,
+    generateWebAuthnPrfKey: (user: BaseUserInfoDto) => Promise<WebAuthnPrfKey>,
+    resendInvitation: (email: string) => Promise<void>,
     invalidateAllSessions: (userId: number) => Promise<void>,
     localLogout: () => void,
     decryptPrivateKey: (password: string) => Promise<void>,
@@ -38,23 +45,9 @@ export const useAuthorization = () => {
     return useContext(AuthorizationContext)
 }
 
-const deriveKey = async (pass: Uint8Array, salt: Uint8Array, time: number, mem: number, parallelism: number, hashLen: number): Promise<Uint8Array> => {
-    const result = await argon2.hash({
-        pass,
-        type: argon2.ArgonType.Argon2id,
-        salt,
-        time,
-        mem,
-        parallelism,
-        hashLen ,
-    })
-
-    return result.hash
-}
-
 const decryptPcks8PrivateKey = async (pass: Uint8Array, salt: Uint8Array, parallelism: number, iterations: number, memoryCost: number, cipher: CipherDto): Promise<Uint8Array> => {
     const keyLen = 32
-    const derivedKey = await deriveKey(pass, salt, iterations, memoryCost, parallelism, keyLen)
+    const derivedKey = await deriveArgon2idKey(pass, salt, iterations, memoryCost, parallelism, keyLen)
 
     const iv = base64ToUint8Array(cipher.iv ?? "")
     const cipherText = base64ToUint8Array(cipher.cipher)
@@ -88,6 +81,9 @@ const transientDecryptPrivateKey = async (password: string, cipher: CipherDto) =
     }
 
     const kdfSettings = authResponse.kdfSettings;
+    if (!kdfSettings){
+        throw Error("User does not have a password")
+    }
     const parts = kdfSettings.split('$').filter(s => s)
     if (parts[0] !== "argon2id"){
         throw Error("Unsupported KDF")
@@ -96,8 +92,8 @@ const transientDecryptPrivateKey = async (password: string, cipher: CipherDto) =
     const parameters = base64ToUint8Array(parts[2])
     const parametersView = new DataView(parameters.buffer, parameters.byteOffset, parameters.byteLength)
     const parallelism = parametersView.getUint32(0, true)
-    const iterations = parametersView.getUint32(8, true)
     const memoryCost = parametersView.getUint32(4, true)
+    const iterations = parametersView.getUint32(8, true)
 
     const encoder = new TextEncoder();
     const pass = encoder.encode(password)
@@ -232,6 +228,71 @@ export const AuthorizationProvider: FC<{ children?: ReactNode }> = ({ children }
         await signInInternal(email, kdfSettings.signatureVerificationWindow, pkcs8)
     }
 
+    const generateWebAuthnPrfKey = async (user: BaseUserInfoDto) => {
+        const encoder = new TextEncoder();
+        const uid = encoder.encode(user.email.toUpperCase())
+        const salt = crypto.getRandomValues(new Uint8Array(32))
+        const regCredential = await navigator.credentials.create({
+            publicKey: {
+                challenge: uid,
+                rp: {
+                    name: "Sigil",
+                    id: getRpIdFromUrl(window.location.href),
+                },
+                user: {
+                    id: uid,
+                    name: user.email,
+                    displayName: `${user.firstName} ${user.lastName}`,
+                },
+                pubKeyCredParams: [
+                    { alg: -8, type: "public-key" },   // Ed25519
+                    { alg: -7, type: "public-key" },   // ES256
+                    { alg: -257, type: "public-key" }, // RS256
+                ],
+                authenticatorSelection: {
+                    userVerification: "required",
+                },
+                extensions: {
+                    prf: {
+                        eval: {
+                            first: salt,
+                        },
+                    },
+                },
+            },
+        })
+
+        if (!regCredential){
+            throw Error("Failed to enroll passkey")
+        }
+
+        if (!(regCredential instanceof PublicKeyCredential)){
+            throw Error("Device not supported")
+        }
+
+        let prf: Prf | undefined
+        try {
+            prf = regCredential.getClientExtensionResults()?.prf as Prf | undefined
+        } catch (e){
+            console.error(e)
+        }
+        if (!prf){
+            throw Error("This browser does not support WebAuthn PRF")
+        }
+
+        const encryptionKey = await deriveEncryptionKeyFromWebAuthnPrf(prf)
+        return {
+            encryptionKey,
+            rawId: new Uint8Array(regCredential.rawId),
+            salt,
+            transports: (regCredential.response as AuthenticatorAttestationResponse).getTransports() as AuthenticatorTransport[]
+        } as WebAuthnPrfKey
+    }
+
+    const resendInvitation = (email: string): Promise<void> => {
+        return api.post("auth/register/resend", { email })
+    }
+
     const decryptWithWebAuthn = async () => {
         const auth = getAuth()
         if (!auth){
@@ -295,6 +356,8 @@ export const AuthorizationProvider: FC<{ children?: ReactNode }> = ({ children }
         userPrivateKey: privateKey,
         signInWithEmailAndPassword,
         signInWithEmailAndPasskey,
+        generateWebAuthnPrfKey,
+        resendInvitation,
         getUserInfo,
         invalidateAllSessions,
         localLogout,

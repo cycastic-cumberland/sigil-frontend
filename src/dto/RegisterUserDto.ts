@@ -3,8 +3,4 @@ export type ResendConfirmationDto = {
 }
 
 export type RegisterUserDto = ResendConfirmationDto & {
-    firstName: string
-    lastName: string
-    password: string,
-    confirmPassword: string,
 }
