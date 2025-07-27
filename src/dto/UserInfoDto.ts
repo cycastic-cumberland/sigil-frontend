@@ -4,10 +4,13 @@ export type BaseUserInfoDto = {
     lastName: string
 }
 
+export type UserRole = "COMMON" | "ADMIN"
+
 export type UserInfoDto = BaseUserInfoDto & {
     id: number
-    roles: string[]
+    roles: UserRole[]
     publicRsaKey: string,
     hasWebAuthnCredential: boolean,
+    tenantOwnerCount: number,
     joinedAt: string
 }

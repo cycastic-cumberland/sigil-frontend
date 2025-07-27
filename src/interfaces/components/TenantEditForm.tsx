@@ -1,26 +1,41 @@
 import {type ChangeEvent, type FC, type SyntheticEvent, useEffect, useState} from "react";
-import type {TenantDto} from "@/dto/TenantDto.ts";
+import type {TenantDto, UsageType} from "@/dto/TenantDto.ts";
 import {Input} from "@/components/ui/input.tsx";
 import {Label} from "@/components/ui/label.tsx";
 import {Button} from "@/components/ui/button.tsx";
+import {getUserRole} from "@/utils/auth.ts";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu.tsx";
+import {ChevronDown} from "lucide-react";
+import {cn} from "@/lib/utils.ts";
 
 const emptyProject = (): TenantDto => {
     return {
         tenantName: "",
         membership: "MEMBER",
-        permissions: ["MEMBER"]
+        usageType: "STANDARD",
+        permissions: ["MEMBER"],
     }
+}
+
+const UsageTypeLookup: Record<UsageType, string> = {
+    UNRESTRICTED: "Unrestricted",
+    STANDARD: "Standard"
 }
 
 const TenantEditForm: FC<{
     submissionText?: string,
-    error?: string,
     isLoading: boolean,
     tenant?: TenantDto,
     onSave: (project: TenantDto) => void,
     disableSave?: boolean,
-}> = ({ submissionText, error, isLoading, tenant, onSave, disableSave }) => {
+}> = ({ submissionText, isLoading, tenant, onSave, disableSave }) => {
     const [formValues, setFormValues] = useState(tenant ? tenant : emptyProject())
+    const canEditUsageType = getUserRole()?.includes("ADMIN") ?? false
 
     useEffect(() => {
         if (tenant) {
@@ -45,8 +60,19 @@ const TenantEditForm: FC<{
 
     const handleSubmit = (e: SyntheticEvent) => {
         e.preventDefault();
-        onSave({ ...formValues });
+        const form = { ...formValues }
+        if (!canEditUsageType){
+            delete form.usageType
+        }
+        onSave(form);
     };
+
+    const handleUsageTypeSelection = (u: UsageType) => {
+        setFormValues(form => ({
+            ...form,
+            usageType: u
+        }))
+    }
 
     return <form onSubmit={handleSubmit}>
         <div className="grid gap-2">
@@ -69,6 +95,26 @@ const TenantEditForm: FC<{
                     disabled={isLoading}
                 />
             </div>
+            <div className="flex flex-row gap-2">
+                <Label className="w-32">Usage type:</Label>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button className={'flex flex-grow border-foreground border-1 cursor-pointer hover:bg-foreground hover:text-background justify-between'}
+                                disabled={isLoading || !canEditUsageType}>
+                            { formValues.usageType && UsageTypeLookup[formValues.usageType] }
+                            <ChevronDown className={cn(canEditUsageType ? '' : 'invisible')}/>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="center">
+                        { Object.keys(UsageTypeLookup).map((usageType, i) =>
+                            <DropdownMenuItem key={i}
+                                              className={'cursor-pointer'}
+                                              onSelect={() => handleUsageTypeSelection(usageType as UsageType)}>
+                                { UsageTypeLookup[(usageType as UsageType)] }
+                            </DropdownMenuItem>) }
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
             { !formValues.createdAt ? <></> : <div className="flex flex-row gap-2">
                 <Label className="w-32">Created at:</Label>
                 <Input
@@ -87,8 +133,8 @@ const TenantEditForm: FC<{
                     disabled={true}
                 />
             </div> }
-            { !disableSave && <Button disabled={isLoading} type={"submit"} className={`flex flex-grow border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background ${error ? 'bg-destructive' : ''}`}>
-                { error ? error : submissionText ? submissionText : 'Create' }
+            { !disableSave && <Button disabled={isLoading} type={"submit"} className={'flex flex-grow border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background'}>
+                { submissionText ? submissionText : 'Create' }
             </Button> }
         </div>
     </form>

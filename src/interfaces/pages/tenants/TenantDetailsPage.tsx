@@ -7,7 +7,6 @@ import {useNavigate} from "react-router";
 import {useTenant} from "@/contexts/TenantContext.tsx";
 import TenantEditForm from "@/interfaces/components/TenantEditForm.tsx";
 import api from "@/api.ts";
-import type {AxiosError} from "axios";
 import ConfirmationDialog from "@/interfaces/components/ConfirmationDialog.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import {notifyApiError} from "@/utils/errors.ts";
@@ -17,7 +16,6 @@ const TenantDetailsPage = () => {
     const [tenant, setTenant] = useState(null as TenantDto | null)
     const [isLoading, setIsLoading] = useState(true)
     const [confirmDeleteOpened, setConfirmDeleteOpened] = useState(false)
-    const [error, setError] = useState('')
     const {tenantId} = useTenant()
     const { getProject, deleteProject, activeProject } = useTenant()
     const navigate = useNavigate()
@@ -51,14 +49,12 @@ const TenantDetailsPage = () => {
 
         try {
             setIsLoading(true)
-            setError('')
 
             await api.post('tenants/tenant', project)
             await reloadProject(tenantId!)
             toast.success("Project settings saved")
         } catch (e){
-            // @ts-ignore
-            setError((e as AxiosError).response?.data?.message ?? "")
+            notifyApiError(e)
         } finally {
             setIsLoading(false)
         }
@@ -71,7 +67,6 @@ const TenantDetailsPage = () => {
 
         try {
             setIsLoading(true)
-            setError('')
 
             const pid = tenantId!
             await deleteProject(pid)
@@ -82,8 +77,7 @@ const TenantDetailsPage = () => {
             toast.success("Project deleted")
             navigate("/projects/browser")
         } catch (e){
-            // @ts-ignore
-            setError((e as AxiosError).response?.data?.message ?? "")
+            notifyApiError(e)
         } finally {
             setIsLoading(false)
         }
@@ -112,7 +106,6 @@ const TenantDetailsPage = () => {
             <div className={"w-full"}>
                 <div className={"lg:w-1/2 text-foreground flex flex-col gap-2"}>
                     <TenantEditForm submissionText={"Save"}
-                                    error={error}
                                     isLoading={isLoading}
                                     onSave={onSave}
                                     tenant={tenant} disableSave={!!tenant && tenant.membership !== "OWNER"}/>
