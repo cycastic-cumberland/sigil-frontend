@@ -51,7 +51,7 @@ const TenantTable: FC<{
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [pageCount, setPageCount] = useState(0);
     const [sorting, setSorting] = useState<SortingState>([]);
-    const {queryProjects} = useTenant()
+    const {queryTenants} = useTenant()
     const columns = useMemo(() => projectSelectorColumnDef, [])
     const table = useReactTable({
         data,
@@ -70,7 +70,7 @@ const TenantTable: FC<{
         try {
             setIsLoading(true)
 
-            const page = await queryProjects(getAuth()!.userId, pageIndex + 1, pageSize, sortParams)
+            const page = await queryTenants(getAuth()!.userId, pageIndex + 1, pageSize, sortParams)
             setData(page.items)
             setPageCount(page.totalPages)
         } catch (e) {

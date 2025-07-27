@@ -5,13 +5,15 @@ import api, {setProjectId} from "@/api.ts";
 import type {PageDto} from "@/dto/PageDto.ts";
 import {useParams} from "react-router";
 import {notifyApiError} from "@/utils/errors.ts";
+import type {IdDto} from "@/dto/IdDto.ts";
 
 export type TenantContextType = {
     tenantId: number | null,
-    activeProject: TenantDto | null,
-    queryProjects: (userId: number, page: number, pageSize: number, orderBy: string | null) => Promise<PageDto<TenantDto>>,
-    getProject: (id: number) => Promise<TenantDto>,
-    deleteProject: (id: number) => Promise<void>,
+    activeTenant: TenantDto | null,
+    queryTenants: (userId: number, page: number, pageSize: number, orderBy: string | null) => Promise<PageDto<TenantDto>>,
+    getTenant: (id: number) => Promise<TenantDto>,
+    deleteTenant: (id: number) => Promise<void>,
+    saveTenant: (tenant: TenantDto) => Promise<IdDto>,
 }
 
 const TenantContext = createContext(null as never as TenantContextType)
@@ -21,7 +23,7 @@ export const useTenant = () => {
 }
 
 export const TenantProvider: FC<{ children: ReactNode }> = ({ children }) => {
-    const [activeProject, setActiveProject] = useState(null as TenantDto | null)
+    const [activeTenant, setActiveTenant] = useState(null as TenantDto | null)
     const [tenantIdState, setTenantIdState] = useState(null as number | null)
     const { tenantId } = useParams();
 
@@ -44,10 +46,10 @@ export const TenantProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
         if (tenantIdState){
             fetchActiveProject(tenantIdState)
-                .then(t => setActiveProject(t))
+                .then(t => setActiveTenant(t))
                 .catch(e => notifyApiError(e))
         } else {
-            setActiveProject(null)
+            setActiveTenant(null)
         }
     }, [tenantIdState]);
 
@@ -56,10 +58,10 @@ export const TenantProvider: FC<{ children: ReactNode }> = ({ children }) => {
             return null;
         }
 
-        return await getProject(activeProjectId)
+        return await getTenant(activeProjectId)
     }
 
-    const queryProjects = async (userId: number, page: number, pageSize: number, orderBy: string | null): Promise<PageDto<TenantDto>> => {
+    const queryTenants = async (userId: number, page: number, pageSize: number, orderBy: string | null): Promise<PageDto<TenantDto>> => {
         let url = `tenants?userId=${userId}&page=${page}&pageSize=${pageSize}`
         if (orderBy){
             url = `${url}&orderBy=${orderBy}`
@@ -69,21 +71,34 @@ export const TenantProvider: FC<{ children: ReactNode }> = ({ children }) => {
         return response.data as PageDto<TenantDto>
     }
 
-    const getProject = async (id: number): Promise<TenantDto> => {
+    const getTenant = async (id: number): Promise<TenantDto> => {
         const response = await api.get(`tenants/tenant?id=${id}`)
         return response.data as TenantDto
     }
 
-    const deleteProject = (id: number): Promise<void> => {
+    const deleteTenant = (id: number): Promise<void> => {
         return api.delete(`tenants/tenant?id=${id}`)
+    }
+
+    const saveTenant = async (tenant: TenantDto): Promise<IdDto> => {
+        const response = await api.post('tenants/tenant', tenant)
+        const data = response.data as IdDto
+        if (tenant.id === tenantIdState){
+            await fetchActiveProject(tenantIdState)
+                .then(t => setActiveTenant(t))
+                .catch(e => notifyApiError(e))
+        }
+
+        return data
     }
 
     const value: TenantContextType = {
         tenantId: tenantIdState,
-        activeProject,
-        queryProjects,
-        getProject,
-        deleteProject
+        activeTenant,
+        queryTenants,
+        getTenant,
+        saveTenant,
+        deleteTenant,
     }
 
     return <TenantContext.Provider value={value}>

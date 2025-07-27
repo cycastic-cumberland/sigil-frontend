@@ -37,12 +37,12 @@ const PartitionMemberEditForm: FC<{
     const [permissionsPopoverOpened, setPermissionsPopoverOpened] = useState(false)
     const [searching, setSearching] = useState(false)
     const [isCreate, setIsCreate] = useState(!partitionMember)
-    const {activeProject} = useTenant()
+    const {activeTenant} = useTenant()
     const canListTenantMembers = useMemo(() => isCreate &&
-            !!activeProject &&
-            (activeProject.membership === "OWNER" ||
-                activeProject.permissions.includes("LIST_USERS")),
-        [activeProject, isCreate])
+            !!activeTenant &&
+            (activeTenant.membership === "OWNER" ||
+                activeTenant.permissions.includes("LIST_USERS")),
+        [activeTenant, isCreate])
     const [query, setQuery] = useState('')
     const [debouncedQuery, setDebouncedQuery] = useState('')
     const [searchResults, setSearchResult] = useState([] as string[])

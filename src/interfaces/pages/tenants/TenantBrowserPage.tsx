@@ -8,7 +8,6 @@ import {useNavigate} from "react-router";
 import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog.tsx";
 import type {TenantDto} from "@/dto/TenantDto.ts";
 import TenantEditForm from "@/interfaces/components/TenantEditForm.tsx";
-import api from "@/api.ts";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {Drawer, DrawerContent, DrawerHeader} from "@/components/ui/drawer.tsx";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
@@ -16,7 +15,7 @@ import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
 import {Tooltip, TooltipContent, TooltipTrigger} from "@/components/ui/tooltip.tsx";
 import {notifyApiError} from "@/utils/errors.ts";
 import {toast} from "sonner";
-import type {IdDto} from "@/dto/IdDto.ts";
+import {useTenant} from "@/contexts/TenantContext.tsx";
 
 const CreateTenantDialog: FC<{
     isLoading: boolean,
@@ -27,14 +26,13 @@ const CreateTenantDialog: FC<{
 }> = ({ isLoading, setIsLoading, opened, setOpened, reloadTrigger }) => {
     const isDesktop = useMediaQuery("(min-width: 768px)")
     const navigate = useNavigate()
+    const {saveTenant} = useTenant()
 
     const onSave = async (tenant: TenantDto) => {
         try {
             setIsLoading(true)
 
-            tenant.id = undefined
-            const response = await api.post('tenants/tenant', tenant)
-            const data = response.data as IdDto
+            const data = await saveTenant(tenant)
             toast.success('Tenant created')
             navigate(`/tenant/${encodeURIComponent(data.id)}/partitions/browser/`)
 

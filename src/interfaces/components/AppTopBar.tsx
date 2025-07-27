@@ -51,7 +51,7 @@ const UserLocked = () => {
 }
 
 const AppTopBar = () => {
-    const {activeProject} = useTenant()
+    const {activeTenant} = useTenant()
     const {toggleSidebar} = useSidebar()
     const {userPrivateKey} = useAuthorization()
     const isDesktop = useMediaQuery("(min-width: 768px)")
@@ -69,9 +69,9 @@ const AppTopBar = () => {
         </button> }
         <div className={`flex items-center gap-2 ${isDesktop ? 'ml-5' : ''}`}>
             { userPrivateKey ? <UserUnlocked/> : <UserLocked/> }
-            {activeProject && (
+            {activeTenant && (
                 <Label className="text-foreground font-bold text-xl">
-                    {activeProject.tenantName}
+                    {activeTenant.tenantName}
                 </Label>
             )}
         </div>

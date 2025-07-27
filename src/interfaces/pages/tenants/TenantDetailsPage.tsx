@@ -6,7 +6,6 @@ import FullSizeSpinner from "@/interfaces/components/FullSizeSpinner.tsx";
 import {useNavigate} from "react-router";
 import {useTenant} from "@/contexts/TenantContext.tsx";
 import TenantEditForm from "@/interfaces/components/TenantEditForm.tsx";
-import api from "@/api.ts";
 import ConfirmationDialog from "@/interfaces/components/ConfirmationDialog.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import {notifyApiError} from "@/utils/errors.ts";
@@ -17,7 +16,7 @@ const TenantDetailsPage = () => {
     const [isLoading, setIsLoading] = useState(true)
     const [confirmDeleteOpened, setConfirmDeleteOpened] = useState(false)
     const {tenantId} = useTenant()
-    const { getProject, deleteProject, activeProject } = useTenant()
+    const { getTenant, deleteTenant, saveTenant, activeTenant } = useTenant()
     const navigate = useNavigate()
 
     const reloadProject = async (id: number) => {
@@ -26,7 +25,7 @@ const TenantDetailsPage = () => {
             if (!id){
                 return;
             }
-            setTenant(await getProject(id))
+            setTenant(await getTenant(id))
         } catch (e) {
             notifyApiError(e)
         } finally {
@@ -42,7 +41,7 @@ const TenantDetailsPage = () => {
         reloadProject(tenantId).then(undefined)
     }, [tenantId]);
 
-    const onSave = async (project: TenantDto) => {
+    const onSave = async (tenant: TenantDto) => {
         if (!tenantId){
             throw Error("unreachable")
         }
@@ -50,7 +49,7 @@ const TenantDetailsPage = () => {
         try {
             setIsLoading(true)
 
-            await api.post('tenants/tenant', project)
+            await saveTenant(tenant)
             await reloadProject(tenantId!)
             toast.success("Project settings saved")
         } catch (e){
@@ -69,8 +68,8 @@ const TenantDetailsPage = () => {
             setIsLoading(true)
 
             const pid = tenantId!
-            await deleteProject(pid)
-            if ((activeProject?.id ?? null) === pid){
+            await deleteTenant(pid)
+            if ((activeTenant?.id ?? null) === pid){
                 navigate('/')
             }
 

@@ -4,7 +4,7 @@ import {notifyApiError} from "@/utils/errors.ts";
 import axios from "axios";
 import FullSizeSpinner from "@/interfaces/components/FullSizeSpinner.tsx";
 import {toast} from "sonner";
-import api, {BACKEND_AUTHORITY} from "@/api.ts";
+import {BACKEND_AUTHORITY} from "@/api.ts";
 import {
     deriveArgon2idKey,
     type EncodedKeyPair,
@@ -138,7 +138,7 @@ const PasskeyBasedCompletionForm: FC<BaseCompletionFormProps & {
                     cipher: uint8ArrayToBase64(new Uint8Array(encryptedPkcs8))
                 } as CipherDto,
             }
-            await api.post(submissionUrl, {
+            await axios.post(submissionUrl, {
                 ...formValues,
                 webAuthnCredential
             })
@@ -282,7 +282,7 @@ const PasswordBasedCompletionForm: FC<BaseCompletionFormProps & {
                 }
             }
 
-            await api.post(submissionUrl, {
+            await axios.post(submissionUrl, {
                 ...formValues,
                 passwordCredential
             })
@@ -459,6 +459,11 @@ const CompletionForm: FC<{
     </div>
 }
 
+const isValidSubmissionUrl = (submission: string) => {
+    return submission.startsWith(`${BACKEND_AUTHORITY}/api/auth/register/complete`) ||
+        submission.startsWith(`${BACKEND_AUTHORITY}/api/public/tenant/complete-invitation`)
+}
+
 const CompleteSignupPage = () => {
     const [searchParams] = useSearchParams()
     const [submission, setSubmission] = useState(null as string | null)
@@ -481,7 +486,7 @@ const CompleteSignupPage = () => {
             navigate('/login')
             return
         }
-        if (!submission.startsWith(`${BACKEND_AUTHORITY}/api/auth/register/complete`)){
+        if (!isValidSubmissionUrl(submission)){
             toast.error('Invalid registration completion URL')
             navigate('/login')
             return;
