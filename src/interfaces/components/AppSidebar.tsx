@@ -20,7 +20,7 @@ import {Link, useLocation} from "react-router";
 import {useTheme} from "@/contexts/ThemeContext.tsx";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {useTenant} from "@/contexts/TenantContext.tsx";
-import format from "@/utils/format.ts";
+import {format} from "@/utils/format.ts";
 import {cn} from "@/lib/utils.ts";
 
 type MenuGroup = {

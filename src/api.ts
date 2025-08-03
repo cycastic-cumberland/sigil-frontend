@@ -5,10 +5,10 @@ import {extractError} from "@/utils/errors.ts";
 
 export const BACKEND_AUTHORITY: string = import.meta.env.VITE_BACKEND_AUTHORITY;
 
-let projectId = null as number | null
+let tenantId = null as number | null
 
-export const setProjectId = (id: number | null) => {
-    projectId = id
+export const setTenantId = (id: number | null) => {
+    tenantId = id
 }
 
 const redirectWithError = (e: unknown) => {
@@ -26,10 +26,10 @@ export const createApi = (partitionIdRef: { current: number | null } | null) => 
         if (auth) {
             config.headers.Authorization = `Bearer ${auth.authToken}`;
         }
-        if (auth && projectId){
-            config.headers["X-Tenant-Id"] = projectId.toString()
+        if (auth && tenantId){
+            config.headers["X-Tenant-Id"] = tenantId.toString()
         }
-        if (auth && projectId && partitionIdRef && partitionIdRef.current){
+        if (auth && tenantId && partitionIdRef && partitionIdRef.current){
             config.headers["X-Partition-Id"] = partitionIdRef.current.toString()
         }
         return config;

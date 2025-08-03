@@ -1,4 +1,4 @@
-const format = (template: string, ...args: unknown[]): string => {
+export const format = (template: string, ...args: unknown[]): string => {
     const copiedArgs = [...args]
     for(;; copiedArgs.length){
         const i = template.indexOf("{}")
@@ -16,4 +16,10 @@ const format = (template: string, ...args: unknown[]): string => {
     return template
 }
 
-export default format
+export const formatQueryParameters = (baseUrl: string, params: Record<string, string | number>) => {
+    const encodedParams = Object.keys(params)
+        .map(k => `${encodeURIComponent(k)}=${encodeURIComponent(`${params[k]}`)}`)
+        .join("&")
+
+    return `${baseUrl}?${encodedParams}`
+}

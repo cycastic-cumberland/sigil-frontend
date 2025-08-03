@@ -233,7 +233,7 @@ const PartitionMemberTable: FC<{
                     <Button
                         className={'cursor-pointer hover:bg-foreground hover:text-background'}
                         onClick={() => table.previousPage()}
-                        disabled={!table.getCanNextPage() || isLoading}
+                        disabled={!table.getCanPreviousPage() || isLoading}
                     >
                         Previous
                     </Button>

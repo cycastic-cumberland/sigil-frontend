@@ -178,7 +178,7 @@ const TenantTable: FC<{
                     <Button
                         className={'cursor-pointer hover:bg-foreground hover:text-background'}
                         onClick={() => table.previousPage()}
-                        disabled={!table.getCanNextPage() || isLoading}
+                        disabled={!table.getCanPreviousPage() || isLoading}
                     >
                         { isDialog ? <ArrowLeft/> : "Previous" }
                     </Button>

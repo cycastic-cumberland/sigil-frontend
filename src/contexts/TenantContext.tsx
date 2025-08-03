@@ -1,16 +1,19 @@
 import type {TenantDto} from "@/dto/TenantDto.ts";
 import {createContext, type FC, type ReactNode, useContext, useEffect, useState} from "react";
 import {getAuth} from "@/utils/auth.ts";
-import api, {setProjectId} from "@/api.ts";
+import api, {setTenantId} from "@/api.ts";
 import type {PageDto} from "@/dto/PageDto.ts";
 import {useParams} from "react-router";
 import {notifyApiError} from "@/utils/errors.ts";
 import type {IdDto} from "@/dto/IdDto.ts";
+import type {TenantUserDto} from "@/dto/TenantUserDto.ts";
+import {formatQueryParameters} from "@/utils/format.ts";
 
 export type TenantContextType = {
     tenantId: number | null,
     activeTenant: TenantDto | null,
     queryTenants: (userId: number, page: number, pageSize: number, orderBy: string | null) => Promise<PageDto<TenantDto>>,
+    queryTenantMembers: (contentTerm: string | null, page: number, pageSize: number, orderBy: string | null) => Promise<PageDto<TenantUserDto>>,
     getTenant: (id: number) => Promise<TenantDto>,
     deleteTenant: (id: number) => Promise<void>,
     saveTenant: (tenant: TenantDto) => Promise<IdDto>,
@@ -42,7 +45,7 @@ export const TenantProvider: FC<{ children: ReactNode }> = ({ children }) => {
     }, [tenantId]);
 
     useEffect(() => {
-        setProjectId(tenantIdState)
+        setTenantId(tenantIdState)
 
         if (tenantIdState){
             fetchActiveProject(tenantIdState)
@@ -92,10 +95,27 @@ export const TenantProvider: FC<{ children: ReactNode }> = ({ children }) => {
         return data
     }
 
+    const queryTenantMembers = async (contentTerm: string | null, page: number, pageSize: number, orderBy: string | null): Promise<PageDto<TenantUserDto>> => {
+        const params: Record<string, string | number> = {
+            page,
+            pageSize
+        }
+        if (orderBy){
+            params.orderBy = orderBy
+        }
+        if (contentTerm){
+            params.contentTerm = contentTerm
+        }
+
+        const response = await api.get(formatQueryParameters('tenants/members', params))
+        return response.data as PageDto<TenantUserDto>
+    }
+
     const value: TenantContextType = {
         tenantId: tenantIdState,
         activeTenant,
         queryTenants,
+        queryTenantMembers,
         getTenant,
         saveTenant,
         deleteTenant,

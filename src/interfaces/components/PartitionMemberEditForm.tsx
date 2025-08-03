@@ -3,6 +3,7 @@ import type {PartitionUserDto} from "@/dto/PartitionUserDto.ts";
 import {Label} from "@/components/ui/label.tsx";
 import {Input} from "@/components/ui/input.tsx";
 import {
+    ALL_PARTITION_PERMISSIONS,
     getHumanReadablePartitionPermission,
     joinPartitionPermissions,
     type PartitionPermission
@@ -12,10 +13,9 @@ import {useTenant} from "@/contexts/TenantContext.tsx";
 import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover.tsx";
 import {Command, CommandEmpty, CommandGroup, CommandInput, CommandItem} from "@/components/ui/command.tsx";
 import {Check, ChevronsUpDown} from "lucide-react";
-import api from "@/api.ts";
-import type {PageDto} from "@/dto/PageDto.ts";
 import {cn} from "@/lib/utils.ts";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
+import type {TenantUserDto} from "@/dto/TenantUserDto.ts";
 
 const emptyPartitionUserDto = (): PartitionUserDto => {
     return  {
@@ -37,7 +37,7 @@ const PartitionMemberEditForm: FC<{
     const [permissionsPopoverOpened, setPermissionsPopoverOpened] = useState(false)
     const [searching, setSearching] = useState(false)
     const [isCreate, setIsCreate] = useState(!partitionMember)
-    const {activeTenant} = useTenant()
+    const {activeTenant, queryTenantMembers} = useTenant()
     const canListTenantMembers = useMemo(() => isCreate &&
             !!activeTenant &&
             (activeTenant.membership === "OWNER" ||
@@ -45,7 +45,7 @@ const PartitionMemberEditForm: FC<{
         [activeTenant, isCreate])
     const [query, setQuery] = useState('')
     const [debouncedQuery, setDebouncedQuery] = useState('')
-    const [searchResults, setSearchResult] = useState([] as string[])
+    const [searchResults, setSearchResult] = useState([] as TenantUserDto[])
 
     useEffect(() => {
         setFormValues(partitionMember ? { ...partitionMember } : emptyPartitionUserDto())
@@ -55,8 +55,8 @@ const PartitionMemberEditForm: FC<{
     useEffect(() => {
         setSearching(true)
         const handler = setTimeout(() => {
-            setDebouncedQuery(query);
-        }, 300); // 300ms debounce
+            setDebouncedQuery(query.trim());
+        }, 200); // 200ms debounce
 
         return () => {
             clearTimeout(handler);
@@ -72,8 +72,7 @@ const PartitionMemberEditForm: FC<{
         (async () => {
             try {
                 setSearching(true)
-                const response = await api.get(`tenants/members/prefix?emailPrefix=${encodeURIComponent(debouncedQuery)}&page=1&pageSize=20`)
-                const data = response.data as PageDto<string>
+                const data = await queryTenantMembers(debouncedQuery, 1, 10, null)
                 setSearchResult(data.items)
             } finally {
                 setSearching(false)
@@ -144,9 +143,9 @@ const PartitionMemberEditForm: FC<{
                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[300px] p-0">
+                        <PopoverContent className="w-[320px] p-0">
                             <Command>
-                                <CommandInput placeholder="Search email..."
+                                <CommandInput placeholder="Search user..."
                                               name={"email"}
                                               value={query}
                                               onInput={handleChange}/>
@@ -154,20 +153,20 @@ const PartitionMemberEditForm: FC<{
                                     { searching ? "Searching..." : query ? "No user found" : "Start typing to search" }
                                 </CommandEmpty>
                                 <CommandGroup>
-                                    {searchResults.map((value) => (
+                                    {searchResults.map((value, i) => (
                                         <CommandItem
-                                            key={value}
-                                            className={"cursor-pointer"}
-                                            onSelect={(currentValue) => {
+                                            key={i}
+                                            className={"cursor-pointer truncate overflow-hidden whitespace-nowrap"}
+                                            onSelect={() => {
                                                 setFormValues((prev) => ({
                                                     ...prev,
-                                                    email: currentValue
+                                                    email: value.email
                                                 }))
                                                 setQuery('')
                                                 setEmailPopoverOpened(false)
                                             }}
                                         >
-                                            {value}
+                                            {value.email}
                                         </CommandItem>
                                     ))}
                                 </CommandGroup>
@@ -187,14 +186,14 @@ const PartitionMemberEditForm: FC<{
                             aria-expanded={permissionsPopoverOpened}
                             className="flex-1 justify-between"
                         >
-                            {joinPartitionPermissions(formValues.permissions)}
+                            {formValues.permissions.length >= 3 ? `${formValues.permissions.length} selected` : joinPartitionPermissions(formValues.permissions)}
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[300px] p-0">
                         <Command>
                             <CommandGroup>
-                                {(["READ", "WRITE", "MODERATE"] as PartitionPermission[]).map((value, i) => (
+                                {ALL_PARTITION_PERMISSIONS.map((value, i) => (
                                     <CommandItem
                                         key={i}
                                         className={"cursor-pointer"}

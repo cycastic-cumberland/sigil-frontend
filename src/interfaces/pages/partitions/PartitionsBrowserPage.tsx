@@ -180,6 +180,21 @@ const FileTable: FC<{ currentDir: string, partitionPath: string | null }> = ({ c
                                currentDir={currentDir}/>
         <div className={"my-3"}>
             <div className={"flex gap-2"}>
+                { !partitionPath &&   <Button className={"text-background bg-foreground border-2 border-foreground cursor-pointer hover:border-solid hover:text-foreground hover:bg-background"}
+                                              asChild>
+                    <Link to={`/tenant/${tenantId}/members`}>
+                        { isLoading ? <Spinner/> : <Users/> }
+                        <span>Tenant members</span>
+                    </Link>
+                </Button> }
+                { partitionPath && <Button className={"text-background bg-foreground border-2 border-foreground cursor-pointer hover:text-foreground hover:bg-background"}
+                                           disabled={isLoading}
+                                           asChild>
+                    <Link to={`/tenant/${tenantId}/partitions/members/${encodedListingPath(partitionPath)}`}>
+                        { isLoading ? <Spinner/> : <Users/> }
+                        <span>{ canManageMembership ? "Manage partition" : "Partition members" }</span>
+                    </Link>
+                </Button> }
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button className={"text-foreground border-dashed border-2 border-foreground cursor-pointer " +
@@ -193,14 +208,6 @@ const FileTable: FC<{ currentDir: string, partitionPath: string | null }> = ({ c
                         { creationActions }
                     </DropdownMenuContent>
                 </DropdownMenu>
-                { partitionPath && <Button className={"text-background bg-foreground border-2 border-foreground cursor-pointer hover:text-foreground hover:bg-background"}
-                                           disabled={isLoading}
-                                           asChild>
-                    <Link to={`/tenant/${tenantId}/partitions/members/${encodedListingPath(partitionPath)}`}>
-                        { isLoading ? <Spinner/> : <Users/> }
-                        <span>{ canManageMembership ? "Manage" : "Members" }</span>
-                    </Link>
-                </Button> }
             </div>
         </div>
         <ListingPicker key={counter}
