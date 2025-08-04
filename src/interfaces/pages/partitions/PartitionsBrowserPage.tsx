@@ -2,13 +2,14 @@ import MainLayout from "@/interfaces/layouts/MainLayout.tsx";
 import ProjectGuard from "@/interfaces/layouts/ProjectGuard.tsx";
 import {Link, useLocation, useNavigate} from "react-router";
 import {
-    type FC, type ReactNode,
+    type DragEvent,
+    type FC, type ReactNode, type SyntheticEvent,
     useEffect, useMemo, useRef,
     useState
 } from "react";
 import {Label} from "@/components/ui/label.tsx";
 import {Button} from "@/components/ui/button.tsx";
-import {File, KeyRound, Plus, Users, Vault} from "lucide-react";
+import {File as FileIcon, KeyRound, Plus, Users, Vault} from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -42,6 +43,13 @@ import {
     BreadcrumbList,
     BreadcrumbSeparator
 } from "@/components/ui/breadcrumb.tsx";
+import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
+import {Card} from "@/components/ui/card.tsx";
+import {base64ToUint8Array, decryptWithPrivateKey, digestMd5, uint8ArrayToBase64} from "@/utils/cryptography.ts";
+import type {AttachmentPresignedDto} from "@/dto/AttachmentPresignedDto.ts";
+import {useServerCommunication} from "@/contexts/ServerCommunicationContext.tsx";
+import type {Callback} from "@/utils/misc.ts";
+import {cn} from "@/lib/utils.ts";
 
 const extractPath = (path: string): string => {
     let subPath = path.replace(/^\/tenant\/[^/]+\/partitions\/browser\/?/, '');
@@ -110,13 +118,16 @@ const CreatePartitionDialog: FC<{
 
 const FileTable: FC<{ currentDir: string, partitionPath: string | null }> = ({ currentDir, partitionPath }) => {
     const [isLoading, setIsLoading] = useState(false)
+    const [dropEnabled, setDropEnabled] = useState(false)
     const [counter, setCounter] = useState(0)
     const [attachmentUploadOpened, setAttachmentUploadOpened] = useState(false)
     const [createPartitionOpened, setCreatePartitionOpened] = useState(false)
     const [canManageMembership, setCanManageMembership] = useState(false)
-    const {tenantId} = useTenant()
     const partitionRef = useRef(null as PartitionDto | null)
     const partitionKeyRef = useRef(null as Uint8Array | null)
+    const {tenantId} = useTenant()
+    const {userPrivateKey} = useAuthorization()
+    const {wrapSecret} = useServerCommunication()
     const navigate = useNavigate()
     const partitionCreationActions: ReactNode[] = [
         (<DropdownMenuItem className={"cursor-pointer"} onClick={() => setCreatePartitionOpened(true)}>
@@ -128,7 +139,7 @@ const FileTable: FC<{ currentDir: string, partitionPath: string | null }> = ({ c
     ]
     const listingCreationActions: ReactNode[] = [
         (<DropdownMenuItem className={"cursor-pointer"} onClick={() => setAttachmentUploadOpened(true)}>
-            <File/>
+            <FileIcon/>
             <span>
                 Attachment
             </span>
@@ -171,6 +182,163 @@ const FileTable: FC<{ currentDir: string, partitionPath: string | null }> = ({ c
         navigate(newPath)
     }
 
+    const getPartitionKey = async () => {
+        const userKey = userPrivateKey!
+        const decryptedPartitionKey = await decryptWithPrivateKey(userKey, base64ToUint8Array(partitionRef.current!.userPartitionKey.cipher))
+        partitionKeyRef.current = decryptedPartitionKey
+        return decryptedPartitionKey
+    }
+
+    const uploadPresignedPart = async <T extends number | null> (url: string, partitionKeyMd5Base64: string, partitionKeyBase64: string, file: Blob, part: T, onPercentChanged: Callback<number>) => {
+        const response = await axios.put(url, file, {
+            headers: {
+                'content-type': 'application/octet-stream',
+                'x-amz-server-side-encryption-customer-algorithm': 'AES256',
+                'x-amz-server-side-encryption-customer-key-md5': partitionKeyMd5Base64,
+                'x-amz-server-side-encryption-customer-key': partitionKeyBase64,
+            },
+
+            onUploadProgress: progressEvent => {
+                const total = progressEvent.total ?? 1;
+                let percentCompleted = Math.round((progressEvent.loaded * 100) / total);
+                percentCompleted = percentCompleted > 100 ? 10 : percentCompleted;
+                onPercentChanged(percentCompleted);
+            }
+        })
+
+        return {
+            part,
+            etag: response.headers.etag as string
+        }
+    }
+
+    const uploadPresigned = async (file: File, selectedPath: string, onPercentChanged: Callback<number>) => {
+        const partitionIdRef = { current: null as number | null }
+        const api = createApi(partitionIdRef)
+        partitionIdRef.current = partitionRef.current?.id ?? null
+
+        const partitionKey = await getPartitionKey()
+        const partitionKeyMd5 = digestMd5(partitionKey)
+
+        const partitionKeyBase64 = uint8ArrayToBase64(partitionKey)
+        const partitionKeyMd5Base64 = uint8ArrayToBase64(partitionKeyMd5)
+
+        const presignedResponse = await api.post('listings/attachment/presigned', {
+            path: selectedPath,
+            keyMd5: partitionKeyMd5Base64,
+            mimeType: file.type,
+            contentLength: file.size
+        })
+        const presigned = presignedResponse.data as AttachmentPresignedDto;
+
+        try {
+            await uploadPresignedPart(presigned.url, partitionKeyMd5Base64, partitionKeyBase64, file, null, onPercentChanged)
+            await api.post('listings/attachment/complete', {
+                id: presigned.id
+            })
+        } catch (e){
+            await api.delete(`listings/attachment?id=${encodeURIComponent(presigned.id)}`).catch(() => {})
+            throw e
+        }
+    }
+
+    const directUpload = async (file: File, selectedPath: string, onPercentChanged: Callback<number>) => {
+        const partitionIdRef = { current: null as number | null }
+        const api = createApi(partitionIdRef)
+        partitionIdRef.current = partitionRef.current?.id ?? null
+
+        const partitionKey = await getPartitionKey()
+        const partitionKeyBase64 = uint8ArrayToBase64(partitionKey)
+
+        const encryptedPartitionKey = await wrapSecret(Uint8Array.from(partitionKeyBase64.split("").map(x => x.charCodeAt(0))))
+        const data = new FormData();
+        data.append("file", file)
+        await api.post(`listings/attachment?listingPath=${selectedPath}`, data, {
+            headers: {
+                'content-type': 'multipart/form-data',
+                'x-encryption-key': encryptedPartitionKey
+            },
+
+            onUploadProgress: progressEvent => {
+                const total = progressEvent.total ?? 1;
+                let percentCompleted = Math.round((progressEvent.loaded * 100) / total);
+                percentCompleted = percentCompleted > 100 ? 10 : percentCompleted;
+                onPercentChanged(percentCompleted);
+            }
+        })
+    }
+
+    const uploadFile = (file: File, selectedPath: string, onPercentChanged: Callback<number>) => {
+        if (partitionRef.current!.serverSideKeyDerivation){
+            return directUpload(file, selectedPath, onPercentChanged)
+        } else {
+            return uploadPresigned(file, selectedPath, onPercentChanged)
+        }
+    }
+
+    const handleDrop = async (e: DragEvent<HTMLDivElement>) => {
+        e.preventDefault()
+        setDropEnabled(false)
+        if (!userPrivateKey){
+            toast.error("Please unlock this session before retrying")
+            return
+        }
+
+        setIsLoading(true)
+        const stat = { success: 0, fail: 0 }
+        const filePath = '/' + splitByFirst(currentDir, '/_/')[1]
+        const fileList = Array.from(e.dataTransfer.files)
+        const promises = [] as Promise<void>[]
+
+        try {
+            for (const file of fileList) {
+                const promise = (async () => {
+                    const toastId = toast.info(`Uploading ${file.name}…`)
+                    try {
+                        await uploadFile(file, `${filePath}${file.name}`, p => {
+                            toast.info(`Uploading ${file.name}… ${p}%`, {
+                                id: toastId
+                            })
+                        })
+                        toast.success(`Uploaded ${file.name}`,{
+                            id: toastId
+                        })
+                        stat.success++
+                    } catch (e){
+                        if (axios.isAxiosError(e) && e.status === 409){
+                            toast.error("Listing with the same path already exists", {
+                                id: toastId
+                            })
+                        } else {
+                            notifyApiError(e, toastId)
+                        }
+                        stat.fail++
+                    }
+                })()
+                promises.push(promise)
+            }
+
+            await Promise.all(promises)
+        } finally {
+            setIsLoading(false)
+            if (stat.fail && promises.length > 1){
+                toast.info(`${stat.fail} files failed to upload`)
+            }
+            if (stat.success){
+                refreshTrigger()
+            }
+        }
+    }
+
+    const handleDragOver = (e: SyntheticEvent) => {
+        e.preventDefault()
+        setDropEnabled(true)
+    }
+
+    const handleDragLeave = () => {
+        setDropEnabled(false)
+    }
+
     return <>
         <AttachmentUploadDialog isOpened={attachmentUploadOpened}
                                 setIsOpened={setAttachmentUploadOpened}
@@ -178,7 +346,7 @@ const FileTable: FC<{ currentDir: string, partitionPath: string | null }> = ({ c
                                 setIsLoading={setIsLoading}
                                 refreshTrigger={refreshTrigger}
                                 currentDir={currentDir}
-                                partitionRef={partitionRef}/>
+                                uploadHandler={uploadFile}/>
         <CreatePartitionDialog isLoading={isLoading}
                                setIsLoading={setIsLoading}
                                isOpened={createPartitionOpened}
@@ -217,14 +385,34 @@ const FileTable: FC<{ currentDir: string, partitionPath: string | null }> = ({ c
                 </DropdownMenu>
             </div>
         </div>
-        <ListingPicker key={counter}
-                       isLoading={isLoading}
-                       setIsLoading={setIsLoading}
-                       currentDir={currentDir}
-                       setCurrentDir={onFolderSelected}
-                       partitionRef={partitionRef}
-                       partitionKeyRef={partitionKeyRef}
-                       links/>
+        <div className={"flex flex-col flex-grow w-full relative"}
+             onDrop={handleDrop}
+             onDragOver={handleDragOver}
+             onDragLeave={handleDragLeave}>
+            <div key={counter}
+                 className={cn(dropEnabled ? "invisible" : "")}>
+                <ListingPicker isLoading={isLoading}
+                               setIsLoading={setIsLoading}
+                               currentDir={currentDir}
+                               setCurrentDir={onFolderSelected}
+                               partitionRef={partitionRef}
+                               partitionKeyRef={partitionKeyRef}
+                               links/>
+            </div>
+            { dropEnabled && <>
+                { userPrivateKey
+                    ? <>
+                        <Card className={"absolute inset-0 p-6 border-2 border-dashed rounded-2xl text-center transition-colors w-full min-h-12 flex flex-col flex-grow"}>
+                            <div className={"flex flex-col flex-grow justify-center text-muted-foreground text-4xl"}>
+                                Drop your files here
+                            </div>
+                        </Card>
+                    </>
+                    : <>
+                        <Card className={"absolute inset-0 p-6 drop-zone-destructive border-2 border-dashed rounded-2xl text-center transition-colors w-full min-h-12 flex flex-col flex-grow"}/>
+                    </> }
+            </> }
+        </div>
     </>
 }
 
@@ -269,7 +457,7 @@ const PartitionsBrowserPage = () => {
 
     return <MainLayout>
         <ProjectGuard>
-            <div className={"w-full p-5 flex flex-col"}>
+            <div className={"w-full p-5 flex flex-col flex-grow"}>
                 <div className={"my-2"}>
                     <Label className={"text-2xl text-foreground font-bold"}>
                         { partitionPath ? "Listing browser" : "Partition browser" }

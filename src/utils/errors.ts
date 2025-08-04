@@ -23,6 +23,8 @@ export const extractError = (e: unknown): string | undefined => {
     return undefined
 }
 
-export const notifyApiError = (e: unknown) => {
-    toast.error(extractError(e) ?? 'Error encountered while proccessing request')
+export const notifyApiError = (e: unknown, toastId?: number | string) => {
+    toast.error(extractError(e) ?? 'Error encountered while processing request', {
+        id: toastId
+    })
 }

@@ -59,7 +59,12 @@ import {useServerCommunication} from "@/contexts/ServerCommunicationContext.tsx"
 import {useTenant} from "@/contexts/TenantContext.tsx";
 import LinkWrapper from "@/interfaces/components/LinkWrapper.tsx";
 import PrivateKeyDecryptionDialog from "@/interfaces/components/PrivateKeyDecryptionDialog.tsx";
-import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger} from "@/components/ui/context-menu.tsx";
+import {
+    ContextMenu,
+    ContextMenuContent,
+    ContextMenuItem, ContextMenuSeparator,
+    ContextMenuTrigger
+} from "@/components/ui/context-menu.tsx";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {
     Sheet,
@@ -154,8 +159,9 @@ const AttachmentContextMenu: FC<{
 
     return <>
         <ContextMenuItem className={'cursor-pointer'}
-                          disabled={isLoading || !(uploadCompleted ?? false)}
-                          onClick={downloadFile}>
+                         disabled={isLoading || !(uploadCompleted ?? false)}
+                         onClick={downloadFile}
+                         inset>
             Download
         </ContextMenuItem>
     </>
@@ -422,7 +428,7 @@ const ItemRow: FC<{
             setIsLoading(true)
             setConfirmDeleteOpened(false)
 
-            await api.delete(`listings?listingPath=${fullPath}`)
+            await api.delete(`listings?listingPath=${encodeURIComponent(fullPath)}`)
             toast.success("Listing deleted")
         } catch (e) {
             notifyApiError(e)
@@ -470,7 +476,7 @@ const ItemRow: FC<{
                           api={api}
                           item={row.original}
                           currentDir={currentDir}
-                          downloadFn={row.original.type === "ATTACHMENT" ? onDownload : undefined}
+                          downloadFn={row.original.type === "ATTACHMENT" && row.original.attachmentUploadCompleted ? onDownload : undefined}
                           deleteFn={(!!partitionRef.current && partitionRef.current.permissions.includes("WRITE")) ? () => setConfirmDeleteOpened(true) : undefined}/>
         <ConfirmationDialog confirmationOpened={confirmDeleteOpened}
                             setConfirmationOpened={setConfirmDeleteOpened}
@@ -524,21 +530,25 @@ const ItemRow: FC<{
                     ))}
                 </TableRow>
             </ContextMenuTrigger>
-            <ContextMenuContent>
+            <ContextMenuContent className={"w-52"}>
                 { row.original.type === "ATTACHMENT" &&
                     <AttachmentContextMenu isLoading={isLoading || isDownloading}
                                            uploadCompleted={row.original.attachmentUploadCompleted}
                                            downloadFile={onDownload}/>}
-                <ContextMenuItem className={"cursor-pointer"} onClick={() => setOpenSheet(true)}>
+                <ContextMenuItem className={"cursor-pointer"} onClick={() => setOpenSheet(true)} inset>
                     Details
                 </ContextMenuItem>
                 { (!!partitionRef.current && partitionRef.current.permissions.includes("WRITE")) &&
-                    <ContextMenuItem variant={"destructive"}
-                                     className={"cursor-pointer"}
-                                     disabled={isLoading}
-                                     onClick={() => setConfirmDeleteOpened(true)}>
-                    Delete
-                </ContextMenuItem> }
+                    <>
+                        <ContextMenuSeparator/>
+                        <ContextMenuItem variant={"destructive"}
+                                         className={"cursor-pointer"}
+                                         disabled={isLoading}
+                                         onClick={() => setConfirmDeleteOpened(true)}
+                                         inset>
+                            Delete
+                        </ContextMenuItem>
+                    </> }
             </ContextMenuContent>
         </ContextMenu>
     </>

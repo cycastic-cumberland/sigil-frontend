@@ -7,11 +7,22 @@
 }
 
 .drop-zone {
-    border: 2px dashed #999;
+    border: 2px dashed var(--muted-foreground);
     background-image: repeating-linear-gradient(
             -45deg,
             var(--muted-foreground) 0px,
             var(--muted-foreground) 4px,
+            transparent 4px,
+            transparent 12px
+    );
+}
+
+.drop-zone-destructive {
+    border: 2px dashed var(--destructive);
+    background-image: repeating-linear-gradient(
+            -45deg,
+            var(--destructive) 0px,
+            var(--destructive) 4px,
             transparent 4px,
             transparent 12px
     );
