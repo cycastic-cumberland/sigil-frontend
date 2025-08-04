@@ -41,6 +41,7 @@ export const extractAndEncodePathFragments = (dir: string): ListingPathFragment[
                     const s = currSlices[currSlices.length - 1]
                     s.url = s.url + '_/'
                     s.isPartition = true
+                    lastFragment = s.url
 
                     partitionEncountered = true
                     continue

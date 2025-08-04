@@ -25,7 +25,19 @@ import {
 } from "@/components/ui/dropdown-menu.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
-import {ArrowDown, ArrowUp, ArrowUpDown, Vault, ChevronDown, File, Folder, Hash, Text} from "lucide-react";
+import {
+    ArrowDown,
+    ArrowUp,
+    ArrowUpDown,
+    Vault,
+    ChevronDown,
+    File,
+    Folder,
+    Hash,
+    Text,
+    Download,
+    Trash
+} from "lucide-react";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table.tsx";
 import type {AttachmentPresignedDto} from "@/dto/AttachmentPresignedDto.ts";
 import ConfirmationDialog from "@/interfaces/components/ConfirmationDialog.tsx";
@@ -47,6 +59,38 @@ import {useServerCommunication} from "@/contexts/ServerCommunicationContext.tsx"
 import {useTenant} from "@/contexts/TenantContext.tsx";
 import LinkWrapper from "@/interfaces/components/LinkWrapper.tsx";
 import PrivateKeyDecryptionDialog from "@/interfaces/components/PrivateKeyDecryptionDialog.tsx";
+import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger} from "@/components/ui/context-menu.tsx";
+import useMediaQuery from "@/hooks/use-media-query.tsx";
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetFooter,
+    SheetHeader,
+    SheetTitle
+} from "@/components/ui/sheet.tsx";
+import type {Callback} from "@/utils/misc.ts";
+import {
+    Breadcrumb,
+    BreadcrumbItem,
+    BreadcrumbLink,
+    BreadcrumbList,
+    BreadcrumbSeparator
+} from "@/components/ui/breadcrumb.tsx";
+import {Link} from "react-router";
+import {
+    Drawer,
+    DrawerContent,
+    DrawerDescription,
+    DrawerFooter,
+    DrawerHeader,
+    DrawerTitle
+} from "@/components/ui/drawer.tsx";
+import {Label} from "@/components/ui/label.tsx";
+import {Input} from "@/components/ui/input.tsx";
+import FullSizeSpinner from "@/interfaces/components/FullSizeSpinner.tsx";
+import type {AttachmentDto} from "@/dto/AttachmentDto.ts";
+import {formatQueryParameters, humanizeFileSize} from "@/utils/format.ts";
 
 const possiblePageSizes = [5, 10, 20]
 
@@ -103,14 +147,179 @@ const getFileNameFromPath = (path: string): string => {
 
 
 const AttachmentContextMenu: FC<{
-    fullPath: string,
     isLoading: boolean,
+    uploadCompleted?: boolean,
+    downloadFile: () => void,
+}> = ({ isLoading, uploadCompleted, downloadFile }) => {
+
+    return <>
+        <ContextMenuItem className={'cursor-pointer'}
+                          disabled={isLoading || !(uploadCompleted ?? false)}
+                          onClick={downloadFile}>
+            Download
+        </ContextMenuItem>
+    </>
+}
+
+const AttachmentDetailsForm: FC<{
+    api: AxiosInstance,
+    listingPath: string,
+}> = ({ api, listingPath }) => {
+    const [isLoading, setIsLoading] = useState(false)
+    const [attachment, setAttachment] = useState(null as AttachmentDto | null)
+
+    useEffect(() => {
+        (async () => {
+           try {
+               setIsLoading(true)
+
+               const response = await api.get(formatQueryParameters("listings/attachment", {listingPath}))
+               setAttachment(response.data as AttachmentDto)
+           } catch (e){
+               notifyApiError(e)
+           } finally {
+               setIsLoading(false)
+           }
+        })()
+    }, [api, listingPath]);
+
+    if (isLoading){
+        return <FullSizeSpinner/>
+    }
+
+    if (!attachment){
+        return <></>
+    }
+
+    return <>
+        <div className="flex flex-row gap-2">
+            <Label className="w-32">Size:</Label>
+            <Input
+                className="flex-1 border-foreground"
+                value={humanizeFileSize(attachment.contentLength)}
+                readOnly={true}
+            />
+        </div>
+        <div className="flex flex-row gap-2">
+            <Label className="w-32">Content type:</Label>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Input
+                        className="flex-1 border-foreground"
+                        value={attachment.mimeType}
+                        readOnly={true}
+                    />
+                </TooltipTrigger>
+                <TooltipContent>
+                    {attachment.mimeType}
+                </TooltipContent>
+            </Tooltip>
+        </div>
+    </>
+}
+
+const ItemDetailsSheet: FC<{
+    openSheet: boolean,
+    setOpenSheet: Callback<boolean>,
+    api: AxiosInstance,
+    currentDir: string,
+    item: FolderItemDto,
+    downloadFn?: () => void,
+    deleteFn?: () => void,
+}> = ({ openSheet, setOpenSheet, api, currentDir, item, downloadFn, deleteFn }) => {
+    const fullPath = useMemo(() => '/' + splitByFirst(currentDir, '/_/')[1] + item.name, [currentDir, item])
+    const isDesktop = useMediaQuery("(min-width: 768px)")
+    const {tenantId} = useTenant()
+    const slices = useMemo(() => extractAndEncodePathFragments(currentDir), [currentDir])
+
+    const breadcrumb = <Breadcrumb>
+        <BreadcrumbList>
+            <>
+                { slices.map((s, i) => <>
+                    { i === 0 ? <></> : <div className={"flex items-center"}><BreadcrumbSeparator/></div> }
+                    <BreadcrumbItem>
+                        <BreadcrumbLink asChild>
+                            <Link to={`/tenant/${tenantId}/partitions/browser${s.url}`} className={"flex items-center"}>
+                                { i === 0 ? "All partitions" : s.display.slice(0, s.display.length - 1) }
+                            </Link>
+                        </BreadcrumbLink>
+                    </BreadcrumbItem>
+                </>) }
+            </>
+        </BreadcrumbList>
+    </Breadcrumb>
+
+    const footer = <>
+        {downloadFn && <Button variant={"outline"} className={"cursor-pointer"} onClick={downloadFn}>
+            <Download/>
+            Download
+        </Button>}
+        {deleteFn && <Button variant={"destructive"} className={"cursor-pointer"} onClick={deleteFn}>
+            <Trash/>
+            Delete
+        </Button>}
+    </>
+
+    const details = openSheet && <form className={"px-6"}>
+        <div className="grid gap-2">
+            { item.type === "ATTACHMENT" && <AttachmentDetailsForm api={api} listingPath={fullPath}/> }
+        </div>
+    </form>
+
+    return isDesktop ?
+        <Sheet open={openSheet} onOpenChange={setOpenSheet}>
+            <SheetContent>
+                <SheetHeader>
+                    <SheetTitle className={"text-xl"}>
+                        {item.name}
+                        <SheetDescription className={"mt-4"}>
+                            {breadcrumb}
+                        </SheetDescription>
+                    </SheetTitle>
+                </SheetHeader>
+                {details}
+                <SheetFooter>
+                    {footer}
+                </SheetFooter>
+            </SheetContent>
+        </Sheet>
+        : <Drawer open={openSheet} onOpenChange={setOpenSheet}>
+            <DrawerContent>
+                <DrawerHeader>
+                    <DrawerTitle className={"text-xl"}>
+                        {item.name}
+                    </DrawerTitle>
+                    <DrawerDescription>
+                        {breadcrumb}
+                    </DrawerDescription>
+                </DrawerHeader>
+                {details}
+                <DrawerFooter className={"mb-2"}>
+                    {footer}
+                </DrawerFooter>
+            </DrawerContent>
+        </Drawer>
+}
+
+const ItemRow: FC<{
+    row: TanstackRow<FolderItemDto>,
+    currentDir: string,
+    setCurrentDir: (d: string) => void,
+    isLoading: boolean,
+    setIsLoading: (b: boolean) => void,
+    enableLinks: boolean,
+    prefix: string,
+    refreshTrigger: () => void,
+    selectAction: ListingSelectAction,
     api: AxiosInstance,
     partitionRef: RefObject<PartitionDto | null>,
     getPartitionKey: () => Promise<Uint8Array>,
+    onListingSelected: (fullPath: string) => void,
     requireDecrypt: () => void,
-    uploadCompleted?: boolean,
-}> = ({ fullPath, isLoading, api, uploadCompleted, partitionRef, getPartitionKey, requireDecrypt }) => {
+}> = ({ row, currentDir, setCurrentDir, isLoading, setIsLoading, enableLinks, prefix, refreshTrigger, selectAction, api, partitionRef, getPartitionKey, onListingSelected, requireDecrypt }) => {
+    const [openSheet, setOpenSheet] = useState(false)
+    const fullPath = useMemo(() => '/' + splitByFirst(currentDir, '/_/')[1] + row.original.name, [currentDir, row])
+    const [confirmDeleteOpened, setConfirmDeleteOpened] = useState(false)
     const [isDownloading, setIsDownloading] = useState(false)
     const {userPrivateKey} = useAuthorization()
     const toastIdRef = useRef('' as string | number)
@@ -208,57 +417,6 @@ const AttachmentContextMenu: FC<{
         await downloadFileDirect()
     }
 
-    return <>
-        <DropdownMenuItem className={'cursor-pointer'}
-                          disabled={isDownloading || isLoading || !(uploadCompleted ?? false)}
-                          onClick={() => userPrivateKey ? downloadFile() : requireDecrypt()}>
-            Download
-        </DropdownMenuItem>
-    </>
-}
-
-const ItemContextMenu: FC<{
-    fullPath: string,
-    item: FolderItemDto,
-    isLoading: boolean,
-    api: AxiosInstance,
-    partitionRef: RefObject<PartitionDto | null>,
-    getPartitionKey: () => Promise<Uint8Array>,
-    requireDecrypt: () => void,
-}> = ({ fullPath, item, isLoading, api, partitionRef, getPartitionKey, requireDecrypt }): ReactNode => {
-    return item.type === 'ATTACHMENT' ?
-        <AttachmentContextMenu fullPath={fullPath}
-                               isLoading={isLoading}
-                               api={api}
-                               partitionRef={partitionRef}
-                               getPartitionKey={getPartitionKey}
-                               uploadCompleted={item.attachmentUploadCompleted}
-                               requireDecrypt={requireDecrypt}/> : <>
-            <DropdownMenuItem className={'cursor-pointer'}>
-                View/Update
-            </DropdownMenuItem>
-        </>
-}
-
-const ItemRow: FC<{
-    row: TanstackRow<FolderItemDto>,
-    currentDir: string,
-    setCurrentDir: (d: string) => void,
-    isLoading: boolean,
-    setIsLoading: (b: boolean) => void,
-    enableLinks: boolean,
-    prefix: string,
-    refreshTrigger: () => void,
-    selectAction: ListingSelectAction,
-    api: AxiosInstance,
-    partitionRef: RefObject<PartitionDto | null>,
-    getPartitionKey: () => Promise<Uint8Array>,
-    onListingSelected: (fullPath: string) => void,
-    requireDecrypt: () => void,
-}> = ({ row, currentDir, setCurrentDir, isLoading, setIsLoading, enableLinks, prefix, refreshTrigger, selectAction, api, partitionRef, getPartitionKey, onListingSelected, requireDecrypt }) => {
-    const fullPath = useMemo(() => '/' + splitByFirst(currentDir, '/_/')[1] + row.original.name, [currentDir, row])
-    const [confirmDeleteOpened, setConfirmDeleteOpened] = useState(false)
-
     const onDelete = async () => {
         try {
             setIsLoading(true)
@@ -304,7 +462,16 @@ const ItemRow: FC<{
         }
     }
 
+    const onDownload = () => userPrivateKey ? downloadFile() : requireDecrypt()
+
     return <>
+        <ItemDetailsSheet openSheet={openSheet}
+                          setOpenSheet={setOpenSheet}
+                          api={api}
+                          item={row.original}
+                          currentDir={currentDir}
+                          downloadFn={row.original.type === "ATTACHMENT" ? onDownload : undefined}
+                          deleteFn={(!!partitionRef.current && partitionRef.current.permissions.includes("WRITE")) ? () => setConfirmDeleteOpened(true) : undefined}/>
         <ConfirmationDialog confirmationOpened={confirmDeleteOpened}
                             setConfirmationOpened={setConfirmDeleteOpened}
                             onAccepted={onDelete}
@@ -312,12 +479,14 @@ const ItemRow: FC<{
                             message={'Are you sure you want to delete this listing? This action is irreversible!'}
                             acceptText={'Delete'}
                             destructive/>
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild disabled={selectAction !== "dropdown" || (isLoading || row.original.type === 'FOLDER' || row.original.type === 'PARTITION')}>
+        <ContextMenu>
+            <ContextMenuTrigger disabled={selectAction !== "dropdown" || (isLoading || row.original.type === 'FOLDER' || row.original.type === 'PARTITION')}
+                                asChild>
                 <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
                     className={'cursor-pointer'}
+                    onClick={row.original.type === "FOLDER" ? undefined : () => setOpenSheet(true)}
                 >
                     {row.getVisibleCells().map((cell) => (
                         <TableCell key={cell.id} className={cell.column.id === 'type' ? 'max-w-fit' : 'gap-2'} onClick={onCellSelected}>
@@ -354,20 +523,24 @@ const ItemRow: FC<{
                         </TableCell>
                     ))}
                 </TableRow>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align={'start'}>
-                <ItemContextMenu fullPath={fullPath}
-                                 item={row.original}
-                                 isLoading={isLoading}
-                                 api={api}
-                                 partitionRef={partitionRef}
-                                 getPartitionKey={getPartitionKey}
-                                 requireDecrypt={requireDecrypt}/>
-                { (!!partitionRef.current && partitionRef.current.permissions.includes("WRITE")) && <DropdownMenuItem className={'cursor-pointer text-destructive'} disabled={isLoading} onClick={() => setConfirmDeleteOpened(true)}>
+            </ContextMenuTrigger>
+            <ContextMenuContent>
+                { row.original.type === "ATTACHMENT" &&
+                    <AttachmentContextMenu isLoading={isLoading || isDownloading}
+                                           uploadCompleted={row.original.attachmentUploadCompleted}
+                                           downloadFile={onDownload}/>}
+                <ContextMenuItem className={"cursor-pointer"} onClick={() => setOpenSheet(true)}>
+                    Details
+                </ContextMenuItem>
+                { (!!partitionRef.current && partitionRef.current.permissions.includes("WRITE")) &&
+                    <ContextMenuItem variant={"destructive"}
+                                     className={"cursor-pointer"}
+                                     disabled={isLoading}
+                                     onClick={() => setConfirmDeleteOpened(true)}>
                     Delete
-                </DropdownMenuItem> }
-            </DropdownMenuContent>
-        </DropdownMenu>
+                </ContextMenuItem> }
+            </ContextMenuContent>
+        </ContextMenu>
     </>
 }
 

@@ -35,6 +35,13 @@ import axios from "axios";
 import {toast} from "sonner";
 import api, {createApi} from "@/api.ts";
 import type {PartitionUserDto} from "@/dto/PartitionUserDto.ts";
+import {
+    Breadcrumb,
+    BreadcrumbItem,
+    BreadcrumbLink,
+    BreadcrumbList,
+    BreadcrumbSeparator
+} from "@/components/ui/breadcrumb.tsx";
 
 const extractPath = (path: string): string => {
     let subPath = path.replace(/^\/tenant\/[^/]+\/partitions\/browser\/?/, '');
@@ -229,20 +236,23 @@ const CurrentDirectory: FC<{ currentDir: string }> = ({ currentDir }) => {
         setSlices(extractAndEncodePathFragments(currentDir))
     }, [currentDir]);
 
-    const counter = { i: 0 }
-    return <>
-        { slices.map((s, i) => <>
-            <span key={counter.i++}>
-                <Button className={"cursor-pointer bg-muted hover:bg-foreground hover:text-background mr-1 mb-1 flex flex-row max-w-fit"} asChild>
-                    <Link to={`/tenant/${tenantId}/partitions/browser${s.url}`}>
-                        { s.isPartition && <div ><Vault/></div> }
-                        { i === 0 ? s.display : s.display.slice(0, s.display.length - 1) }
-                    </Link>
-                </Button>
-            </span>
-            { i > 0 ? <span key={counter.i++} className={'mr-1 mb-1 flex flex-col justify-center'}>/</span> : <></> }
-        </>) }
-    </>
+    return <Breadcrumb>
+        <BreadcrumbList>
+            <>
+                { slices.map((s, i) => <>
+                    { i === 0 ? <></> : <div className={"flex items-center"}><BreadcrumbSeparator/></div> }
+                    <BreadcrumbItem>
+                        <BreadcrumbLink asChild>
+                            <Link to={`/tenant/${tenantId}/partitions/browser${s.url}`} className={"flex items-center gap-1"}>
+                                { s.isPartition && <div ><Vault/></div> }
+                                { i === 0 ? "All partitions" : s.display.slice(0, s.display.length - 1) }
+                            </Link>
+                        </BreadcrumbLink>
+                    </BreadcrumbItem>
+                </>) }
+            </>
+        </BreadcrumbList>
+    </Breadcrumb>
 }
 
 const PartitionsBrowserPage = () => {
@@ -264,12 +274,9 @@ const PartitionsBrowserPage = () => {
                     <Label className={"text-2xl text-foreground font-bold"}>
                         { partitionPath ? "Listing browser" : "Partition browser" }
                     </Label>
-                    <span className={"flex flex-wrap mt-2"}>
-                        <div className={"text-foreground text-sm flex flex-col justify-center mb-1"}>
-                            Current directory:&nbsp;
-                        </div>
-                        <CurrentDirectory currentDir={currentDir}/>
-                    </span>
+                </div>
+                <div className={"my-2"}>
+                    <CurrentDirectory currentDir={currentDir}/>
                 </div>
                 <FileTable key={currentDir}
                            partitionPath={partitionPath}
