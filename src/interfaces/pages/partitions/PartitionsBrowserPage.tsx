@@ -386,9 +386,9 @@ const FileTable: FC<{ currentDir: string, partitionPath: string | null }> = ({ c
             </div>
         </div>
         <div className={"flex flex-col flex-grow w-full relative"}
-             onDrop={handleDrop}
-             onDragOver={handleDragOver}
-             onDragLeave={handleDragLeave}>
+             onDrop={partitionPath ? handleDrop : undefined}
+             onDragOver={partitionPath ? handleDragOver : undefined}
+             onDragLeave={partitionPath ? handleDragLeave : undefined}>
             <div key={counter}
                  className={cn(dropEnabled ? "invisible" : "")}>
                 <ListingPicker isLoading={isLoading}

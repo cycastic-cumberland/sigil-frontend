@@ -461,10 +461,19 @@ const ItemRow: FC<{
             setCurrentDir(getDir(row.original.name))
             return
         }
+        if (row.original.type === 'PARTITION'){
+            setCurrentDir(getDir(row.original.name) + '_/')
+            return
+        }
 
+        if (isLoading){
+            return
+        }
         // Not a folder
         if (selectAction == "callback"){
             onListingSelected(getFile(row.original.name))
+        } else {
+            setOpenSheet(true)
         }
     }
 
@@ -486,13 +495,13 @@ const ItemRow: FC<{
                             acceptText={'Delete'}
                             destructive/>
         <ContextMenu>
-            <ContextMenuTrigger disabled={selectAction !== "dropdown" || (isLoading || row.original.type === 'FOLDER' || row.original.type === 'PARTITION')}
+            <ContextMenuTrigger disabled={isLoading || selectAction !== "dropdown" || row.original.type === 'FOLDER' || row.original.type === 'PARTITION'}
                                 asChild>
                 <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
                     className={'cursor-pointer'}
-                    onClick={row.original.type === "FOLDER" ? undefined : () => setOpenSheet(true)}
+                    onClick={onCellSelected}
                 >
                     {row.getVisibleCells().map((cell) => (
                         <TableCell key={cell.id} className={cell.column.id === 'type' ? 'max-w-fit' : 'gap-2'} onClick={onCellSelected}>
