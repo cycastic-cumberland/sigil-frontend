@@ -1,9 +1,7 @@
 import type {CipherDto} from "@/dto/CipherDto.ts";
 
 export type Prf = {
-    results: {
-        first: ArrayBuffer
-    }
+    results: AuthenticationExtensionsPRFValues
 }
 
 export type WebAuthnCredentialDto = {

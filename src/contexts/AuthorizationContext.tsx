@@ -253,6 +253,7 @@ export const AuthorizationProvider: FC<{ children?: ReactNode }> = ({ children }
                     userVerification: "required",
                 },
                 extensions: {
+                    hmacCreateSecret: true,
                     prf: {
                         eval: {
                             first: salt,
