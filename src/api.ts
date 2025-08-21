@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type {AuthenticationResponseDto} from "@/dto/AuthenticationResponseDto.ts";
+import type {AuthenticationResponseDto} from "@/dto/user/AuthenticationResponseDto.ts";
 import {getAuth, removeAuth, storeAuthResponse} from "@/utils/auth.ts";
 import {extractError} from "@/utils/errors.ts";
 

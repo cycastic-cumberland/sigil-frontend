@@ -1,4 +1,4 @@
-import type {UploadPartitionDto} from "@/dto/PartitionDto.ts";
+import type {UploadPartitionDto} from "@/dto/tenant/PartitionDto.ts";
 import {type ChangeEvent, type FC, type SyntheticEvent, useEffect, useState} from "react";
 import {Input} from "@/components/ui/input.tsx";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";

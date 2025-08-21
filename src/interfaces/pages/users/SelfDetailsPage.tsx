@@ -1,7 +1,7 @@
 import MainLayout from "@/interfaces/layouts/MainLayout.tsx";
 import {Label} from "@/components/ui/label.tsx";
 import {useEffect, useState} from "react";
-import type {UserInfoDto} from "@/dto/UserInfoDto.ts";
+import type {UserInfoDto} from "@/dto/user/UserInfoDto.ts";
 import FullSizeSpinner from "@/interfaces/components/FullSizeSpinner.tsx";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
 import {notifyApiError} from "@/utils/errors.ts";
@@ -11,7 +11,7 @@ import {KeyRound} from "lucide-react";
 import {uint8ArrayToBase64} from "@/utils/cryptography.ts";
 import {toast} from "sonner";
 import api from "@/api.ts";
-import type {CipherDto} from "@/dto/CipherDto.ts";
+import type {CipherDto} from "@/dto/cryptography/CipherDto.ts";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from "@/components/ui/dialog.tsx";
 import {Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle} from "@/components/ui/drawer.tsx";

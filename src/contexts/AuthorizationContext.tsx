@@ -1,6 +1,6 @@
 import {createContext, type FC, type ReactNode, useContext, useRef, useState} from "react";
 import api from "../api.ts"
-import type {AuthenticationResponseDto} from "@/dto/AuthenticationResponseDto.ts";
+import type {AuthenticationResponseDto} from "@/dto/user/AuthenticationResponseDto.ts";
 import {getAuth, removeAuth, storeAuthResponse} from "@/utils/auth.ts";
 import {
     base64ToUint8Array,
@@ -9,13 +9,13 @@ import {
     signWithSHA256withRSAPSS,
     uint8ArrayToBase64
 } from "@/utils/cryptography.ts";
-import type {KdfDetailsDto} from "@/dto/KdfDetailsDto.ts";
+import type {KdfDetailsDto} from "@/dto/cryptography/KdfDetailsDto.ts";
 import {MAGIC_CONSTANT_SAVE_ENCRYPTION_KEY} from "@/utils/debug.ts";
-import type {BaseUserInfoDto, UserInfoDto} from "@/dto/UserInfoDto.ts";
-import type {CipherDto} from "@/dto/CipherDto.ts";
+import type {BaseUserInfoDto, UserInfoDto} from "@/dto/user/UserInfoDto.ts";
+import type {CipherDto} from "@/dto/cryptography/CipherDto.ts";
 import {getRpIdFromUrl} from "@/utils/path.ts";
-import type {Prf} from "@/dto/webauthn.ts";
-import type {EnvelopDto} from "@/dto/EnvelopDto.ts";
+import type {Prf} from "@/dto/cryptography/webauthn.ts";
+import type {EnvelopDto} from "@/dto/cryptography/EnvelopDto.ts";
 
 export type WebAuthnPrfKey = {
     encryptionKey: CryptoKey,
@@ -25,6 +25,7 @@ export type WebAuthnPrfKey = {
 }
 
 export type AuthorizationContextType = {
+    authData: AuthenticationResponseDto | null,
     userPrivateKey: CryptoKey | null,
     getUserInfo: (reload?: boolean) => Promise<UserInfoDto>,
     signInWithEmailAndPassword: (email: string, password: string) => Promise<void>,
@@ -145,6 +146,7 @@ const deriveWebAuthnKeyEncryptionKey = async (challenge: Uint8Array, credentialI
 
 export const AuthorizationProvider: FC<{ children?: ReactNode }> = ({ children }) => {
     const userInfoRef = useRef(null as UserInfoDto | null)
+    const [authData, setAuthData] = useState(null as AuthenticationResponseDto | null)
     const [privateKey, setPrivateKey] = useState(null as CryptoKey | null)
 
     const getEnvelop = async () => {
@@ -176,6 +178,7 @@ export const AuthorizationProvider: FC<{ children?: ReactNode }> = ({ children }
         })
         const authData = authResponse.data as AuthenticationResponseDto;
         storeAuthResponse(authData)
+        setAuthData(authData)
         const encryptionPrivateKey = await createPrivateKey(pkcs8, false)
         setPrivateKey(encryptionPrivateKey)
     }
@@ -355,6 +358,7 @@ export const AuthorizationProvider: FC<{ children?: ReactNode }> = ({ children }
 
     const value: AuthorizationContextType = {
         userPrivateKey: privateKey,
+        authData,
         signInWithEmailAndPassword,
         signInWithEmailAndPasskey,
         generateWebAuthnPrfKey,

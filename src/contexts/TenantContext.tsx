@@ -1,4 +1,4 @@
-import type {TenantDto} from "@/dto/TenantDto.ts";
+import type {TenantDto} from "@/dto/tenant/TenantDto.ts";
 import {createContext, type FC, type ReactNode, useContext, useEffect, useState} from "react";
 import {getAuth} from "@/utils/auth.ts";
 import api, {setTenantId} from "@/api.ts";
@@ -6,7 +6,7 @@ import type {PageDto} from "@/dto/PageDto.ts";
 import {useParams} from "react-router";
 import {notifyApiError} from "@/utils/errors.ts";
 import type {IdDto} from "@/dto/IdDto.ts";
-import type {TenantUserDto} from "@/dto/TenantUserDto.ts";
+import type {TenantUserDto} from "@/dto/tenant/TenantUserDto.ts";
 import {formatQueryParameters} from "@/utils/format.ts";
 
 export type TenantContextType = {

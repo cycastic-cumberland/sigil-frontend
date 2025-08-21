@@ -1,5 +1,5 @@
 import {type ReactNode, useEffect, useState} from "react";
-import type {UserInfoDto} from "@/dto/UserInfoDto.ts";
+import type {UserInfoDto} from "@/dto/user/UserInfoDto.ts";
 import {
     Sidebar,
     SidebarContent,
@@ -11,6 +11,8 @@ import {
 import {DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem} from "@/components/ui/dropdown-menu.tsx";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
 import {
+    Bell,
+    BellDot,
     Building2,
     Folder, List,
     Menu,
@@ -22,10 +24,22 @@ import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {useTenant} from "@/contexts/TenantContext.tsx";
 import {format} from "@/utils/format.ts";
 import {cn} from "@/lib/utils.ts";
+import {useNotification} from "@/contexts/NotificationContext.tsx";
+
+const NotificationIcon = () => {
+    const {notificationCount} = useNotification()
+    return notificationCount ? <BellDot/> : <Bell/>
+}
+
+const NotificationTitle = () => {
+    const {notificationCount} = useNotification()
+
+    return notificationCount ? <>Notifications ({notificationCount})</> : <>Notifications</>
+}
 
 type MenuGroup = {
     title: string,
-    items: {name: string, icon: ReactNode, url: string}[]
+    items: {name: string | ReactNode, icon: ReactNode, url: string}[]
 }
 
 const startingMeuGroups: MenuGroup[] = [
@@ -41,6 +55,11 @@ const startingMeuGroups: MenuGroup[] = [
                 name: "Active tenants",
                 url: '/tenant/browser',
                 icon: <Building2/>
+            },
+            {
+                name: <NotificationTitle/>,
+                url: '/notifications',
+                icon: <NotificationIcon/>
             },
         ]
     },

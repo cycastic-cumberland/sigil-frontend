@@ -1,6 +1,6 @@
 import MD5 from 'crypto-js/md5';
 import {enc} from 'crypto-js';
-import type {Prf} from "@/dto/webauthn.ts";
+import type {Prf} from "@/dto/cryptography/webauthn.ts";
 // @ts-ignore
 import argon2 from 'argon2-browser/dist/argon2-bundled.min.js';
 

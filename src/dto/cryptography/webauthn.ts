@@ -1,4 +1,4 @@
-import type {CipherDto} from "@/dto/CipherDto.ts";
+import type {CipherDto} from "@/dto/cryptography/CipherDto.ts";
 
 export type Prf = {
     results: AuthenticationExtensionsPRFValues

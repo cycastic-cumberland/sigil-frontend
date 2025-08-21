@@ -18,8 +18,8 @@ import {Button} from "@/components/ui/button.tsx";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
 import {Eye, EyeOff, KeyRound, RectangleEllipsis} from "lucide-react";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
-import type {WebAuthnCredentialDto} from "@/dto/webauthn.ts";
-import type {CipherDto} from "@/dto/CipherDto.ts";
+import type {WebAuthnCredentialDto} from "@/dto/cryptography/webauthn.ts";
+import type {CipherDto} from "@/dto/cryptography/CipherDto.ts";
 import {validatePassword} from "@/utils/auth.ts";
 import {Tooltip, TooltipContent, TooltipTrigger} from "@/components/ui/tooltip.tsx";
 

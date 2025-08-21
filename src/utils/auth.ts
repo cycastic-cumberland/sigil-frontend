@@ -1,5 +1,5 @@
-import type {AuthenticationResponseDto} from "@/dto/AuthenticationResponseDto.ts";
-import type {UserRole} from "@/dto/UserInfoDto.ts";
+import type {AuthenticationResponseDto} from "@/dto/user/AuthenticationResponseDto.ts";
+import type {UserRole} from "@/dto/user/UserInfoDto.ts";
 
 const passwordValidationRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[`~!@#$%^&*()_+{}|:"<>?\[\]\\;',.]).{8,}$/;
 

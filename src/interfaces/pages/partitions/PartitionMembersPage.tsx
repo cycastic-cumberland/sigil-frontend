@@ -8,7 +8,7 @@ import {
     type SortingState,
     useReactTable
 } from "@tanstack/react-table";
-import type {PartitionUserDto} from "@/dto/PartitionUserDto.ts";
+import type {PartitionUserDto} from "@/dto/tenant/PartitionUserDto.ts";
 import {joinPartitionPermissions} from "@/dto/Permissions.ts";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
 import {ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, ChevronDown, Plus} from "lucide-react";
@@ -18,7 +18,7 @@ import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/c
 import type {TanstackTable} from "@/dto/aliases.ts";
 import LinkWrapper from "@/interfaces/components/LinkWrapper.tsx";
 import api, {createApi} from "@/api.ts";
-import type {PartitionDto} from "@/dto/PartitionDto.ts";
+import type {PartitionDto} from "@/dto/tenant/PartitionDto.ts";
 import {Link, useLocation, useNavigate} from "react-router";
 import {notifyApiError} from "@/utils/errors.ts";
 import type {PageDto} from "@/dto/PageDto.ts";
@@ -35,7 +35,7 @@ import {Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle} fro
 import axios, {type AxiosInstance} from "axios";
 import {toast} from "sonner";
 import PartitionMemberEditForm from "@/interfaces/components/PartitionMemberEditForm.tsx";
-import type {UserInfoDto} from "@/dto/UserInfoDto.ts";
+import type {UserInfoDto} from "@/dto/user/UserInfoDto.ts";
 import {
     base64ToUint8Array,
     decryptWithPrivateKey,

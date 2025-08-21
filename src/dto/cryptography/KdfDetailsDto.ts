@@ -1,6 +1,6 @@
-import type {Argon2Parameters} from "@/dto/Argon2Parameters.ts";
-import type {CipherDto} from "@/dto/CipherDto.ts";
-import type {WebAuthnCredentialDto} from "@/dto/webauthn.ts";
+import type {Argon2Parameters} from "@/dto/cryptography/Argon2Parameters.ts";
+import type {CipherDto} from "@/dto/cryptography/CipherDto.ts";
+import type {WebAuthnCredentialDto} from "@/dto/cryptography/webauthn.ts";
 
 export type KdfDetailsDto = {
     algorithm: string,

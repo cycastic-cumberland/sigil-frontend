@@ -1,7 +1,7 @@
 import MainLayout from "@/interfaces/layouts/MainLayout.tsx";
 import {Label} from "@/components/ui/label.tsx";
 import {useEffect, useState} from "react";
-import type {TenantDto} from "@/dto/TenantDto.ts";
+import type {TenantDto} from "@/dto/tenant/TenantDto.ts";
 import FullSizeSpinner from "@/interfaces/components/FullSizeSpinner.tsx";
 import {useNavigate} from "react-router";
 import {useTenant} from "@/contexts/TenantContext.tsx";

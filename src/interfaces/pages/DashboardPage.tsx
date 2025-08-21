@@ -3,7 +3,7 @@ import {Label} from "@/components/ui/label.tsx";
 import TenantTable from "@/interfaces/components/TenantTable.tsx";
 import {useState} from "react";
 import {useNavigate} from "react-router";
-import type {TenantDto} from "@/dto/TenantDto.ts";
+import type {TenantDto} from "@/dto/tenant/TenantDto.ts";
 
 const getTenantLink = (t: TenantDto): string => {
     return `/tenant/${t.id}/partitions/browser/`

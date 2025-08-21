@@ -8,11 +8,14 @@ import {Toaster} from "@/components/ui/sonner"
 import {ServerCommunicationProvider} from "@/contexts/ServerCommunicationContext.tsx";
 import type {FC, ReactNode} from "react";
 import {TenantProvider} from "@/contexts/TenantContext.tsx";
+import {NotificationProvider} from "@/contexts/NotificationContext.tsx";
 
 const RouteDependentProviders: FC<{children: ReactNode | ReactNode[]}> = ({ children }) => {
-    return <TenantProvider>
-        { children }
-    </TenantProvider>
+    return <NotificationProvider>
+        <TenantProvider>
+            { children }
+        </TenantProvider>
+    </NotificationProvider>
 }
 
 const App = () =>  {

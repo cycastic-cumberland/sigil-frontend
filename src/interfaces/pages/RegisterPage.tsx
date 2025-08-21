@@ -1,5 +1,5 @@
 import {type ChangeEvent, type FC, type HTMLAttributes, type SyntheticEvent, useEffect, useState} from "react";
-import type {RegisterUserDto} from "@/dto/RegisterUserDto.ts";
+import type {RegisterUserDto} from "@/dto/user/RegisterUserDto.ts";
 import {cn} from "@/lib/utils.ts";
 import {Label} from "@/components/ui/label.tsx";
 import {Input} from "@/components/ui/input.tsx";

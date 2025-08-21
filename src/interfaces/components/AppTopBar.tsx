@@ -3,11 +3,15 @@ import {Label} from "@/components/ui/label.tsx";
 import {useSidebar} from "@/components/ui/sidebar.tsx";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
-import {Lock, LockOpen, Menu} from "lucide-react";
+import {Bell, BellDot, Lock, LockOpen, Menu} from "lucide-react";
 import {Tooltip, TooltipContent, TooltipTrigger} from "@/components/ui/tooltip.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import {useState} from "react";
 import DecryptPrivateKeyDialog from "@/interfaces/components/PrivateKeyDecryptionDialog.tsx";
+import {useNotification} from "@/contexts/NotificationContext.tsx";
+import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover.tsx";
+import NotificationList from "@/interfaces/components/NotificationList.tsx";
+import {Link} from "react-router";
 
 const UserUnlocked = () => {
     return <Tooltip>
@@ -50,6 +54,46 @@ const UserLocked = () => {
     </>
 }
 
+const DesktopNotificationButton = () =>{
+    const {notificationCount} = useNotification()
+
+    return <>
+        <Popover>
+            <PopoverTrigger asChild>
+                <Button variant={'ghost'}
+                        className={'cursor-pointer'}>
+                    {notificationCount ? <BellDot/> : <Bell/>}
+                    {notificationCount ? notificationCount : undefined}
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-96">
+                <div className="grid gap-4">
+                    <div className="space-y-2">
+                        <h4 className="leading-none font-medium">Notifications</h4>
+                        <p className="text-muted-foreground text-sm">
+                            {notificationCount ? `${notificationCount} new notification${notificationCount > 1 ? 's' : ''}` : 'No new notification'}
+                        </p>
+                    </div>
+                    <NotificationList className={'h-48 overflow-y-auto'}/>
+                </div>
+            </PopoverContent>
+        </Popover>
+    </>
+}
+
+const MobileNotificationButton = () => {
+    const {notificationCount} = useNotification()
+
+    return <Button variant={'ghost'}
+                   className={'cursor-pointer'}
+                   asChild>
+        <Link to={'/notifications'}>
+            {notificationCount ? <BellDot/> : <Bell/>}
+            {notificationCount ? notificationCount : undefined}
+        </Link>
+    </Button>
+}
+
 const AppTopBar = () => {
     const {activeTenant} = useTenant()
     const {toggleSidebar} = useSidebar()
@@ -59,11 +103,6 @@ const AppTopBar = () => {
     return <div className={"w-full flex flex-row bg-background border-b border-sidebar min-h-16"}>
         { !isDesktop && <button className={"gap-2 p-2 appearance-none bg-transparent border-none m-0 focus:outline-none cursor-pointer"} onClick={toggleSidebar}>
             <div className={"flex flex-row py-1 m-0"}>
-                <div className={"flex flex-col"}>
-                    <h1 className={"text-2xl font-semibold tracking-tight invisible"}>
-                        T
-                    </h1>
-                </div>
                 <Menu size={30}/>
             </div>
         </button> }
@@ -74,6 +113,11 @@ const AppTopBar = () => {
                     {activeTenant.tenantName}
                 </Label>
             )}
+        </div>
+        <div className={"flex flex-row-reverse w-full"}>
+            <div className={'flex flex-col justify-center p-4'}>
+                {isDesktop ? <DesktopNotificationButton/> : <MobileNotificationButton/>}
+            </div>
         </div>
     </div>
 }

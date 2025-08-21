@@ -1,5 +1,5 @@
 import {type ChangeEvent, type FC, type SyntheticEvent, useEffect, useMemo, useState} from "react";
-import type {PartitionUserDto} from "@/dto/PartitionUserDto.ts";
+import type {PartitionUserDto} from "@/dto/tenant/PartitionUserDto.ts";
 import {Label} from "@/components/ui/label.tsx";
 import {Input} from "@/components/ui/input.tsx";
 import {
@@ -15,7 +15,7 @@ import {Command, CommandEmpty, CommandGroup, CommandInput, CommandItem} from "@/
 import {Check, ChevronsUpDown} from "lucide-react";
 import {cn} from "@/lib/utils.ts";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
-import type {TenantUserDto} from "@/dto/TenantUserDto.ts";
+import type {TenantUserDto} from "@/dto/tenant/TenantUserDto.ts";
 
 const emptyPartitionUserDto = (): PartitionUserDto => {
     return  {

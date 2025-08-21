@@ -7,8 +7,8 @@ import {useTenant} from "@/contexts/TenantContext.tsx";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
 import {type FC, type SyntheticEvent, useEffect, useState} from "react";
 import type {BlockingFC} from "@/utils/misc.ts";
-import type {TenantDto} from "@/dto/TenantDto.ts";
-import type {TenantUserDto} from "@/dto/TenantUserDto.ts";
+import type {TenantDto} from "@/dto/tenant/TenantDto.ts";
+import type {TenantUserDto} from "@/dto/tenant/TenantUserDto.ts";
 import {
     type ColumnDef,
     flexRender,

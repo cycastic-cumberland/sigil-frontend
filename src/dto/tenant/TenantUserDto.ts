@@ -1,5 +1,5 @@
 import type {TenantPermission} from "@/dto/Permissions.ts";
-import type {TenantMembership} from "@/dto/TenantDto.ts";
+import type {TenantMembership} from "@/dto/tenant/TenantDto.ts";
 
 export type TenantUserDto = {
     email: string,

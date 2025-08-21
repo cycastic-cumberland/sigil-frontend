@@ -1,5 +1,5 @@
 import {type ChangeEvent, type FC, type SyntheticEvent, useEffect, useState} from "react";
-import type {TenantDto, UsageType} from "@/dto/TenantDto.ts";
+import type {TenantDto, UsageType} from "@/dto/tenant/TenantDto.ts";
 import {Input} from "@/components/ui/input.tsx";
 import {Label} from "@/components/ui/label.tsx";
 import {Button} from "@/components/ui/button.tsx";

@@ -9,7 +9,7 @@ import {
     useReactTable
 } from "@tanstack/react-table";
 import {type FC, useEffect, useMemo, useState} from "react";
-import type {TenantDto} from "@/dto/TenantDto.ts";
+import type {TenantDto} from "@/dto/tenant/TenantDto.ts";
 import {getAuth} from "@/utils/auth.ts";
 import {useTenant} from "@/contexts/TenantContext.tsx";
 import {

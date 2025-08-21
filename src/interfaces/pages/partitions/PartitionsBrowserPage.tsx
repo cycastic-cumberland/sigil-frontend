@@ -29,13 +29,13 @@ import {
 import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from "@/components/ui/dialog.tsx";
 import {Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle} from "@/components/ui/drawer.tsx";
-import type {PartitionDto, UploadPartitionDto} from "@/dto/PartitionDto.ts";
+import type {PartitionDto, UploadPartitionDto} from "@/dto/tenant/PartitionDto.ts";
 import PartitionEditForm from "@/interfaces/components/PartitionEditForm.tsx";
 import {notifyApiError} from "@/utils/errors.ts";
 import axios from "axios";
 import {toast} from "sonner";
 import api, {createApi} from "@/api.ts";
-import type {PartitionUserDto} from "@/dto/PartitionUserDto.ts";
+import type {PartitionUserDto} from "@/dto/tenant/PartitionUserDto.ts";
 import {
     Breadcrumb,
     BreadcrumbItem,

@@ -6,7 +6,7 @@ import {type FC, useEffect, useState} from "react";
 import TenantTable from "@/interfaces/components/TenantTable.tsx";
 import {useNavigate} from "react-router";
 import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog.tsx";
-import type {TenantDto} from "@/dto/TenantDto.ts";
+import type {TenantDto} from "@/dto/tenant/TenantDto.ts";
 import TenantEditForm from "@/interfaces/components/TenantEditForm.tsx";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {Drawer, DrawerContent, DrawerHeader} from "@/components/ui/drawer.tsx";

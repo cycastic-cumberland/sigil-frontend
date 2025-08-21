@@ -45,7 +45,7 @@ import {Tooltip, TooltipContent, TooltipTrigger} from "@/components/ui/tooltip.t
 import {encodedListingPath, extractAndEncodePathFragments, splitByFirst} from "@/utils/path.ts";
 import {extractError, notifyApiError} from "@/utils/errors.ts";
 import {toast} from "sonner";
-import type {PartitionDto} from "@/dto/PartitionDto.ts";
+import type {PartitionDto} from "@/dto/tenant/PartitionDto.ts";
 import {createApi} from "@/api.ts";
 import axios, {type AxiosInstance} from "axios";
 import {
