@@ -404,7 +404,7 @@ const TenantMemberPage = () => {
                 </Label>
             </div>
             <div className={"my-3 flex gap-2"}>
-                <Button className={"text-background bg-foreground border-2 border-foreground cursor-pointer hover:border-solid hover:text-foreground hover:bg-background"}
+                <Button className={"text-background bg-primary border-2 border-primary cursor-pointer hover:border-solid hover:text-primary hover:bg-background"}
                         asChild>
                     <Link to={`/tenant/${tenantId}/partitions/browser/`}>
                         <Folder/>

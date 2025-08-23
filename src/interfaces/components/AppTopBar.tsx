@@ -100,24 +100,24 @@ const AppTopBar = () => {
     const {userPrivateKey} = useAuthorization()
     const isDesktop = useMediaQuery("(min-width: 768px)")
 
-    return <div className={"w-full flex flex-row bg-background border-b border-sidebar min-h-16"}>
-        { !isDesktop && <button className={"gap-2 p-2 appearance-none bg-transparent border-none m-0 focus:outline-none cursor-pointer"} onClick={toggleSidebar}>
-            <div className={"flex flex-row py-1 m-0"}>
-                <Menu size={30}/>
+    return <div className={"w-full flex flex-row bg-background border-b border-sidebar h-16 justify-between"}>
+        <div className={"flex flex-col justify-center"}>
+            { !isDesktop && <button className={"gap-2 p-2 appearance-none bg-transparent border-none m-0 focus:outline-none cursor-pointer"} onClick={toggleSidebar}>
+                <div className={"flex flex-row py-1 m-0"}>
+                    <Menu size={30}/>
+                </div>
+            </button> }
+            <div className={`flex items-center gap-2 ${isDesktop ? 'ml-5' : ''}`}>
+                { userPrivateKey ? <UserUnlocked/> : <UserLocked/> }
+                {activeTenant && (
+                    <Label className="text-foreground font-bold text-xl">
+                        {activeTenant.tenantName}
+                    </Label>
+                )}
             </div>
-        </button> }
-        <div className={`flex items-center gap-2 ${isDesktop ? 'ml-5' : ''}`}>
-            { userPrivateKey ? <UserUnlocked/> : <UserLocked/> }
-            {activeTenant && (
-                <Label className="text-foreground font-bold text-xl">
-                    {activeTenant.tenantName}
-                </Label>
-            )}
         </div>
-        <div className={"flex flex-row-reverse w-full"}>
-            <div className={'flex flex-col justify-center p-4'}>
-                {isDesktop ? <DesktopNotificationButton/> : <MobileNotificationButton/>}
-            </div>
+        <div className={'flex flex-col justify-center p-4'}>
+            {isDesktop ? <DesktopNotificationButton/> : <MobileNotificationButton/>}
         </div>
     </div>
 }
