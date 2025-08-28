@@ -16,3 +16,13 @@ export type PartitionDto = {
     createdAt: string,
     updatedAt: string,
 }
+
+export type ProjectPartitionDto = PartitionDto & {
+    uniqueIdentifier: string,
+    latestSprintNumber: number,
+    latestTaskId: number,
+}
+
+export const isProjectPartition = (p: PartitionDto): p is ProjectPartitionDto => {
+    return "uniqueIdentifier" in p
+}

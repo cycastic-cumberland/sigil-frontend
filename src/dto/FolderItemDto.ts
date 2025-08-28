@@ -1,4 +1,4 @@
-export type FolderItemType = "TEXT" | "DECIMAL" | "ATTACHMENT" | "FOLDER" | "PARTITION"
+export type FolderItemType = "TEXT" | "DECIMAL" | "ATTACHMENT" | "FOLDER" | "PARTITION" | "PROJECT_PARTITION"
 
 export type FolderItemDto = {
     name: string,

@@ -5,14 +5,36 @@ export const ExceptionCodes = {
     registrationInProgress: 'C400T011'
 }
 
+export type ApiException = {
+    timestamp: string,
+    status: number,
+    exceptionCode?: string,
+    path?: string,
+    message?: string,
+    stackTrace?: string,
+    validationMessages?: Record<string, string[]>
+}
+
+export const isApiException = (payload?: unknown): payload is ApiException => {
+    if (!payload){
+        return false
+    }
+    const objKeys = Object.keys(payload as object)
+    return objKeys.includes("timestamp") && objKeys.includes("status");
+}
+
 export const extractError = (e: unknown): string | undefined => {
     if (axios.isAxiosError(e)){
         const axiosError = e as AxiosError;
-        // @ts-ignore
-        const error = axiosError.response?.data?.message
-
-        if (error){
-            return error
+        const payload = axiosError.response?.data;
+        if (isApiException(payload)){
+            if (payload.validationMessages){
+                const fields = Object.keys(payload.validationMessages)
+                return `Validation failed for fields ${fields.join(", ")}`
+            }
+            if (payload.message){
+                return payload.message;
+            }
         }
     }
 

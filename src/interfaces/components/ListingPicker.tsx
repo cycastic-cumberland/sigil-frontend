@@ -36,7 +36,7 @@ import {
     Hash,
     Text,
     Download,
-    Trash
+    Trash, KanbanSquare
 } from "lucide-react";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table.tsx";
 import type {AttachmentPresignedDto} from "@/dto/AttachmentPresignedDto.ts";
@@ -82,7 +82,7 @@ import {
     BreadcrumbList,
     BreadcrumbSeparator
 } from "@/components/ui/breadcrumb.tsx";
-import {Link} from "react-router";
+import {Link, useNavigate} from "react-router";
 import {
     Drawer,
     DrawerContent,
@@ -99,7 +99,7 @@ import {formatQueryParameters, humanizeFileSize} from "@/utils/format.ts";
 
 const possiblePageSizes = [5, 10, 20]
 
-export type ListingSelectAction = "dropdown" | "callback"
+export type ListingSelectAction = "defaultAction" | "callback"
 
 const itemsColumnDef: ColumnDef<FolderItemDto>[] = [
     {
@@ -141,6 +141,8 @@ const getIcon = (type: FolderItemType): ReactNode => {
             return <Folder/>
         case "PARTITION":
             return <Vault/>
+        case "PROJECT_PARTITION":
+            return <KanbanSquare/>
         default:
             throw Error("Unsupported type: " + type)
     }
@@ -329,6 +331,13 @@ const ItemRow: FC<{
     const [isDownloading, setIsDownloading] = useState(false)
     const {userPrivateKey} = useAuthorization()
     const toastIdRef = useRef('' as string | number)
+    const navigate = useNavigate()
+    const {tenantId} = useTenant()
+    const canShowLink = useMemo(() => (["FOLDER", "PARTITION", "PROJECT_PARTITION"] as FolderItemType[]).includes(row.original.type), [row.original.type])
+    const disableContextMenu = useMemo(() => isLoading ||
+        selectAction !== "defaultAction" ||
+        canShowLink,
+        [canShowLink, isLoading, selectAction])
     const {wrapSecret} = useServerCommunication()
 
     const downloadFileDirect = async () => {
@@ -443,6 +452,9 @@ const ItemRow: FC<{
         const name = row.original.name
         const currentDirEncoded = encodedListingPath(currentDir)
         const nameEncoded = encodedListingPath(name)
+        if (row.original.type === 'PROJECT_PARTITION'){
+            return `/tenant/${tenantId}/project/overview/${currentDirEncoded}/${nameEncoded}`
+        }
         return `${prefix}/${currentDirEncoded}/${nameEncoded}/${row.original.type === "PARTITION" ? '_/' : ''}`
     }
 
@@ -463,6 +475,10 @@ const ItemRow: FC<{
         }
         if (row.original.type === 'PARTITION'){
             setCurrentDir(getDir(row.original.name) + '_/')
+            return
+        }
+        if (row.original.type === "PROJECT_PARTITION" && selectAction == "defaultAction"){
+            navigate(toListingUrl())
             return
         }
 
@@ -495,7 +511,7 @@ const ItemRow: FC<{
                             acceptText={'Delete'}
                             destructive/>
         <ContextMenu>
-            <ContextMenuTrigger disabled={isLoading || selectAction !== "dropdown" || row.original.type === 'FOLDER' || row.original.type === 'PARTITION'}
+            <ContextMenuTrigger disabled={disableContextMenu}
                                 asChild>
                 <TableRow
                     key={row.id}
@@ -505,7 +521,7 @@ const ItemRow: FC<{
                 >
                     {row.getVisibleCells().map((cell) => (
                         <TableCell key={cell.id} className={cell.column.id === 'type' ? 'max-w-fit' : 'gap-2'} onClick={onCellSelected}>
-                            { (row.original.type === 'FOLDER' || row.original.type === 'PARTITION') ? <>
+                            { canShowLink ? <>
                                     { cell.column.id === 'type' ?
                                         <LinkWrapper enableLinks={enableLinks} to={toListingUrl()} className={'flex flex-row gap-2 w-full'} >
                                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -730,7 +746,7 @@ const ListingPicker: FC<{
                                              enableLinks={links ?? false}
                                              prefix={linkPrefix ?? `/tenant/${tenantId}/partitions/browser`}
                                              refreshTrigger={refreshTrigger}
-                                             selectAction={selectAction ?? "dropdown"}
+                                             selectAction={selectAction ?? "defaultAction"}
                                              api={api}
                                              partitionRef={partitionRef}
                                              getPartitionKey={getPartitionKey}

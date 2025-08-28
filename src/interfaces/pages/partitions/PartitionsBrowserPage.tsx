@@ -9,7 +9,7 @@ import {
 } from "react";
 import {Label} from "@/components/ui/label.tsx";
 import {Button} from "@/components/ui/button.tsx";
-import {File as FileIcon, KeyRound, Plus, Users, Vault} from "lucide-react";
+import {File as FileIcon, KanbanSquare, KeyRound, Plus, Users, Vault} from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -50,6 +50,8 @@ import type {AttachmentPresignedDto} from "@/dto/AttachmentPresignedDto.ts";
 import {useServerCommunication} from "@/contexts/ServerCommunicationContext.tsx";
 import type {Callback} from "@/utils/misc.ts";
 import {cn} from "@/lib/utils.ts";
+import type {UploadProjectDto} from "@/dto/tenant/UploadProjectDto.ts";
+import ProjectEditForm from "@/interfaces/components/ProjectEditForm.tsx";
 
 const extractPath = (path: string): string => {
     let subPath = path.replace(/^\/tenant\/[^/]+\/partitions\/browser\/?/, '');
@@ -116,12 +118,76 @@ const CreatePartitionDialog: FC<{
     </Drawer>
 }
 
+const CreateProjectDialog: FC<{
+    isLoading: boolean,
+    setIsLoading: (l: boolean) => void,
+    isOpened: boolean,
+    setIsOpened: (o: boolean) => void,
+    currentDir: string,
+    reloadTrigger: () => void,
+}> = ({ isLoading, setIsLoading, isOpened, setIsOpened, currentDir, reloadTrigger }) => {
+    const [values, setValues] = useState({ partitionPath: currentDir, serverSideKeyDerivation: false, uniqueIdentifier: '' } as UploadProjectDto)
+    const isDesktop = useMediaQuery("(min-width: 768px)")
+
+    useEffect(() => {
+        setValues({ partitionPath: currentDir, serverSideKeyDerivation: false, uniqueIdentifier: "" })
+    }, [isOpened]);
+
+    const onSubmit = async (partition: UploadProjectDto) => {
+        try {
+            setValues(partition)
+            setIsLoading(true)
+            await api.post("partitions", {
+                ...partition,
+                uniqueIdentifier: undefined,
+                partitionType: 'PROJECT',
+                projectPartition: {
+                    uniqueIdentifier: partition.uniqueIdentifier
+                }
+            })
+            setIsOpened(false)
+            reloadTrigger()
+        } catch (e: unknown){
+            if (axios.isAxiosError(e) && e.status === 409){
+                toast.error('Partition with the same path already exists')
+            } else {
+                notifyApiError(e)
+            }
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    return isDesktop ? <Dialog open={isOpened} onOpenChange={setIsOpened}>
+        <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+                <DialogTitle>Create a new project partition</DialogTitle>
+                <DialogDescription>Create a new software project with kanban boards and sprints.</DialogDescription>
+            </DialogHeader>
+            <div className={"w-full"}>
+                <ProjectEditForm partition={values} isLoading={isLoading} onSave={onSubmit}/>
+            </div>
+        </DialogContent>
+    </Dialog> : <Drawer open={isOpened} onOpenChange={setIsOpened}>
+        <DrawerContent>
+            <DrawerHeader>
+                <DrawerTitle>Create a new project</DrawerTitle>
+                <DrawerDescription>Create a new software project with kanban boards and sprints.</DrawerDescription>
+            </DrawerHeader>
+            <div className={"p-5"}>
+                <ProjectEditForm partition={values} isLoading={isLoading} onSave={onSubmit}/>
+            </div>
+        </DrawerContent>
+    </Drawer>
+}
+
 const FileTable: FC<{ currentDir: string, partitionPath: string | null }> = ({ currentDir, partitionPath }) => {
     const [isLoading, setIsLoading] = useState(false)
     const [dropEnabled, setDropEnabled] = useState(false)
     const [counter, setCounter] = useState(0)
     const [attachmentUploadOpened, setAttachmentUploadOpened] = useState(false)
     const [createPartitionOpened, setCreatePartitionOpened] = useState(false)
+    const [createProjectOpened, setCreateProjectOpened] = useState(false)
     const [canManageMembership, setCanManageMembership] = useState(false)
     const partitionRef = useRef(null as PartitionDto | null)
     const partitionKeyRef = useRef(null as Uint8Array | null)
@@ -134,6 +200,12 @@ const FileTable: FC<{ currentDir: string, partitionPath: string | null }> = ({ c
             <Vault/>
             <span>
                 Partition
+            </span>
+        </DropdownMenuItem>),
+        (<DropdownMenuItem className={"cursor-pointer"} onClick={() => setCreateProjectOpened(true)}>
+            <KanbanSquare/>
+            <span>
+                Project
             </span>
         </DropdownMenuItem>)
     ]
@@ -353,6 +425,12 @@ const FileTable: FC<{ currentDir: string, partitionPath: string | null }> = ({ c
                                setIsOpened={setCreatePartitionOpened}
                                reloadTrigger={refreshTrigger}
                                currentDir={currentDir}/>
+        <CreateProjectDialog isLoading={isLoading}
+                             setIsLoading={setIsLoading}
+                             isOpened={createProjectOpened}
+                             setIsOpened={setCreateProjectOpened}
+                             reloadTrigger={refreshTrigger}
+                             currentDir={currentDir}/>
         <div className={"my-3"}>
             <div className={"flex gap-2"}>
                 { !partitionPath &&   <Button className={"text-background bg-primary border-2 border-primary cursor-pointer hover:border-solid hover:text-primary hover:bg-background"}
