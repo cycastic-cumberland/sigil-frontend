@@ -1,15 +1,8 @@
-import {
-    type FC,
-    type ReactNode,
-    type RefObject,
-    useEffect,
-    useMemo,
-    useRef,
-    useState
-} from "react";
+import {type FC, type ReactNode, type RefObject, useEffect, useMemo, useRef, useState} from "react";
 import type {FolderItemDto, FolderItemType} from "@/dto/FolderItemDto.ts";
 import {
-    type ColumnDef, flexRender,
+    type ColumnDef,
+    flexRender,
     getCoreRowModel,
     getSortedRowModel,
     type SortingState,
@@ -29,18 +22,18 @@ import {
     ArrowDown,
     ArrowUp,
     ArrowUpDown,
-    Vault,
     ChevronDown,
+    Download,
     File,
     Folder,
     Hash,
+    KanbanSquare,
     Text,
-    Download,
-    Trash, KanbanSquare
+    Trash,
+    Vault
 } from "lucide-react";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table.tsx";
 import type {AttachmentPresignedDto} from "@/dto/AttachmentPresignedDto.ts";
-import ConfirmationDialog from "@/interfaces/components/ConfirmationDialog.tsx";
 import {Tooltip, TooltipContent, TooltipTrigger} from "@/components/ui/tooltip.tsx";
 import {encodedListingPath, extractAndEncodePathFragments, splitByFirst} from "@/utils/path.ts";
 import {extractError, notifyApiError} from "@/utils/errors.ts";
@@ -48,13 +41,7 @@ import {toast} from "sonner";
 import type {PartitionDto} from "@/dto/tenant/PartitionDto.ts";
 import {createApi} from "@/api.ts";
 import axios, {type AxiosInstance} from "axios";
-import {
-    base64ToUint8Array,
-    decryptWithPrivateKey,
-    digestMd5,
-    uint8ArrayToBase64
-} from "@/utils/cryptography.ts";
-import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
+import {base64ToUint8Array, decryptWithPrivateKey, digestMd5, uint8ArrayToBase64} from "@/utils/cryptography.ts";
 import {useServerCommunication} from "@/contexts/ServerCommunicationContext.tsx";
 import {useTenant} from "@/contexts/TenantContext.tsx";
 import LinkWrapper from "@/interfaces/components/LinkWrapper.tsx";
@@ -62,18 +49,12 @@ import PrivateKeyDecryptionDialog from "@/interfaces/components/PrivateKeyDecryp
 import {
     ContextMenu,
     ContextMenuContent,
-    ContextMenuItem, ContextMenuSeparator,
+    ContextMenuItem,
+    ContextMenuSeparator,
     ContextMenuTrigger
 } from "@/components/ui/context-menu.tsx";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
-import {
-    Sheet,
-    SheetContent,
-    SheetDescription,
-    SheetFooter,
-    SheetHeader,
-    SheetTitle
-} from "@/components/ui/sheet.tsx";
+import {Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle} from "@/components/ui/sheet.tsx";
 import type {Callback} from "@/utils/misc.ts";
 import {
     Breadcrumb,
@@ -96,6 +77,7 @@ import {Input} from "@/components/ui/input.tsx";
 import FullSizeSpinner from "@/interfaces/components/FullSizeSpinner.tsx";
 import type {AttachmentDto} from "@/dto/AttachmentDto.ts";
 import {formatQueryParameters, humanizeFileSize} from "@/utils/format.ts";
+import {useConsent} from "@/contexts/ConsentContext.tsx";
 
 const possiblePageSizes = [5, 10, 20]
 
@@ -321,16 +303,14 @@ const ItemRow: FC<{
     selectAction: ListingSelectAction,
     api: AxiosInstance,
     partitionRef: RefObject<PartitionDto | null>,
-    getPartitionKey: () => Promise<Uint8Array>,
     onListingSelected: (fullPath: string) => void,
-    requireDecrypt: () => void,
-}> = ({ row, currentDir, setCurrentDir, isLoading, setIsLoading, enableLinks, prefix, refreshTrigger, selectAction, api, partitionRef, getPartitionKey, onListingSelected, requireDecrypt }) => {
+}> = ({ row, currentDir, setCurrentDir, isLoading, setIsLoading, enableLinks, prefix, refreshTrigger, selectAction, api, partitionRef, onListingSelected }) => {
     const [openSheet, setOpenSheet] = useState(false)
     const fullPath = useMemo(() => '/' + splitByFirst(currentDir, '/_/')[1] + row.original.name, [currentDir, row])
-    const [confirmDeleteOpened, setConfirmDeleteOpened] = useState(false)
     const [isDownloading, setIsDownloading] = useState(false)
-    const {userPrivateKey} = useAuthorization()
     const toastIdRef = useRef('' as string | number)
+    const deletionRef = useRef<Promise<boolean> | null>(null)
+    const {requireAgreement, requireDecryption} = useConsent()
     const navigate = useNavigate()
     const {tenantId} = useTenant()
     const canShowLink = useMemo(() => (["FOLDER", "PARTITION", "PROJECT_PARTITION"] as FolderItemType[]).includes(row.original.type), [row.original.type])
@@ -340,10 +320,17 @@ const ItemRow: FC<{
         [canShowLink, isLoading, selectAction])
     const {wrapSecret} = useServerCommunication()
 
-    const downloadFileDirect = async () => {
+    const decryptPartitionKey = (userPrivateKey: CryptoKey) => {
+        if (!partitionRef.current){
+            throw Error("unreachable")
+        }
+        return decryptWithPrivateKey(userPrivateKey, base64ToUint8Array(partitionRef.current.userPartitionKey.cipher))
+    }
+
+    const downloadFileDirect = async (userPrivateKey: CryptoKey) => {
         try {
             setIsDownloading(true)
-            const partitionKey = await getPartitionKey()
+            const partitionKey = await decryptPartitionKey(userPrivateKey)
             const partitionKeyMd5 = digestMd5(partitionKey)
 
             const partitionKeyBase64 = uint8ArrayToBase64(partitionKey)
@@ -396,10 +383,10 @@ const ItemRow: FC<{
         }
     }
 
-    const downloadServerSideKeyDerivation = async () => {
+    const downloadServerSideKeyDerivation = async (userPrivateKey: CryptoKey) => {
         try {
             setIsDownloading(true)
-            const partitionKey = await getPartitionKey()
+            const partitionKey = await decryptPartitionKey(userPrivateKey)
             const partitionKeyBase64 = uint8ArrayToBase64(partitionKey)
 
             const encryptedPartitionKey = await wrapSecret(Uint8Array.from(partitionKeyBase64.split("").map(x => x.charCodeAt(0))))
@@ -422,20 +409,19 @@ const ItemRow: FC<{
         }
     }
 
-    const downloadFile = async () => {
+    const downloadFile = async (userPrivateKey: CryptoKey) => {
         if (partitionRef.current!.serverSideKeyDerivation){
-            await downloadServerSideKeyDerivation()
+            await downloadServerSideKeyDerivation(userPrivateKey)
             return
         }
 
         toastIdRef.current = toast.loading("Starting download");
-        await downloadFileDirect()
+        await downloadFileDirect(userPrivateKey)
     }
 
     const onDelete = async () => {
         try {
             setIsLoading(true)
-            setConfirmDeleteOpened(false)
 
             await api.delete(`listings?listingPath=${encodeURIComponent(fullPath)}`)
             toast.success("Listing deleted")
@@ -493,7 +479,21 @@ const ItemRow: FC<{
         }
     }
 
-    const onDownload = () => userPrivateKey ? downloadFile() : requireDecrypt()
+    const onDownload = () => requireDecryption().then(downloadFile)
+
+    const showDeleteConfirmation = async () => {
+        const confirmed = await requireAgreement({
+            title: "Delete listing",
+            message: "Are you sure you want to delete this listing? This action is irreversible",
+            acceptText: "Delete",
+            destructive: true,
+            ref: deletionRef
+        })
+
+        if (confirmed){
+            await onDelete()
+        }
+    }
 
     return <>
         <ItemDetailsSheet openSheet={openSheet}
@@ -502,14 +502,7 @@ const ItemRow: FC<{
                           item={row.original}
                           currentDir={currentDir}
                           downloadFn={row.original.type === "ATTACHMENT" && row.original.attachmentUploadCompleted ? onDownload : undefined}
-                          deleteFn={(!!partitionRef.current && partitionRef.current.permissions.includes("WRITE")) ? () => setConfirmDeleteOpened(true) : undefined}/>
-        <ConfirmationDialog confirmationOpened={confirmDeleteOpened}
-                            setConfirmationOpened={setConfirmDeleteOpened}
-                            onAccepted={onDelete}
-                            title={'Delete listing'}
-                            message={'Are you sure you want to delete this listing? This action is irreversible!'}
-                            acceptText={'Delete'}
-                            destructive/>
+                          deleteFn={(!!partitionRef.current && partitionRef.current.permissions.includes("WRITE")) ? () => showDeleteConfirmation() : undefined}/>
         <ContextMenu>
             <ContextMenuTrigger disabled={disableContextMenu}
                                 asChild>
@@ -569,7 +562,7 @@ const ItemRow: FC<{
                         <ContextMenuItem variant={"destructive"}
                                          className={"cursor-pointer"}
                                          disabled={isLoading}
-                                         onClick={() => setConfirmDeleteOpened(true)}
+                                         onClick={() => showDeleteConfirmation()}
                                          inset>
                             Delete
                         </ContextMenuItem>
@@ -596,7 +589,6 @@ const ListingPicker: FC<{
     const [pageCount, setPageCount] = useState(0);
     const [sorting, setSorting] = useState<SortingState>([]);
     const [enableDecryption, setEnableDecryption] = useState(false)
-    const {userPrivateKey} = useAuthorization()
     const {tenantId} = useTenant()
     const encodedPathFragments = useMemo(() => extractAndEncodePathFragments(currentDir), [currentDir])
     const partitionIdRef = useRef(null as number | null)
@@ -628,21 +620,6 @@ const ListingPicker: FC<{
         return updateTableContent(pagination.pageIndex, pagination.pageSize, sortParams)
     }
 
-    const getPartitionKey = async () => {
-        if (partitionKeyRef.current){
-            return partitionKeyRef.current
-        }
-
-        if (!partitionRef.current){
-            throw Error("Partition is not set")
-        }
-
-        const userKey = userPrivateKey!
-        const decryptedPartitionKey = await decryptWithPrivateKey(userKey, base64ToUint8Array(partitionRef.current.userPartitionKey.cipher))
-        partitionKeyRef.current = decryptedPartitionKey
-        return decryptedPartitionKey
-    }
-
     const updateTableContent = async (pageIndex: number, pageSize: number, sortParams: string | null) => {
         try {
             setIsLoading(true)
@@ -660,13 +637,21 @@ const ListingPicker: FC<{
                     partitionKeyRef.current = null
                 }
 
-                url = `listings/subfolders?folder=${encodeURIComponent(listingUrl)}&page=${pageIndex + 1}&pageSize=${pageSize}`
+                url = formatQueryParameters("listings/subfolders", {
+                    folder: listingUrl,
+                    page: pageIndex + 1,
+                    pageSize: pageSize,
+                    orderBy: sortParams
+                })
             } else {
-                url = `partitions?folder=${encodeURIComponent(currentDir)}&page=${pageIndex + 1}&pageSize=${pageSize}`
+                url = formatQueryParameters("partitions", {
+                    folder: currentDir,
+                    page: pageIndex + 1,
+                    pageSize: pageSize,
+                    orderBy: sortParams
+                })
             }
-            if (sortParams !== null){
-                url = `${url}&orderBy=${encodeURIComponent(sortParams)}`
-            }
+
             const response = await api.get(url)
             const page = response.data as PageDto<FolderItemDto>
             setItems(page.items)
@@ -749,8 +734,6 @@ const ListingPicker: FC<{
                                              selectAction={selectAction ?? "defaultAction"}
                                              api={api}
                                              partitionRef={partitionRef}
-                                             getPartitionKey={getPartitionKey}
-                                             requireDecrypt={() => setEnableDecryption(true)}
                                              onListingSelected={onListingSelected ?? (() => {throw Error("Listing callback not specified")})}/>
                                 )) }
                             </>

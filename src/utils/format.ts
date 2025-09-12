@@ -16,14 +16,15 @@ export const format = (template: string, ...args: unknown[]): string => {
     return template
 }
 
-export type FormattableQueryParameterType = string | number | boolean
+export type FormattableQueryParameterType = string | number | boolean | undefined | null
 
 export const formatQueryParameters = (url: string, params: Record<string, FormattableQueryParameterType>) => {
     const encodedParams = Object.keys(params)
+        .filter(k => params[k] != null)
         .map(k => `${encodeURIComponent(k)}=${encodeURIComponent(`${params[k]}`)}`)
         .join("&")
 
-    return `${url}?${encodedParams}`
+    return encodedParams ? `${url}?${encodedParams}` : url
 }
 
 export const humanizeFileSize = (bytes: number, si = true, dp = 1) => {

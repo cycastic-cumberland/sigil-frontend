@@ -9,11 +9,14 @@ import {ServerCommunicationProvider} from "@/contexts/ServerCommunicationContext
 import type {FC, ReactNode} from "react";
 import {TenantProvider} from "@/contexts/TenantContext.tsx";
 import {NotificationProvider} from "@/contexts/NotificationContext.tsx";
+import {ConsentProvider} from "@/contexts/ConsentContext.tsx";
 
 const RouteDependentProviders: FC<{children: ReactNode | ReactNode[]}> = ({ children }) => {
     return <NotificationProvider>
         <TenantProvider>
-            { children }
+            <ConsentProvider>
+                { children }
+            </ConsentProvider>
         </TenantProvider>
     </NotificationProvider>
 }

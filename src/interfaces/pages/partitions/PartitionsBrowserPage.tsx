@@ -43,7 +43,6 @@ import {
     BreadcrumbList,
     BreadcrumbSeparator
 } from "@/components/ui/breadcrumb.tsx";
-import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
 import {Card} from "@/components/ui/card.tsx";
 import {base64ToUint8Array, decryptWithPrivateKey, digestMd5, uint8ArrayToBase64} from "@/utils/cryptography.ts";
 import type {AttachmentPresignedDto} from "@/dto/AttachmentPresignedDto.ts";
@@ -52,6 +51,7 @@ import type {Callback} from "@/utils/misc.ts";
 import {cn} from "@/lib/utils.ts";
 import type {UploadProjectDto} from "@/dto/tenant/UploadProjectDto.ts";
 import ProjectEditForm from "@/interfaces/components/ProjectEditForm.tsx";
+import {useConsent} from "@/contexts/ConsentContext.tsx";
 
 const extractPath = (path: string): string => {
     let subPath = path.replace(/^\/tenant\/[^/]+\/partitions\/browser\/?/, '');
@@ -192,7 +192,7 @@ const FileTable: FC<{ currentDir: string, partitionPath: string | null }> = ({ c
     const partitionRef = useRef(null as PartitionDto | null)
     const partitionKeyRef = useRef(null as Uint8Array | null)
     const {tenantId} = useTenant()
-    const {userPrivateKey} = useAuthorization()
+    const {requireDecryption} = useConsent()
     const {wrapSecret} = useServerCommunication()
     const navigate = useNavigate()
     const partitionCreationActions: ReactNode[] = [
@@ -254,8 +254,7 @@ const FileTable: FC<{ currentDir: string, partitionPath: string | null }> = ({ c
         navigate(newPath)
     }
 
-    const getPartitionKey = async () => {
-        const userKey = userPrivateKey!
+    const getPartitionKey = async (userKey: CryptoKey) => {
         const decryptedPartitionKey = await decryptWithPrivateKey(userKey, base64ToUint8Array(partitionRef.current!.userPartitionKey.cipher))
         partitionKeyRef.current = decryptedPartitionKey
         return decryptedPartitionKey
@@ -284,12 +283,12 @@ const FileTable: FC<{ currentDir: string, partitionPath: string | null }> = ({ c
         }
     }
 
-    const uploadPresigned = async (file: File, selectedPath: string, onPercentChanged: Callback<number>) => {
+    const uploadPresigned = async (userKey: CryptoKey, file: File, selectedPath: string, onPercentChanged: Callback<number>) => {
         const partitionIdRef = { current: null as number | null }
         const api = createApi(partitionIdRef)
         partitionIdRef.current = partitionRef.current?.id ?? null
 
-        const partitionKey = await getPartitionKey()
+        const partitionKey = await getPartitionKey(userKey)
         const partitionKeyMd5 = digestMd5(partitionKey)
 
         const partitionKeyBase64 = uint8ArrayToBase64(partitionKey)
@@ -314,12 +313,12 @@ const FileTable: FC<{ currentDir: string, partitionPath: string | null }> = ({ c
         }
     }
 
-    const directUpload = async (file: File, selectedPath: string, onPercentChanged: Callback<number>) => {
+    const directUpload = async (userKey: CryptoKey, file: File, selectedPath: string, onPercentChanged: Callback<number>) => {
         const partitionIdRef = { current: null as number | null }
         const api = createApi(partitionIdRef)
         partitionIdRef.current = partitionRef.current?.id ?? null
 
-        const partitionKey = await getPartitionKey()
+        const partitionKey = await getPartitionKey(userKey)
         const partitionKeyBase64 = uint8ArrayToBase64(partitionKey)
 
         const encryptedPartitionKey = await wrapSecret(Uint8Array.from(partitionKeyBase64.split("").map(x => x.charCodeAt(0))))
@@ -340,21 +339,18 @@ const FileTable: FC<{ currentDir: string, partitionPath: string | null }> = ({ c
         })
     }
 
-    const uploadFile = (file: File, selectedPath: string, onPercentChanged: Callback<number>) => {
+    const uploadFile = async (file: File, selectedPath: string, onPercentChanged: Callback<number>) => {
+        const userKey = await requireDecryption()
         if (partitionRef.current!.serverSideKeyDerivation){
-            return directUpload(file, selectedPath, onPercentChanged)
+            return await directUpload(userKey, file, selectedPath, onPercentChanged)
         } else {
-            return uploadPresigned(file, selectedPath, onPercentChanged)
+            return await uploadPresigned(userKey, file, selectedPath, onPercentChanged)
         }
     }
 
     const handleDrop = async (e: DragEvent<HTMLDivElement>) => {
         e.preventDefault()
         setDropEnabled(false)
-        if (!userPrivateKey){
-            toast.error("Please unlock this session before retrying")
-            return
-        }
 
         setIsLoading(true)
         const stat = { success: 0, fail: 0 }
@@ -478,17 +474,13 @@ const FileTable: FC<{ currentDir: string, partitionPath: string | null }> = ({ c
                                links/>
             </div>
             { dropEnabled && <>
-                { userPrivateKey
-                    ? <>
-                        <Card className={"absolute inset-0 p-6 border-2 border-dashed rounded-2xl text-center transition-colors w-full min-h-12 flex flex-col flex-grow"}>
-                            <div className={"flex flex-col flex-grow justify-center text-muted-foreground text-4xl"}>
-                                Drop your files here
-                            </div>
-                        </Card>
-                    </>
-                    : <>
-                        <Card className={"absolute inset-0 p-6 drop-zone-destructive border-2 border-dashed rounded-2xl text-center transition-colors w-full min-h-12 flex flex-col flex-grow"}/>
-                    </> }
+                <>
+                    <Card className={"absolute inset-0 p-6 border-2 border-dashed rounded-2xl text-center transition-colors w-full min-h-12 flex flex-col flex-grow"}>
+                        <div className={"flex flex-col flex-grow justify-center text-muted-foreground text-4xl"}>
+                            Drop your files here
+                        </div>
+                    </Card>
+                </>
             </> }
         </div>
     </>
