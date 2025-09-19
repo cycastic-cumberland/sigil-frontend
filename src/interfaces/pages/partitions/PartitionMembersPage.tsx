@@ -44,9 +44,9 @@ import {
 } from "@/utils/cryptography.ts";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
 import {useTenant} from "@/contexts/TenantContext.tsx";
-import ConfirmationDialog from "@/interfaces/components/ConfirmationDialog.tsx";
 import FullSizeSpinner from "@/interfaces/components/FullSizeSpinner.tsx";
 import {PrivateKeyDecryptor} from "@/interfaces/components/PrivateKeyDecryptor.tsx";
+import {useConsent} from "@/contexts/ConsentContext.tsx";
 
 const itemsColumnDef: ColumnDef<PartitionUserDto>[] = [
     {
@@ -322,6 +322,15 @@ const PartitionMemberTableWithAddButton: FC<{
         }
     }
 
+    const getPartitionUrl = () => {
+        switch (partition.partitionType){
+            case "PROJECT":
+                return `/tenant/${tenantId}/project/overview/${encodedListingPath(partition.partitionPath)}`
+            default:
+                return `/tenant/${tenantId}/partitions/browser/${encodedListingPath(partition.partitionPath)}/_/`
+        }
+    }
+
     return <>
         { isDesktop ? <Dialog open={dialogOpened} onOpenChange={setDialogOpened}>
             <DialogContent>
@@ -359,9 +368,9 @@ const PartitionMemberTableWithAddButton: FC<{
         <div className={"my-3 flex gap-2"}>
             <Button className={"text-background bg-primary border-2 border-primary cursor-pointer hover:border-solid hover:text-primary hover:bg-background"}
                     asChild>
-                <Link to={`/tenant/${tenantId}/partitions/browser/${encodedListingPath(partition.partitionPath)}/_/`}>
+                <Link to={getPartitionUrl()}>
                     <ArrowLeft/>
-                    <span>Back to partition</span>
+                    <span>Back to {partition.partitionType === 'PROJECT' ? 'project' : 'partition'}</span>
                 </Link>
             </Button>
             { partition.permissions.includes("MODERATE") && <Button className={"text-foreground border-dashed border-2 border-foreground cursor-pointer hover:border-solid hover:text-background hover:bg-foreground"}
@@ -386,11 +395,12 @@ const ManagePartitionMember: FC<{
     api: AxiosInstance,
     userEmail: string
 }> = ({ isLoading, setIsLoading, partition, api, userEmail }) => {
-    const [confirmDeleteOpened, setConfirmDeleteOpened] = useState(false)
     const [user, setUser] = useState(null as PartitionUserDto | null)
     const [selfInfo, setSelfInfo] = useState(null as UserInfoDto | null)
     const {getUserInfo} = useAuthorization()
     const {tenantId} = useTenant()
+    const consentRef =useRef(null as Promise<boolean> | null)
+    const {requireAgreement} = useConsent()
     const location = useLocation()
     const navigate = useNavigate()
 
@@ -453,6 +463,15 @@ const ManagePartitionMember: FC<{
     }
 
     const onDelete = async () => {
+        if (!await requireAgreement({
+            title: 'Remove member',
+            acceptText: 'Remove',
+            message: selfInfo?.email === (user?.email ?? '') ? 'Do you want to remove yourself from this partition?' : 'Are you sure you want to remove this member?',
+            destructive: true,
+            ref: consentRef,
+        })){
+            return
+        }
         try {
             setIsLoading(true)
 
@@ -467,13 +486,6 @@ const ManagePartitionMember: FC<{
     }
 
     return <>
-        <ConfirmationDialog confirmationOpened={confirmDeleteOpened}
-                            setConfirmationOpened={setConfirmDeleteOpened}
-                            onAccepted={onDelete}
-                            title={'Remove member'}
-                            message={selfInfo?.email === (user?.email ?? '') ? 'Do you want to remove yourself from this partition?' : 'Are you sure you want to remove this member?'}
-                            acceptText={'Remove'}
-                            destructive/>
         <div className={"my-3 flex gap-2"}>
             <Button className={"text-background bg-primary border-2 border-primary cursor-pointer hover:border-solid hover:text-primary hover:bg-background"}
                     asChild>
@@ -488,7 +500,7 @@ const ManagePartitionMember: FC<{
                 { user && <PartitionMemberEditForm partitionMember={user}
                                                    disabled={isLoading || selfInfo?.email === user.email || !partition.permissions.includes("MODERATE")}
                                                    onSave={onSave}/> }
-                { (partition.permissions.includes("MODERATE") || (!!selfInfo && userEmail === selfInfo.email)) && <Button className={"cursor-pointer bg-destructive text-background border-destructive border-1 hover:bg-background hover:text-destructive"} onClick={() => setConfirmDeleteOpened(true)}>
+                { (partition.permissions.includes("MODERATE") || (!!selfInfo && userEmail === selfInfo.email)) && <Button className={"cursor-pointer bg-destructive text-background border-destructive border-1 hover:bg-background hover:text-destructive"} onClick={onDelete}>
                     Remove member
                 </Button> }
             </div>

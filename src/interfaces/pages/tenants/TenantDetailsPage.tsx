@@ -1,23 +1,22 @@
 import MainLayout from "@/interfaces/layouts/MainLayout.tsx";
 import {Label} from "@/components/ui/label.tsx";
-import {useEffect, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import type {TenantDto} from "@/dto/tenant/TenantDto.ts";
 import FullSizeSpinner from "@/interfaces/components/FullSizeSpinner.tsx";
-import {useNavigate} from "react-router";
 import {useTenant} from "@/contexts/TenantContext.tsx";
 import TenantEditForm from "@/interfaces/components/TenantEditForm.tsx";
-import ConfirmationDialog from "@/interfaces/components/ConfirmationDialog.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import {notifyApiError} from "@/utils/errors.ts";
 import {toast} from "sonner";
+import {useConsent} from "@/contexts/ConsentContext.tsx";
 
 const TenantDetailsPage = () => {
     const [tenant, setTenant] = useState(null as TenantDto | null)
     const [isLoading, setIsLoading] = useState(true)
-    const [confirmDeleteOpened, setConfirmDeleteOpened] = useState(false)
+    const consentRef =useRef(null as Promise<boolean> | null)
+    const {requireAgreement} = useConsent()
     const {tenantId} = useTenant()
-    const { getTenant, deleteTenant, saveTenant, activeTenant } = useTenant()
-    const navigate = useNavigate()
+    const { getTenant, saveTenant } = useTenant()
 
     const reloadProject = async (id: number) => {
         try {
@@ -63,33 +62,20 @@ const TenantDetailsPage = () => {
         if (!tenantId){
             throw Error("unreachable")
         }
-
-        try {
-            setIsLoading(true)
-
-            const pid = tenantId!
-            await deleteTenant(pid)
-            if ((activeTenant?.id ?? null) === pid){
-                navigate('/')
-            }
-
-            toast.success("Project deleted")
-            navigate("/projects/browser")
-        } catch (e){
-            notifyApiError(e)
-        } finally {
-            setIsLoading(false)
+        if (!await requireAgreement({
+            title: 'Delete tenant',
+            acceptText: 'Delete',
+            message: 'Are you sure you want to delete this tenant? This action is irreversible.',
+            destructive: true,
+            ref: consentRef,
+        })){
+            return
         }
+
+        toast.error("Unimplemented functionality")
     }
 
     return <MainLayout>
-        <ConfirmationDialog confirmationOpened={confirmDeleteOpened}
-                            setConfirmationOpened={setConfirmDeleteOpened}
-                            onAccepted={onDelete}
-                            title={'Delete project'}
-                            message={'Are you sure you want to delete this project? This action is irreversible.'}
-                            acceptText={'Delete'}
-                            destructive/>
         { isLoading ? <FullSizeSpinner/> : !tenant ? <div className={"flex flex-col flex-grow w-full justify-center gap-2"}>
             <div className={"w-full flex flex-row justify-center"}>
                 <Label className={"text-foreground font-bold text-4xl"}>
@@ -109,7 +95,7 @@ const TenantDetailsPage = () => {
                                     onSave={onSave}
                                     tenant={tenant} disableSave={!!tenant && tenant.membership !== "OWNER"}/>
                     {(!!tenant && tenant.membership === "OWNER") && <Button className={"cursor-pointer bg-destructive text-background border-destructive border-1 hover:bg-background hover:text-destructive"}
-                            onClick={() => setConfirmDeleteOpened(true)}
+                            onClick={onDelete}
                             disabled>
                         Delete tenant
                     </Button>}

@@ -6,6 +6,10 @@ import argon2 from 'argon2-browser/dist/argon2-bundled.min.js';
 
 export type EncodedKeyPair = { publicKey: Uint8Array, privateKey: Uint8Array }
 
+export type RequireEncryptionKey = {
+    userPrivateKey: CryptoKey
+}
+
 export const base64ToUint8Array = (base64: string) =>
     Uint8Array.from(window.atob(base64), v => v.charCodeAt(0));
 

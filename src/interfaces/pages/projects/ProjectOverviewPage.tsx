@@ -9,15 +9,14 @@ import {formatQueryParameters} from "@/utils/format.ts";
 import {isProjectPartition, type PartitionDto, type ProjectPartitionDto} from "@/dto/tenant/PartitionDto.ts";
 import {toast} from "sonner";
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs.tsx";
-import {KanbanSquare, List, Rows3} from "lucide-react";
+import {KanbanSquare, List, Plus, Rows3} from "lucide-react";
 import {faker} from '@faker-js/faker';
 import {KanbanBoard, KanbanCard, KanbanCards, KanbanHeader, KanbanProvider} from "@/components/ui/shadcn-io/kanban";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
 import {useConsent} from "@/contexts/ConsentContext.tsx";
-
-type RequireEncryptionKey = {
-    userPrivateKey: CryptoKey
-}
+import type {RequireEncryptionKey} from "@/utils/cryptography.ts";
+import ProjectOverviewPageKanbanBoards from "@/interfaces/pages/projects/ProjectOverviewPage.KanbanBoards.tsx";
+import {Button} from "@/components/ui/button.tsx";
 
 const extractPath = (path: string): string => {
     let subPath = path.replace(/^\/tenant\/[^/]+\/project\/overview\/?/, '');
@@ -76,7 +75,7 @@ const ExampleKanban = () => {
         >
             {(column) => (
                 <KanbanBoard id={column.id} key={column.id} className={"max-w-fit min-w-36"}>
-                    <KanbanHeader>
+                    <KanbanHeader className={'gap-2 flex flex-col'}>
                         <div className="flex items-center gap-2">
                             <div
                                 className="h-2 w-2 rounded-full"
@@ -84,6 +83,10 @@ const ExampleKanban = () => {
                             />
                             <span>{column.name}</span>
                         </div>
+                        <Button variant={'outline'} className={'cursor-pointer mx-2'}>
+                            <Plus/>
+                            Add task
+                        </Button>
                     </KanbanHeader>
                     <KanbanCards id={column.id}>
                         {(feature: (typeof features)[number]) => (
@@ -123,7 +126,7 @@ const ExampleKanban = () => {
 
 const ProjectDetails: FC<RequireEncryptionKey & {
     project: ProjectPartitionDto,
-}> = () => {
+}> = (props) => {
     return <>
         <div className="flex w-full flex-col gap-6 my-2">
             <Tabs defaultValue="kanban-boards">
@@ -140,7 +143,7 @@ const ProjectDetails: FC<RequireEncryptionKey & {
                     </div>
                 </TabsContent>
                 <TabsContent value="kanban-boards" className={"w-full"}>
-                    <div className={"w-full"}>Password</div>
+                    <ProjectOverviewPageKanbanBoards {...props}/>
                 </TabsContent>
                 <TabsContent value="backlog" className={"w-full"}>
                     <div className={"w-full"}>Password</div>

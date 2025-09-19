@@ -101,7 +101,7 @@ const AppTopBar = () => {
     const isDesktop = useMediaQuery("(min-width: 768px)")
 
     return <div className={"w-full flex flex-row bg-background border-b border-sidebar h-16 justify-between"}>
-        <div className={"flex flex-col justify-center"}>
+        <div className={"flex flex-row justify-center"}>
             { !isDesktop && <button className={"gap-2 p-2 appearance-none bg-transparent border-none m-0 focus:outline-none cursor-pointer"} onClick={toggleSidebar}>
                 <div className={"flex flex-row py-1 m-0"}>
                     <Menu size={30}/>

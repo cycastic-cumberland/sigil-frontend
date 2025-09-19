@@ -79,10 +79,10 @@ const TenantEditForm: FC<{
             <Input
                 className={"hidden"}
                 value={formValues.id}
-                onChange={handleChange}
                 type={"number"}
                 id="id"
                 disabled={isLoading}
+                readOnly
             />
             <div className="flex flex-row gap-2">
                 <Label className="w-32">Tenant name:</Label>

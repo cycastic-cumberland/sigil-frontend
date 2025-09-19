@@ -1,5 +1,5 @@
-import {createContext, type FC, type ReactNode, useContext, useRef, useState} from "react";
-import api from "../api.ts"
+import {createContext, type FC, type ReactNode, useContext, useEffect, useRef, useState} from "react";
+import api, {onTokenRefreshEvent} from "../api.ts"
 import type {AuthenticationResponseDto} from "@/dto/user/AuthenticationResponseDto.ts";
 import {getAuth, removeAuth, storeAuthResponse} from "@/utils/auth.ts";
 import {
@@ -148,6 +148,17 @@ export const AuthorizationProvider: FC<{ children?: ReactNode }> = ({ children }
     const userInfoRef = useRef(null as UserInfoDto | null)
     const [authData, setAuthData] = useState(null as AuthenticationResponseDto | null)
     const [privateKey, setPrivateKey] = useState(null as CryptoKey | null)
+
+    useEffect(() => {
+        return onTokenRefreshEvent(data => {
+            if (!data){
+                setAuthData(data)
+                return
+            }
+
+            setAuthData({...data})
+        })
+    }, []);
 
     const getEnvelop = async () => {
         const response = await api.get("auth/envelop")

@@ -2,13 +2,26 @@ import axios from 'axios';
 import type {AuthenticationResponseDto} from "@/dto/user/AuthenticationResponseDto.ts";
 import {getAuth, removeAuth, storeAuthResponse} from "@/utils/auth.ts";
 import {extractError} from "@/utils/errors.ts";
+import type {Callback} from "@/utils/misc.ts";
 
-export const BACKEND_AUTHORITY: string = import.meta.env.VITE_BACKEND_AUTHORITY;
+export const BACKEND_AUTHORITY: string = import.meta.env.VITE_BACKEND_AUTHORITY
+
+type TokenRefreshTrigger = Callback<AuthenticationResponseDto | null>
 
 let tenantId = null as number | null
+let tokenRefreshTriggers: TokenRefreshTrigger[] = []
 
 export const setTenantId = (id: number | null) => {
     tenantId = id
+}
+
+export const onTokenRefreshEvent = (trigger: TokenRefreshTrigger) => {
+    if (tokenRefreshTriggers.includes(trigger)){
+        return () => {}
+    }
+
+    tokenRefreshTriggers.push(trigger)
+    return () => tokenRefreshTriggers = tokenRefreshTriggers.filter(t => t !== trigger)
 }
 
 const redirectWithError = (e: unknown) => {
@@ -57,6 +70,9 @@ export const createApi = (partitionIdRef: { current: number | null } | null) => 
 
                     const authResponse = data as AuthenticationResponseDto;
                     storeAuthResponse(authResponse)
+                    for (const tokenRefreshTrigger of tokenRefreshTriggers) {
+                        tokenRefreshTrigger(authResponse)
+                    }
                     originalRequest.headers.Authorization = `Bearer ${authResponse.authToken}`;
                     return axios(originalRequest);
                 } catch (refreshError) {
@@ -67,6 +83,9 @@ export const createApi = (partitionIdRef: { current: number | null } | null) => 
 
             // If already retried or another 401, redirect
             if (status === 401) {
+                for (const tokenRefreshTrigger of tokenRefreshTriggers) {
+                    tokenRefreshTrigger(null)
+                }
                 redirectWithError(error)
             }
             return Promise.reject(error);
