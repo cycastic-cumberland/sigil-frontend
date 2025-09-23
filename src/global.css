@@ -27,3 +27,11 @@
             transparent 12px
     );
 }
+
+.task-status-min-width {
+    min-width: 270px;
+}
+
+.task-status-edit-max-width {
+    max-width: 270px;
+}

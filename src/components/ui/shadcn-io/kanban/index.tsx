@@ -319,7 +319,7 @@ export const KanbanProvider = <
       >
         <div
           className={cn(
-            'grid size-full grid-flow-col gap-4',
+            'flex gap-4 w-full',
             className
           )}
         >

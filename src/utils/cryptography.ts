@@ -4,7 +4,21 @@ import type {Prf} from "@/dto/cryptography/webauthn.ts";
 // @ts-ignore
 import argon2 from 'argon2-browser/dist/argon2-bundled.min.js';
 
-export type EncodedKeyPair = { publicKey: Uint8Array, privateKey: Uint8Array }
+export type EncodedKeyPair = {
+    publicKey: Uint8Array,
+    privateKey: Uint8Array
+}
+
+export type SymmetricEncryptionResult<T extends string | Uint8Array> = {
+    encryptedContent: T,
+    iv: T
+}
+
+export type SymmetricEncryptionProps<T extends string | Uint8Array> = {
+    content: T,
+    key: T | CryptoKey,
+    iv?: T,
+}
 
 export type RequireEncryptionKey = {
     userPrivateKey: CryptoKey
@@ -34,7 +48,57 @@ export const digestMd5 = (data: Uint8Array) => {
     return new Uint8Array(hash.match(/.{2}/g)!.map(h => parseInt(h, 16)));
 }
 
-export const decryptAESGCM = async (encryptedData: Uint8Array, iv: Uint8Array, inputKey: Uint8Array | CryptoKey): Promise<Uint8Array> => {
+const encryptAESGCMInternal = async (props: SymmetricEncryptionProps<Uint8Array>): Promise<SymmetricEncryptionResult<Uint8Array>> => {
+    const {content, key: inputKey, iv: inputIv} = props
+    const iv = inputIv ? inputIv : crypto.getRandomValues(new Uint8Array(12))
+    const key = inputKey instanceof CryptoKey ? inputKey : await crypto.subtle.importKey(
+        "raw",
+        inputKey,
+        { name: "AES-GCM" },
+        false,
+        ["encrypt"]
+    )
+
+    const encryptedContent = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv },
+        key,
+        content
+    )
+
+    return {
+        encryptedContent: new Uint8Array(encryptedContent),
+        iv
+    }
+}
+
+export const encryptAESGCM = async <T extends string | Uint8Array>(props: SymmetricEncryptionProps<T>): Promise<SymmetricEncryptionResult<T>> => {
+    if (typeof props.content === 'string' && (typeof props.key === 'string' || props.key instanceof CryptoKey) && (typeof props.iv === 'string' || typeof props.iv === 'undefined')){
+        const {content, key, iv} = props
+        const result = await encryptAESGCMInternal({
+            content: base64ToUint8Array(content),
+            key: !(key instanceof CryptoKey) ? base64ToUint8Array(key) : key,
+            iv: iv && base64ToUint8Array(iv),
+        })
+
+        return {
+            encryptedContent: uint8ArrayToBase64(result.encryptedContent),
+            iv: iv ? iv : uint8ArrayToBase64(result.iv)
+        } as SymmetricEncryptionResult<T>
+    } else {
+        const result = await encryptAESGCMInternal(props as SymmetricEncryptionProps<Uint8Array>)
+        return result as SymmetricEncryptionResult<T>
+    }
+}
+
+export const decryptAESGCM = async <T extends string | Uint8Array>(encryptedData: T, iv: T, inputKey: Uint8Array | CryptoKey): Promise<T> => {
+    let encodeBase64 = false
+    let encryptedDataBytes = encryptedData as Uint8Array
+    let ivBytes = iv as Uint8Array
+    if (!(encryptedData instanceof Uint8Array)){
+        encodeBase64 = true;
+        encryptedDataBytes = base64ToUint8Array(encryptedData)
+        ivBytes = base64ToUint8Array(iv as string)
+    }
     const key = inputKey instanceof CryptoKey ? inputKey : await crypto.subtle.importKey(
         "raw",
         inputKey,
@@ -46,14 +110,19 @@ export const decryptAESGCM = async (encryptedData: Uint8Array, iv: Uint8Array, i
     const plaintextBuffer = await crypto.subtle.decrypt(
         {
             name: "AES-GCM",
-            iv: iv,
+            iv: ivBytes,
             tagLength: 128
         },
         key,
-        encryptedData
+        encryptedDataBytes
     );
 
-    return new Uint8Array(plaintextBuffer)
+    const decryptedBytes = new Uint8Array(plaintextBuffer)
+    if (!encodeBase64){
+        return decryptedBytes as T
+    }
+
+    return uint8ArrayToBase64(decryptedBytes) as T
 }
 
 export const encryptWithPublicKey = async <T extends string | Uint8Array>(key: CryptoKey, data: T): Promise<T> => {
@@ -166,4 +235,3 @@ export const deriveArgon2idKey = async (pass: Uint8Array, salt: Uint8Array, time
 
     return result.hash
 }
-
