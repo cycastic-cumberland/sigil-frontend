@@ -13,6 +13,7 @@ import PartitionManagementPage from "@/interfaces/pages/partitions/PartitionMana
 import CompleteTenantInvitationPage from "@/interfaces/pages/tenants/CompleteTenantInvitationPage.tsx";
 import NotificationPage from "@/interfaces/pages/NotificationPage.tsx";
 import ProjectOverviewPage from "@/interfaces/pages/projects/ProjectOverviewPage.tsx";
+import TaskViewerPage from "@/interfaces/pages/projects/TaskViewerPage.tsx";
 
 export type RouteInfo = { index?: boolean, isPrivate: boolean, path?: string, element: ReactNode };
 
@@ -86,5 +87,10 @@ export const AppRoutes : RouteInfo[] = [
         isPrivate: true,
         path: "/tenant/:tenantId/project/overview/*",
         element: <ProjectOverviewPage/>
+    },
+    {
+        isPrivate: true,
+        path: "/tenant/:tenantId/task/:taskId",
+        element: <TaskViewerPage/>
     },
 ]

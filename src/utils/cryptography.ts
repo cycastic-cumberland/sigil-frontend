@@ -296,3 +296,34 @@ export const importPrivateKeyFromPem = (pem: string) => {
     // Import the key
     return createPrivateKey(base64ToUint8Array(cleanPem), false)
 }
+
+export const tryEncryptText = async <T extends string | undefined>(key: CryptoKey, base64Content: T, iv: Uint8Array): Promise<T> => {
+    if (!base64Content){
+        return undefined as T
+    }
+
+    const encoder = new TextEncoder();
+    const encodedContent = encoder.encode(base64Content)
+    return uint8ArrayToBase64((await encryptAESGCM({
+        key,
+        iv,
+        content: encodedContent
+    })).encryptedContent) as T
+}
+
+export const tryDecryptText = async <T extends string | undefined>(key: CryptoKey, encryptedBase64Content: T, iv: Uint8Array): Promise<T> => {
+    if (!encryptedBase64Content){
+        return undefined as T
+    }
+
+    try {
+        const decrypted = await decryptAESGCM(base64ToUint8Array(encryptedBase64Content as string), iv, key)
+        const decoder = new TextDecoder();
+        return decoder.decode(decrypted) as T
+    } catch (e){
+        if (e instanceof DOMException && e.name === "OperationError"){
+            throw Error("Corrupted data detected")
+        }
+        throw e
+    }
+}

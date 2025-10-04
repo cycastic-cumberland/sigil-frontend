@@ -8,7 +8,7 @@ import {Label} from "@/components/ui/label.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import type {ProjectPartitionDto} from "@/dto/tenant/PartitionDto.ts";
 import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover.tsx";
-import {Check, ChevronsUpDown} from "lucide-react";
+import {Check, ChevronsUpDown, Plus, Save} from "lucide-react";
 import {Command, CommandGroup, CommandItem} from "@/components/ui/command.tsx";
 import {formatQueryParameters} from "@/utils/format.ts";
 import {notifyApiError} from "@/utils/errors.ts";
@@ -18,24 +18,73 @@ import {cn} from "@/lib/utils.ts";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {MinimalTiptap} from "@/components/ui/shadcn-io/minimal-tiptap";
 import {toast} from "sonner";
+import type {UserInfoDto} from "@/dto/user/UserInfoDto.ts";
+import {digestSha256, tryEncryptText, uint8ArrayToBase64} from "@/utils/cryptography.ts";
 
-export type CreateTaskDto = {
+export type CreateOrEditTaskDto = {
+    taskId?: string,
     project?: ProjectPartitionDto,
     kanbanBoard?: KanbanBoardDto,
     taskStatus?: TaskStatusDto,
     taskPriority?: TaskPriority,
+    reporter?: UserInfoDto,
+    assignee?: UserInfoDto,
     name: string,
     content?: string
 }
 
-const CreateTaskForm: FC<{
+export type EditTaskDto = CreateOrEditTaskDto & {
+    taskId: string,
+}
+
+export interface TaskEditFormProps<T extends CreateOrEditTaskDto> {
     isLoading: boolean,
     api: AxiosInstance,
-    form?: CreateTaskDto,
-    onSave: Callback<CreateTaskDto>
-}> = ({ api, isLoading: parentIsLoading, form, onSave }) => {
-    const [formValues, setFormValues] = useState(form ? form : { name: '' })
-    const [content, setContent] = useState<string | undefined>()
+    form?: T,
+    onSave: Callback<T>
+}
+
+export type PatchTaskProps = {
+    api: AxiosInstance,
+    partitionKey: CryptoKey,
+    task: EditTaskDto,
+    editTaskForm: CreateOrEditTaskDto
+}
+
+type EncryptedTaskContent = {
+    iv: string,
+    encryptedName: string,
+    encryptedContent?: string,
+}
+
+export async function patchTask({api, task, editTaskForm, partitionKey}: PatchTaskProps){
+    const partitionChecksum = uint8ArrayToBase64(await digestSha256(new Uint8Array(await crypto.subtle.exportKey("raw", partitionKey))))
+    let encryptedTaskContent: EncryptedTaskContent | undefined
+    if (task.content !== editTaskForm.content || task.name !== editTaskForm.name){
+        const iv = crypto.getRandomValues(new Uint8Array(12))
+        const encryptedName = await tryEncryptText(partitionKey, task.name, iv)
+        const encryptedContent = await tryEncryptText(partitionKey, task.content, iv)
+        encryptedTaskContent = {
+            iv: uint8ArrayToBase64(iv),
+            encryptedName,
+            encryptedContent
+        }
+    }
+
+    await api.patch('pm/tasks', {
+        taskId: task.taskId,
+        assigneeEmail: task.assignee?.email,
+        reporterEmail: task.reporter?.email,
+        taskPriority: (task.taskPriority && task.taskPriority !== editTaskForm.taskPriority) ? task.taskPriority : undefined,
+        encryptedName: encryptedTaskContent?.encryptedName,
+        encryptedContent: encryptedTaskContent?.encryptedContent,
+        iv: encryptedTaskContent?.iv,
+        partitionChecksum,
+    })
+}
+
+function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ api, isLoading: parentIsLoading, form, onSave }: TaskEditFormProps<T>) {
+    const [formValues, setFormValues] = useState(form ? form : { name: '' } as T)
     const [kanbanSearch, setKanbanSearch] = useState(false)
     const [statusSearch, setStatusSearch] = useState(false)
     const [prioritySearch, setPrioritySearch] = useState(false)
@@ -44,7 +93,6 @@ const CreateTaskForm: FC<{
     const [statuses, setStatuses] = useState([] as TaskStatusDto[])
     const [allBoards, setAllBoards] = useState([] as KanbanBoardDto[])
     const isLoading = useMemo(() => parentIsLoading || localIsLoading, [parentIsLoading, localIsLoading])
-    const initialContent = useMemo(() => formValues.content, [formValues])
     const isDesktop = useMediaQuery("(min-width: 768px)")
 
     const handleChange = (
@@ -74,7 +122,7 @@ const CreateTaskForm: FC<{
             ...formValues,
             kanbanBoard: formValues.project ? formValues.kanbanBoard : undefined,
             taskStatus: formValues.kanbanBoard ? formValues.taskStatus : undefined,
-            content: content === '<p></p>' ? undefined : content });
+            content: formValues.content === '<p></p>' ? undefined : formValues.content });
     }
 
     const loadBoards = async () => {
@@ -115,7 +163,7 @@ const CreateTaskForm: FC<{
         if (formValues.project?.id && formValues.project.id !== form?.project?.id){
             loadBoards().then(undefined)
         }
-        setFormValues(form ? form : { name: '' })
+        setFormValues(form ? form : { name: '' } as T)
     }, [form]);
 
     useEffect(() => {
@@ -343,7 +391,10 @@ const CreateTaskForm: FC<{
                                 disabled={isLoading}
                             />
                         </div>
-                        <MinimalTiptap content={initialContent} onChange={setContent}/>
+                        <MinimalTiptap content={formValues.content} onChange={content => setFormValues(f => ({
+                            ...f,
+                            content
+                        }))}/>
                     </div>
                     <div className={"w-80"}>
                         <MainGrid/>
@@ -355,7 +406,15 @@ const CreateTaskForm: FC<{
                             type={"submit"}
                             onClick={handleSubmit}
                             className={'max-w-fit flex flex-grow border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background'}>
-                        Create
+                        {formValues.taskId
+                            ? <>
+                                <Save/>
+                                Save
+                            </>
+                            : <>
+                                <Plus/>
+                                Create
+                            </>}
                     </Button>
                 </div>
             </>
@@ -373,16 +432,27 @@ const CreateTaskForm: FC<{
                 </div>
                 <MainGrid/>
                 <div className={'mt-2'}>
-                    <MinimalTiptap content={initialContent} onChange={setContent}/>
+                    <MinimalTiptap content={formValues.content} onChange={content => setFormValues(f => ({
+                        ...f,
+                        content
+                    }))}/>
                 </div>
                 <Button disabled={isLoading}
                         type={"submit"}
                         onClick={handleSubmit}
                         className={'mt-2 flex flex-grow w-full border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background'}>
-                    Create
+                    {formValues.taskId
+                        ? <>
+                            <Save/>
+                            Save
+                        </>
+                        : <>
+                            <Plus/>
+                            Create
+                        </>}
                 </Button>
             </>}
     </div>
 }
 
-export default CreateTaskForm
+export default TaskEditForm

@@ -16,10 +16,11 @@ const ALL_TASK_PRIORITIES_MAP: Record<TaskPriority, string> = {
 export type TaskCardDto = {
     id: number,
     taskIdentifier: string,
+    kanbanBoardId: number,
     taskStatusId?: number,
     assignee?: UserInfoDto,
     reporterId?: number,
-    priority: number,
+    priority: TaskPriority,
     encryptedName: string,
     iv: string,
     createdAt: string,
@@ -31,6 +32,7 @@ export type TaskCardsDto = {
 }
 
 export type TaskDto = TaskCardDto & {
+    projectPartitionId: number,
     taskStatus?: TaskStatusDto,
     assignee?: UserInfoDto,
     reporter?: UserInfoDto,

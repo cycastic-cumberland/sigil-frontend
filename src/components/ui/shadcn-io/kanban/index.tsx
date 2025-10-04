@@ -119,7 +119,7 @@ export const KanbanCard = <T extends KanbanItemProps = KanbanItemProps>({
   return (
     <>
       <div style={style} {...listeners} {...attributes} ref={setNodeRef}>
-        <Card
+        <Card onClick={() => console.log("AWWWWWW!!!")}
           className={cn(
             'cursor-grab gap-4 rounded-md p-3 shadow-sm',
             isDragging && 'pointer-events-none cursor-grabbing opacity-30',
@@ -131,7 +131,7 @@ export const KanbanCard = <T extends KanbanItemProps = KanbanItemProps>({
       </div>
       {activeCardId === id && (
         <t.In>
-          <Card
+          <Card onClick={() => console.log("AWWWWWW")}
             className={cn(
               'cursor-grab gap-4 rounded-md p-3 shadow-sm ring-2 ring-primary',
               isDragging && 'cursor-grabbing',
