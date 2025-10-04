@@ -19,7 +19,8 @@ import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {MinimalTiptap} from "@/components/ui/shadcn-io/minimal-tiptap";
 import {toast} from "sonner";
 import type {UserInfoDto} from "@/dto/user/UserInfoDto.ts";
-import {digestSha256, tryEncryptText, uint8ArrayToBase64} from "@/utils/cryptography.ts";
+import {digestSha256, encryptAESGCM, uint8ArrayToBase64} from "@/utils/cryptography.ts";
+import type {CipherDto} from "@/dto/cryptography/CipherDto.ts";
 
 export type CreateOrEditTaskDto = {
     taskId?: string,
@@ -51,23 +52,33 @@ export type PatchTaskProps = {
     editTaskForm: CreateOrEditTaskDto
 }
 
-type EncryptedTaskContent = {
-    iv: string,
-    encryptedName: string,
-    encryptedContent?: string,
-}
-
-export async function patchTask({api, task, editTaskForm, partitionKey}: PatchTaskProps){
+export async function patchTask({api, task, partitionKey}: PatchTaskProps){
+    const encoder = new TextEncoder()
     const partitionChecksum = uint8ArrayToBase64(await digestSha256(new Uint8Array(await crypto.subtle.exportKey("raw", partitionKey))))
-    let encryptedTaskContent: EncryptedTaskContent | undefined
-    if (task.content !== editTaskForm.content || task.name !== editTaskForm.name){
-        const iv = crypto.getRandomValues(new Uint8Array(12))
-        const encryptedName = await tryEncryptText(partitionKey, task.name, iv)
-        const encryptedContent = await tryEncryptText(partitionKey, task.content, iv)
-        encryptedTaskContent = {
+    let encryptedName: CipherDto
+    let encryptedContent: CipherDto | undefined = undefined
+    {
+        const {iv, cipherText} = await encryptAESGCM({
+            content: encoder.encode(task.name),
+            key: partitionKey
+        })
+
+        encryptedName = {
+            decryptionMethod: "UNWRAPPED_PARTITION_KEY",
             iv: uint8ArrayToBase64(iv),
-            encryptedName,
-            encryptedContent
+            cipher: uint8ArrayToBase64(cipherText)
+        }
+    }
+    if (task.content){
+        const {iv, cipherText} = await encryptAESGCM({
+            content: encoder.encode(task.content),
+            key: partitionKey
+        })
+
+        encryptedContent = {
+            decryptionMethod: "UNWRAPPED_PARTITION_KEY",
+            iv: uint8ArrayToBase64(iv),
+            cipher: uint8ArrayToBase64(cipherText)
         }
     }
 
@@ -75,10 +86,9 @@ export async function patchTask({api, task, editTaskForm, partitionKey}: PatchTa
         taskId: task.taskId,
         assigneeEmail: task.assignee?.email,
         reporterEmail: task.reporter?.email,
-        taskPriority: (task.taskPriority && task.taskPriority !== editTaskForm.taskPriority) ? task.taskPriority : undefined,
-        encryptedName: encryptedTaskContent?.encryptedName,
-        encryptedContent: encryptedTaskContent?.encryptedContent,
-        iv: encryptedTaskContent?.iv,
+        taskPriority: task.taskPriority,
+        encryptedName,
+        encryptedContent,
         partitionChecksum,
     })
 }

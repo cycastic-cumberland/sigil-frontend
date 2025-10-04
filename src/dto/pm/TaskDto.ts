@@ -1,5 +1,6 @@
 import type {TaskStatusDto} from "@/dto/pm/TaskStatusDto.ts";
 import type {UserInfoDto} from "@/dto/user/UserInfoDto.ts";
+import type {CipherDto} from "@/dto/cryptography/CipherDto.ts";
 
 export type TaskPriority = "LOWEST" | "LOW" | "MEDIUM" | "HIGH" | "HIGHEST"
 
@@ -21,8 +22,7 @@ export type TaskCardDto = {
     assignee?: UserInfoDto,
     reporterId?: number,
     priority: TaskPriority,
-    encryptedName: string,
-    iv: string,
+    encryptedName: CipherDto,
     createdAt: string,
     updatedAt?: string
 }
@@ -36,7 +36,7 @@ export type TaskDto = TaskCardDto & {
     taskStatus?: TaskStatusDto,
     assignee?: UserInfoDto,
     reporter?: UserInfoDto,
-    encryptedContent?: string,
+    encryptedContent?: CipherDto,
 }
 
 export const humanizeTaskPriority = (p: TaskPriority) => ALL_TASK_PRIORITIES_MAP[p]

@@ -17,7 +17,7 @@ const UserUnlocked = () => {
     return <Tooltip>
         <TooltipTrigger asChild><LockOpen size={15}/></TooltipTrigger>
         <TooltipContent>
-            <p>Your data is unlocked. Leave or refresh this page to lock it.</p>
+            <p>Your data is unlocked. Leave or refresh Sigil to lock it.</p>
         </TooltipContent>
     </Tooltip>
 }
@@ -42,7 +42,7 @@ const UserLocked = () => {
                             className="transform transition duration-300 group-hover:mr-2"
                         />
                         <p className="overflow-hidden whitespace-nowrap w-0 opacity-0 transition-[width,opacity,margin] duration-300 group-hover:w-auto group-hover:opacity-100">
-                            Encrypted
+                            Locked
                         </p>
                     </div>
                 </Button>

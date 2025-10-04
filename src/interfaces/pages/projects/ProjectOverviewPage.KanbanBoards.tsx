@@ -4,9 +4,8 @@ import {
     decryptWithPrivateKey,
     digestSha256,
     tryDecryptText,
-    tryEncryptText,
     uint8ArrayToBase64,
-    type RequireEncryptionKey,
+    type RequireEncryptionKey, encryptAESGCM,
 } from "@/utils/cryptography.ts";
 import type {ProjectPartitionDto} from "@/dto/tenant/PartitionDto.ts";
 import {createApi} from "@/api.ts";
@@ -42,6 +41,8 @@ import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar.tsx";
 import type {UserInfoDto} from "@/dto/user/UserInfoDto.ts";
 import type {DragEndEvent} from "@dnd-kit/core";
 import type {IdDto} from "@/dto/IdDto.ts";
+import {h64} from "xxhashjs"
+import type {CipherDto} from "@/dto/cryptography/CipherDto.ts";
 
 type RequirePartitionKey = {
     partitionKey: CryptoKey
@@ -52,7 +53,7 @@ type KanbanTaskCardDto = {
     ticketId: string,
     name: string,
     column: string,
-    encryptedName: string,
+    encryptedNameHash: number,
     assignee?: UserInfoDto,
 }
 
@@ -68,17 +69,18 @@ const decryptKanbanCards = async (newCards: TaskCardDto[], oldCards: KanbanTaskC
     const decrypted = [] as KanbanTaskCardDto[]
     const cachedDecryption = Object.fromEntries(oldCards.map(c => [c.id, c]))
     for (const taskCard of newCards) {
-        if (cachedDecryption[taskCard.id] && cachedDecryption[taskCard.id].encryptedName === taskCard.encryptedName){
+        const nameHash = h64(`${taskCard.encryptedName.iv}|${taskCard.encryptedName.cipher}`, 0).toNumber()
+        if (cachedDecryption[taskCard.id] && cachedDecryption[taskCard.id].encryptedNameHash === nameHash){
             decrypted.push(cachedDecryption[taskCard.id])
             continue
         }
-        const text = await tryDecryptText(partitionKey, taskCard.encryptedName, base64ToUint8Array(taskCard.iv))
+        const text = await tryDecryptText(partitionKey, taskCard.encryptedName.cipher, base64ToUint8Array(taskCard.encryptedName.iv!))
         decrypted.push({
             id: `${taskCard.id}`,
             ticketId: taskCard.taskIdentifier,
             name: text,
             column: taskCard.taskStatusId ? `${taskCard.taskStatusId}` : 'auto-backlog',
-            encryptedName: taskCard.encryptedName,
+            encryptedNameHash: nameHash,
             assignee: taskCard.assignee,
         })
     }
@@ -157,35 +159,41 @@ const BoardAccordion: FC<RequirePartitionKey & {
     }
 
     const createTask = async (task: CreateOrEditTaskDto) => {
-        const iv = crypto.getRandomValues(new Uint8Array(12))
-        const encryptedName = await tryEncryptText(partitionKey, task.name, iv)
-        const encryptedContent = await tryEncryptText(partitionKey, task.content, iv)
+        const encoder = new TextEncoder()
+        const encryptedName = await encryptAESGCM({
+            content: encoder.encode(task.name),
+            key: partitionKey
+        })
+        const encryptedContent = task.content ? await encryptAESGCM({
+            content: encoder.encode(task.content),
+            key: partitionKey
+        }) : null
         const partitionChecksum = uint8ArrayToBase64(await digestSha256(new Uint8Array(await crypto.subtle.exportKey("raw", partitionKey))))
         const response = await api.post('pm/tasks', {
             kanbanBoardId: task.kanbanBoard?.id,
             taskStatusId: task.taskStatus?.id,
             taskPriority: task.taskPriority,
-            encryptedName,
-            encryptedContent,
+            encryptedName: {
+                decryptionMethod: "UNWRAPPED_PARTITION_KEY",
+                iv: uint8ArrayToBase64(encryptedName.iv),
+                cipher: uint8ArrayToBase64(encryptedName.cipherText)
+            } as CipherDto,
+            encryptedContent: encryptedContent ? {
+                decryptionMethod: "UNWRAPPED_PARTITION_KEY",
+                iv: uint8ArrayToBase64(encryptedContent.iv),
+                cipher: uint8ArrayToBase64(encryptedContent.cipherText)
+            } as CipherDto : undefined,
             partitionChecksum,
-            iv: uint8ArrayToBase64(iv)
         })
 
         setTaskEditOpened(false)
         await loadTasks()
-        setEditTaskForm({
-            taskId: (response.data as IdDto).id as string,
-            project,
-            kanbanBoard: board,
-            name: task.name,
-            content: task.content,
-            taskStatus: task.taskStatus,
-            taskPriority: task.taskPriority,
-            reporter: task.reporter,
-            assignee: task.assignee,
+        const ticketId = (response.data as IdDto).id as string
+        setSearchParams(s => {
+            const params = new URLSearchParams(s)
+            params.set('task', ticketId)
+            return params
         })
-
-        setTaskEditOpened(true)
     }
 
     const editTask = async (task: EditTaskDto) => {
@@ -224,7 +232,9 @@ const BoardAccordion: FC<RequirePartitionKey & {
                 taskId: selectedCard.ticketId
             }))
             const task = response.data as TaskDto
-            const content = await tryDecryptText(partitionKey, task.encryptedContent, base64ToUint8Array(task.iv))
+            const content = await tryDecryptText(partitionKey,
+                task.encryptedContent?.cipher,
+                task.encryptedContent?.iv ? base64ToUint8Array(task.encryptedContent.iv) : undefined)
             setEditTaskForm({
                 taskId: selectedCard.ticketId,
                 project,

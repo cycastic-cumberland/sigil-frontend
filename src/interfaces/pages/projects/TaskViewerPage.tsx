@@ -125,8 +125,10 @@ const TaskViewerPage = () => {
             )
             setPartitionKey(decryptedPartitionKey)
 
-            const name = await tryDecryptText(decryptedPartitionKey, task.encryptedName, base64ToUint8Array(task.iv))
-            const content = await tryDecryptText(decryptedPartitionKey, task.encryptedContent, base64ToUint8Array(task.iv))
+            const name = await tryDecryptText(decryptedPartitionKey, task.encryptedName.cipher, base64ToUint8Array(task.encryptedName.iv!))
+            const content = await tryDecryptText(decryptedPartitionKey,
+                task.encryptedContent?.cipher,
+                task.encryptedContent?.iv ? base64ToUint8Array(task.encryptedContent?.iv) : undefined)
 
             const board = await tryGetKanbanBoard(api, task.kanbanBoardId)
 

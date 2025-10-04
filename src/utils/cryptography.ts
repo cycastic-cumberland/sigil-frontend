@@ -10,7 +10,7 @@ export type EncodedKeyPair = {
 }
 
 export type SymmetricEncryptionResult<T extends string | Uint8Array> = {
-    encryptedContent: T,
+    cipherText: T,
     iv: T
 }
 
@@ -66,7 +66,7 @@ const encryptAESGCMInternal = async (props: SymmetricEncryptionProps<Uint8Array>
     )
 
     return {
-        encryptedContent: new Uint8Array(encryptedContent),
+        cipherText: new Uint8Array(encryptedContent),
         iv
     }
 }
@@ -81,7 +81,7 @@ export const encryptAESGCM = async <T extends string | Uint8Array>(props: Symmet
         })
 
         return {
-            encryptedContent: uint8ArrayToBase64(result.encryptedContent),
+            cipherText: uint8ArrayToBase64(result.cipherText),
             iv: iv ? iv : uint8ArrayToBase64(result.iv)
         } as SymmetricEncryptionResult<T>
     } else {
@@ -308,11 +308,11 @@ export const tryEncryptText = async <T extends string | undefined>(key: CryptoKe
         key,
         iv,
         content: encodedContent
-    })).encryptedContent) as T
+    })).cipherText) as T
 }
 
-export const tryDecryptText = async <T extends string | undefined>(key: CryptoKey, encryptedBase64Content: T, iv: Uint8Array): Promise<T> => {
-    if (!encryptedBase64Content){
+export const tryDecryptText = async <T extends string | undefined>(key: CryptoKey, encryptedBase64Content: T, iv: Uint8Array | undefined): Promise<T> => {
+    if (!encryptedBase64Content || !iv){
         return undefined as T
     }
 
