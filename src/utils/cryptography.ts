@@ -235,3 +235,64 @@ export const deriveArgon2idKey = async (pass: Uint8Array, salt: Uint8Array, time
 
     return result.hash
 }
+
+const arrayBufferToBase64 = (bytes: Uint8Array) => {
+    let binary = '';
+    for (const b of bytes) {
+        binary += String.fromCharCode(b);
+    }
+    return btoa(binary);
+}
+
+export const toPem = async (key: CryptoKey) => {
+    if (key.type !== "public" && key.type !== "private"){
+        throw Error("CryptoKey not supported")
+    }
+    if (!key.extractable){
+        throw Error("CryptoKey is not extractable")
+    }
+    const keyBytes = await crypto.subtle.exportKey(key.type === 'public' ? 'spki' : 'pkcs8', key)
+    const base64 = arrayBufferToBase64(new Uint8Array(keyBytes));
+    const match = base64.match(/.{1,64}/g)
+    if (!match){
+        throw Error("Failed to serialize key to PEM")
+    }
+    const formatted = match.join('\n');
+    return `-----BEGIN ${key.type === 'public' ? 'PUBLIC' : 'PRIVATE'} KEY-----\n${formatted}\n-----END ${key.type === 'public' ? 'PUBLIC' : 'PRIVATE'} KEY-----`;
+}
+
+export const createPrivateKey = (pkcs8: Uint8Array, isSign: boolean) => {
+    return crypto.subtle.importKey(
+        "pkcs8",
+        pkcs8,
+        {
+            name: isSign ? 'RSA-PSS' : 'RSA-OAEP',
+            hash: { name: 'SHA-256' }
+        },
+        true,
+        [isSign ? "sign" : "decrypt"]
+    )
+}
+
+export const createPublicKey = (pem: Uint8Array, isSign: boolean) => {
+    return crypto.subtle.importKey(
+        "spki",
+        pem,
+        {
+            name: isSign ? 'RSA-PSS' : 'RSA-OAEP',
+            hash: { name: 'SHA-256' }
+        },
+        true,
+        [isSign ? "sign" : "encrypt"]
+    )
+}
+
+export const importPrivateKeyFromPem = (pem: string) => {
+    const cleanPem = pem
+        .replace("-----BEGIN PRIVATE KEY-----", "")
+        .replace("-----END PRIVATE KEY-----", "")
+        .replace(/\s/g, "")
+
+    // Import the key
+    return createPrivateKey(base64ToUint8Array(cleanPem), false)
+}

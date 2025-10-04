@@ -3,9 +3,9 @@ import api, {onTokenRefreshEvent} from "../api.ts"
 import type {AuthenticationResponseDto} from "@/dto/user/AuthenticationResponseDto.ts";
 import {getAuth, removeAuth, storeAuthResponse} from "@/utils/auth.ts";
 import {
-    base64ToUint8Array,
+    base64ToUint8Array, createPrivateKey,
     decryptAESGCM, deriveArgon2idKey,
-    deriveEncryptionKeyFromWebAuthnPrf,
+    deriveEncryptionKeyFromWebAuthnPrf, importPrivateKeyFromPem,
     signWithSHA256withRSAPSS,
     uint8ArrayToBase64
 } from "@/utils/cryptography.ts";
@@ -16,6 +16,7 @@ import type {CipherDto} from "@/dto/cryptography/CipherDto.ts";
 import {getRpIdFromUrl} from "@/utils/path.ts";
 import type {Prf} from "@/dto/cryptography/webauthn.ts";
 import type {EnvelopDto} from "@/dto/cryptography/EnvelopDto.ts";
+import {AllStores, openDb} from "@/utils/db.ts";
 
 export type WebAuthnPrfKey = {
     encryptionKey: CryptoKey,
@@ -27,6 +28,7 @@ export type WebAuthnPrfKey = {
 export type AuthorizationContextType = {
     authData: AuthenticationResponseDto | null,
     userPrivateKey: CryptoKey | null,
+    setUserPrivateKey: (key: CryptoKey | null) => void,
     getUserInfo: (reload?: boolean) => Promise<UserInfoDto>,
     signInWithEmailAndPassword: (email: string, password: string) => Promise<void>,
     signInWithEmailAndPasskey: (email: string) => Promise<void>,
@@ -60,19 +62,6 @@ const decryptPcks8PrivateKey = async (pass: Uint8Array, salt: Uint8Array, parall
         }
         throw e
     }
-}
-
-const createPrivateKey = (pkcs8: Uint8Array, isSign: boolean) => {
-    return crypto.subtle.importKey(
-        "pkcs8",
-        pkcs8,
-        {
-            name: isSign ? 'RSA-PSS' : 'RSA-OAEP',
-            hash: { name: 'SHA-256' }
-        },
-        false,
-        [isSign ? "sign" : "decrypt"]
-    )
 }
 
 const transientDecryptPrivateKey = async (password: string, cipher: CipherDto) => {
@@ -150,6 +139,10 @@ export const AuthorizationProvider: FC<{ children?: ReactNode }> = ({ children }
     const [privateKey, setPrivateKey] = useState(null as CryptoKey | null)
 
     useEffect(() => {
+        const auth = getAuth()
+        if (auth){
+            loadDebugPrivateKey(auth.userId).then(undefined)
+        }
         return onTokenRefreshEvent(data => {
             if (!data){
                 setAuthData(data)
@@ -159,6 +152,30 @@ export const AuthorizationProvider: FC<{ children?: ReactNode }> = ({ children }
             setAuthData({...data})
         })
     }, []);
+
+    useEffect(() => {
+        if (authData){
+            loadDebugPrivateKey(authData.userId).then(undefined)
+        }
+    }, [authData]);
+
+    const loadDebugPrivateKey = async (userId: number) => {
+        let pem: string
+        try {
+            const db = await openDb()
+            pem = (await db.getObject(AllStores.DebugKeys, userId) as {key: string}).key
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (e){
+            return
+        }
+
+        try {
+            const privateKey = await importPrivateKeyFromPem(pem)
+            setPrivateKey(privateKey)
+        } catch (e){
+            console.error(e)
+        }
+    }
 
     const getEnvelop = async () => {
         const response = await api.get("auth/envelop")
@@ -369,6 +386,7 @@ export const AuthorizationProvider: FC<{ children?: ReactNode }> = ({ children }
 
     const value: AuthorizationContextType = {
         userPrivateKey: privateKey,
+        setUserPrivateKey: setPrivateKey,
         authData,
         signInWithEmailAndPassword,
         signInWithEmailAndPasskey,

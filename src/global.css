@@ -35,3 +35,13 @@
 .task-status-edit-max-width {
     max-width: 270px;
 }
+
+.tiptap a {
+    color: #1a73e8; /* pick your link color */
+    text-decoration: underline; /* optional */
+    cursor: pointer;
+}
+
+.tiptap a:hover {
+    color: #1257b7; /* hover state */
+}

@@ -1,5 +1,6 @@
 import MainLayout from "@/interfaces/layouts/MainLayout.tsx";
 import {Label} from "@/components/ui/label.tsx";
+import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
 import {notifyApiError} from "@/utils/errors.ts";
 import {useLocation, useNavigate} from "react-router";
 import {useTenant} from "@/contexts/TenantContext.tsx";
@@ -58,11 +59,6 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
 });
 
-const shortDateFormatter = new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-});
-
 const ExampleKanban = () => {
     const [features, setFeatures] = useState(exampleFeatures);
 
@@ -102,17 +98,17 @@ const ExampleKanban = () => {
                                             {feature.name}
                                         </p>
                                     </div>
-                                    {/*{feature.owner && (*/}
-                                    {/*    <Avatar className="h-4 w-4 shrink-0">*/}
-                                    {/*        <AvatarImage src={feature.owner.image} />*/}
-                                    {/*        <AvatarFallback>*/}
-                                    {/*            {feature.owner.name?.slice(0, 2)}*/}
-                                    {/*        </AvatarFallback>*/}
-                                    {/*    </Avatar>*/}
-                                    {/*)}*/}
+                                    {feature.owner && (
+                                        <Avatar className="h-4 w-4 shrink-0">
+                                            <AvatarImage src={formatQueryParameters('https://ui-avatars.com/api/', {name: feature.owner.name})} />
+                                            <AvatarFallback>
+                                                {feature.owner.name?.slice(0, 2)}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                    )}
                                 </div>
                                 <p className="m-0 text-muted-foreground text-xs">
-                                    {shortDateFormatter.format(feature.startAt)} -{' '}
+                                    {feature.owner && `${feature.owner.name} • `}
                                     {dateFormatter.format(feature.endAt)}
                                 </p>
                             </KanbanCard>
@@ -203,7 +199,20 @@ const ProjectOverviewPage = () => {
     }, []);
 
     return <MainLayout>
-        {userPrivateKey && <PartitionLoaderStub userPrivateKey={userPrivateKey}/>}
+        {userPrivateKey
+            ? <PartitionLoaderStub userPrivateKey={userPrivateKey}/>
+            : <div className={"flex flex-col flex-grow w-full justify-center gap-2"}>
+                <div className={"w-full flex flex-row justify-center"}>
+                    <Label className={"text-foreground font-bold text-4xl"}>
+                        Project data locked
+                    </Label>
+                </div>
+                <div className={"w-full flex flex-row justify-center"}>
+                    <p className={"text-muted-foreground px-2 text-center"}>
+                        Your data is locked. Tap the padlock above to unlock.
+                    </p>
+                </div>
+            </div>}
     </MainLayout>
 }
 

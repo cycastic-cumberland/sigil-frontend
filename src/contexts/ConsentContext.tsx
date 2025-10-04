@@ -1,10 +1,20 @@
-import {createContext, type FC, type ReactNode, type RefObject, useContext, useEffect, useMemo, useState} from "react";
+import {
+    type ChangeEvent,
+    createContext,
+    type FC,
+    type ReactNode,
+    type RefObject,
+    useContext,
+    useEffect,
+    useMemo,
+    useState
+} from "react";
 import {type Callback, type FulfillablePromise, makeFulfillablePromise} from "@/utils/misc.ts";
 import ConfirmationDialog from "@/interfaces/components/ConfirmationDialog.tsx";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
 import PrivateKeyDecryptionDialog from "@/interfaces/components/PrivateKeyDecryptionDialog.tsx";
 
-export type AgreementFormType = {
+export type AgreementFormProps = {
     title: string,
     message: string,
     acceptText: string,
@@ -13,9 +23,23 @@ export type AgreementFormType = {
     ref?: RefObject<Promise<boolean> | null>,
 }
 
+export class FormRejectedError {
+    public readonly error: unknown | undefined
+
+    constructor(error?: unknown) {
+        this.error = error
+    }
+}
+
+export type FilesSelectorProps = {
+    accept?: string,
+    multiple?: boolean,
+}
+
 export type ConsentContextType = {
-    requireAgreement: (form: AgreementFormType) => Promise<boolean>,
+    requireAgreement: (form: AgreementFormProps) => Promise<boolean>,
     requireDecryption: () => Promise<CryptoKey>,
+    requireFiles: (form: FilesSelectorProps) => Promise<File[]>
 }
 
 type PromiseForm<T> = {
@@ -29,8 +53,7 @@ export const useConsent = () => {
     return useContext(ConsentContext)
 }
 
-
-const AgreementForm: FC<AgreementFormType & PromiseForm<boolean>> = ({ resolve, title, message, acceptText, cancelText, destructive }) => {
+const AgreementForm: FC<AgreementFormProps & PromiseForm<boolean>> = ({ resolve, title, message, acceptText, cancelText, destructive }) => {
     const [opened, setOpened] = useState(true)
     const [isResolved, setIsResolved] = useState(false)
 
@@ -80,10 +103,56 @@ const DecryptionForm: FC<PromiseForm<CryptoKey>> = ({ resolve, reject }) => {
 
         setOpened(false)
         setIsResolved(true)
-        reject(Error("Decryption canceled"))
+        reject(Error("Interaction canceled"))
     }
 
     return <PrivateKeyDecryptionDialog openDialog={opened} onReject={onReject}/>
+}
+
+const requireFiles = (form: FilesSelectorProps) => {
+    const inputElement = document.createElement('input')
+    inputElement.style.display = 'none'
+    document.body.appendChild(inputElement)
+    inputElement.type = 'file'
+    if (form.accept && form.accept !== '*') {
+        inputElement.accept = form.accept
+    }
+    inputElement.multiple = !!form.multiple
+
+    let resolve!: (value: File[] | PromiseLike<File[]>) => void;
+    let reject!: (reason?: unknown) => void;
+
+    const promise = new Promise<File[]>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+    inputElement.addEventListener('change', arg => {
+        try {
+            if (!arg){
+                reject(Error("Invalid event"))
+                return
+            }
+
+            const e = arg as unknown as ChangeEvent<HTMLInputElement>
+            if (e.target.files && e.target.files.length > 0) {
+                const fileList = Array.from(e.target.files)
+                resolve(fileList)
+                return
+            }
+
+            reject(Error("Interaction canceled"))
+        } finally {
+            document.body.removeChild(inputElement);
+        }
+    });
+
+    inputElement.addEventListener('cancel', () => {
+        reject(Error("Interaction canceled"))
+        document.body.removeChild(inputElement);
+    });
+
+    inputElement.dispatchEvent(new MouseEvent('click'));
+    return promise
 }
 
 export const ConsentProvider: FC<{ children?: ReactNode }> = ({ children }) => {
@@ -105,7 +174,7 @@ export const ConsentProvider: FC<{ children?: ReactNode }> = ({ children }) => {
         }
     }, [userPrivateKey, decryptionPromise]);
 
-    const requireAgreement = (form: AgreementFormType) => {
+    const requireAgreement = (form: AgreementFormProps) => {
         if (form.ref?.current){
             throw Error("Action triggered twice")
         }
@@ -192,6 +261,7 @@ export const ConsentProvider: FC<{ children?: ReactNode }> = ({ children }) => {
     const value = {
         requireAgreement,
         requireDecryption,
+        requireFiles,
     }
 
     return <ConsentContext.Provider value={value}>

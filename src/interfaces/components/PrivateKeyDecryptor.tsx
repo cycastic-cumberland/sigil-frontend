@@ -42,7 +42,7 @@ export const PasswordBasedPrivateKeyDecryptor: FC<{
                 </div>
                 <Button disabled={isLoading} type={"submit"} className={'flex flex-grow border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background'}>
                     { isLoading ? <Spinner/> : <RectangleEllipsis/> }
-                    Unlock with Email & Password
+                    Unlock with Password
                 </Button>
             </div>
         </form>
@@ -165,7 +165,7 @@ export const PrivateKeyDecryptor: FC<{
                                       onClick={() => setIsPassword(true)}
                                       className={"hover:text-background hover:bg-foreground cursor-pointer bg-background text-foreground shadow-none"}>
                 <RectangleEllipsis/>
-                Unlock with Email & Password
+                Unlock with Password
             </Button>) }
     </div>
 }

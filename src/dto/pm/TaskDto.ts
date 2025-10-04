@@ -17,11 +17,13 @@ export type TaskCardDto = {
     id: number,
     taskIdentifier: string,
     taskStatusId?: number,
-    assigneeId?: number,
+    assignee?: UserInfoDto,
     reporterId?: number,
     priority: number,
     encryptedName: string,
     iv: string,
+    createdAt: string,
+    updatedAt?: string
 }
 
 export type TaskCardsDto = {

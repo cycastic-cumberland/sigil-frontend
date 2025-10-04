@@ -16,6 +16,8 @@ import type {AxiosInstance} from "axios";
 import type {PageDto} from "@/dto/PageDto.ts";
 import {cn} from "@/lib/utils.ts";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
+import {MinimalTiptap} from "@/components/ui/shadcn-io/minimal-tiptap";
+import {toast} from "sonner";
 
 export type CreateTaskDto = {
     project?: ProjectPartitionDto,
@@ -33,14 +35,16 @@ const CreateTaskForm: FC<{
     onSave: Callback<CreateTaskDto>
 }> = ({ api, isLoading: parentIsLoading, form, onSave }) => {
     const [formValues, setFormValues] = useState(form ? form : { name: '' })
+    const [content, setContent] = useState<string | undefined>()
     const [kanbanSearch, setKanbanSearch] = useState(false)
     const [statusSearch, setStatusSearch] = useState(false)
     const [prioritySearch, setPrioritySearch] = useState(false)
     const [localIsLoading, setLocalIsLoading] = useState(false)
-    const isLoading = useMemo(() => parentIsLoading || localIsLoading, [parentIsLoading, localIsLoading])
     const [selectedBoardId, setSelectedBoardId] = useState(null as null | number)
     const [statuses, setStatuses] = useState([] as TaskStatusDto[])
     const [allBoards, setAllBoards] = useState([] as KanbanBoardDto[])
+    const isLoading = useMemo(() => parentIsLoading || localIsLoading, [parentIsLoading, localIsLoading])
+    const initialContent = useMemo(() => formValues.content, [formValues])
     const isDesktop = useMediaQuery("(min-width: 768px)")
 
     const handleChange = (
@@ -54,12 +58,24 @@ const CreateTaskForm: FC<{
                     ? checked
                     : value,
         }));
-    };
+    }
 
     const handleSubmit = (e: SyntheticEvent) => {
         e.preventDefault();
-        onSave({ ...formValues });
-    };
+        if (!formValues.name){
+            toast.error("No task's name specified")
+            return
+        }
+        if (!formValues.project){
+            toast.error("No project specified")
+            return;
+        }
+        onSave({
+            ...formValues,
+            kanbanBoard: formValues.project ? formValues.kanbanBoard : undefined,
+            taskStatus: formValues.kanbanBoard ? formValues.taskStatus : undefined,
+            content: content === '<p></p>' ? undefined : content });
+    }
 
     const loadBoards = async () => {
         try {
@@ -126,7 +142,7 @@ const CreateTaskForm: FC<{
                     value={formValues.project?.uniqueIdentifier}
                     id="project"
                     required
-                    disabled={true} // TODO: Search project here
+                    readOnly
                 />
             </div>
             <div className="flex flex-row gap-2">
@@ -135,7 +151,7 @@ const CreateTaskForm: FC<{
                     className="flex-1 border-foreground hidden"
                     value={formValues.kanbanBoard?.boardName}
                     id="kanbanBoard"
-                    disabled={isLoading || !formValues.project}
+                    readOnly
                 />
                 <Popover open={kanbanSearch} onOpenChange={setKanbanSearch}>
                     <PopoverTrigger asChild>
@@ -195,7 +211,7 @@ const CreateTaskForm: FC<{
                     className="flex-1 border-foreground hidden"
                     value={formValues.taskStatus?.statusName}
                     id="taskStatus"
-                    disabled={isLoading || !formValues.kanbanBoard}
+                    readOnly
                 />
                 <Popover open={statusSearch} onOpenChange={setStatusSearch}>
                     <PopoverTrigger asChild>
@@ -255,7 +271,7 @@ const CreateTaskForm: FC<{
                     value={formValues.taskPriority}
                     id="kanbanBoard"
                     required
-                    disabled={isLoading}
+                    readOnly
                 />
                 <Popover open={prioritySearch} onOpenChange={setPrioritySearch}>
                     <PopoverTrigger asChild>
@@ -311,7 +327,7 @@ const CreateTaskForm: FC<{
         </div>
     }
 
-    return <form onSubmit={handleSubmit}>
+    return <div>
         {isDesktop
             ? <>
                 <div className={'flex flex-row w-full gap-12'}>
@@ -327,6 +343,7 @@ const CreateTaskForm: FC<{
                                 disabled={isLoading}
                             />
                         </div>
+                        <MinimalTiptap content={initialContent} onChange={setContent}/>
                     </div>
                     <div className={"w-80"}>
                         <MainGrid/>
@@ -334,7 +351,10 @@ const CreateTaskForm: FC<{
 
                 </div>
                 <div className={'mt-4 w-full flex flex-row-reverse'}>
-                    <Button disabled={isLoading} type={"submit"} className={'max-w-fit flex flex-grow border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background'}>
+                    <Button disabled={isLoading}
+                            type={"submit"}
+                            onClick={handleSubmit}
+                            className={'max-w-fit flex flex-grow border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background'}>
                         Create
                     </Button>
                 </div>
@@ -352,11 +372,17 @@ const CreateTaskForm: FC<{
                     />
                 </div>
                 <MainGrid/>
-                <Button disabled={isLoading} type={"submit"} className={'flex flex-grow w-full border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background'}>
+                <div className={'mt-2'}>
+                    <MinimalTiptap content={initialContent} onChange={setContent}/>
+                </div>
+                <Button disabled={isLoading}
+                        type={"submit"}
+                        onClick={handleSubmit}
+                        className={'mt-2 flex flex-grow w-full border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background'}>
                     Create
                 </Button>
             </>}
-    </form>
+    </div>
 }
 
 export default CreateTaskForm

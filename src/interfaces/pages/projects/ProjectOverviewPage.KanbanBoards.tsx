@@ -2,8 +2,8 @@ import {type FC, useEffect, useMemo, useRef, useState} from "react";
 import {
     base64ToUint8Array,
     decryptAESGCM,
-    decryptWithPrivateKey,
-    type RequireEncryptionKey
+    decryptWithPrivateKey, digestSha256, encryptAESGCM,
+    type RequireEncryptionKey, uint8ArrayToBase64
 } from "@/utils/cryptography.ts";
 import type {ProjectPartitionDto} from "@/dto/tenant/PartitionDto.ts";
 import {createApi} from "@/api.ts";
@@ -15,11 +15,11 @@ import {formatQueryParameters} from "@/utils/format.ts";
 import type {PageDto} from "@/dto/PageDto.ts";
 import {Button} from "@/components/ui/button.tsx";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
-import {Pen, PenOff, Plus, Users} from "lucide-react";
+import {Pen, PenOff, Plus, User, Users} from "lucide-react";
 import type {BlockingFC} from "@/utils/misc.ts";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
-import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from "@/components/ui/dialog.tsx";
-import {Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle} from "@/components/ui/drawer.tsx";
+import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog.tsx";
+import {Drawer, DrawerContent, DrawerHeader, DrawerTitle} from "@/components/ui/drawer.tsx";
 import KanbanBoardEditForm from "@/interfaces/components/KanbanBoardEditForm.tsx";
 import {toast} from "sonner";
 import {Accordion, AccordionContent, AccordionItem, AccordionTrigger} from "@/components/ui/accordion.tsx";
@@ -28,10 +28,12 @@ import {encodedListingPath} from "@/utils/path.ts";
 import {useTenant} from "@/contexts/TenantContext.tsx";
 import type {TaskStatusDto, TaskStatusesDto} from "@/dto/pm/TaskStatusDto.ts";
 import {cn} from "@/lib/utils.ts";
-import {KanbanBoard, KanbanHeader, KanbanProvider} from "@/components/ui/shadcn-io/kanban";
+import {KanbanBoard, KanbanCard, KanbanCards, KanbanHeader, KanbanProvider} from "@/components/ui/shadcn-io/kanban";
 import {Input} from "@/components/ui/input.tsx";
 import type {TaskCardDto, TaskCardsDto} from "@/dto/pm/TaskDto.ts";
-import CreateTaskForm from "@/interfaces/components/CreateTaskForm.tsx";
+import CreateTaskForm, {type CreateTaskDto} from "@/interfaces/components/CreateTaskForm.tsx";
+import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar.tsx";
+import type {UserInfoDto} from "@/dto/user/UserInfoDto.ts";
 
 type RequirePartitionKey = {
     partitionKey: CryptoKey
@@ -39,9 +41,11 @@ type RequirePartitionKey = {
 
 type KanbanTaskCardDto = {
     id: string,
+    ticketId: string,
     name: string,
     column: string,
     encryptedName: string,
+    assignee?: UserInfoDto,
 }
 
 const toKanbanColumns = (statuses: TaskStatusDto[]) => {
@@ -65,13 +69,29 @@ const decryptKanbanCards = async (newCards: TaskCardDto[], oldCards: KanbanTaskC
         const text = textDecoder.decode(decryptedTitle)
         decrypted.push({
             id: `${taskCard.id}`,
+            ticketId: taskCard.taskIdentifier,
             name: text,
             column: taskCard.taskStatusId ? `${taskCard.taskStatusId}` : 'auto-backlog',
-            encryptedName: taskCard.encryptedName
+            encryptedName: taskCard.encryptedName,
+            assignee: taskCard.assignee,
         })
     }
 
     return decrypted
+}
+
+async function tryEncrypt<T extends string | undefined>(key: CryptoKey, content: T, iv: Uint8Array): Promise<T> {
+    if (!content){
+        return undefined as T
+    }
+
+    const encoder = new TextEncoder();
+    const encodedContent = encoder.encode(content)
+    return uint8ArrayToBase64((await encryptAESGCM({
+        key,
+        iv,
+        content: encodedContent
+    })).encryptedContent) as T
 }
 
 const BoardAccordion: FC<RequirePartitionKey & {
@@ -86,6 +106,7 @@ const BoardAccordion: FC<RequirePartitionKey & {
     const [tasks, setTasks] = useState([] as TaskCardDto[])
     const [taskCards, setTaskCards] = useState([] as KanbanTaskCardDto[])
     const isDesktop = useMediaQuery("(min-width: 768px)")
+    // const taskStatusLookup = useMemo(() => Object.fromEntries(statuses.map(s => [s.id, s])), [statuses])
     const columns = useMemo(() => {
         if (!editOn){
             return [{
@@ -127,6 +148,34 @@ const BoardAccordion: FC<RequirePartitionKey & {
                 kanbanBoardId: board.id
             }))
             setTasks((response.data as TaskCardsDto).tasks)
+        } catch (e){
+            notifyApiError(e)
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    const createTask = async (task: CreateTaskDto) => {
+        try {
+            setIsLoading(true)
+            const iv = crypto.getRandomValues(new Uint8Array(12))
+            const encryptedName = await tryEncrypt(partitionKey, task.name, iv)
+            const encryptedContent = await tryEncrypt(partitionKey, task.content, iv)
+            const partitionChecksum = uint8ArrayToBase64(await digestSha256(new Uint8Array(await crypto.subtle.exportKey("raw", partitionKey))))
+            const response = await api.post('pm/tasks', {
+                kanbanBoardId: task.kanbanBoard?.id,
+                taskStatusId: task.taskStatus?.id,
+                taskPriority: task.taskPriority,
+                encryptedName,
+                encryptedContent,
+                partitionChecksum,
+                iv: uint8ArrayToBase64(iv)
+            })
+
+            // TODO: Navigate to task
+            console.log(response.data)
+            loadTasks().then(undefined)
+            setCreateOpened(false)
         } catch (e){
             notifyApiError(e)
         } finally {
@@ -215,30 +264,34 @@ const BoardAccordion: FC<RequirePartitionKey & {
         </div>
     }
 
+    const CreateTaskDialog: FC<{form: CreateTaskDto}> = ({form}) => (isDesktop ? <Dialog open={createOpened} onOpenChange={setCreateOpened}>
+        <DialogContent className="sm:max-w-4/5">
+            <DialogHeader>
+                <DialogTitle>Create a new task</DialogTitle>
+            </DialogHeader>
+            <div className={"w-full"}>
+                <CreateTaskForm api={api}
+                                isLoading={isLoading}
+                                onSave={createTask}
+                                form={form}/>
+            </div>
+        </DialogContent>
+    </Dialog> : <Drawer open={createOpened} onOpenChange={setCreateOpened}>
+        <DrawerContent>
+            <DrawerHeader>
+                <DrawerTitle>Create a new task</DrawerTitle>
+            </DrawerHeader>
+            <div className={'w-full px-3 pb-3'}>
+                <CreateTaskForm api={api}
+                                isLoading={isLoading}
+                                onSave={createTask}
+                                form={form}/>
+            </div>
+        </DrawerContent>
+    </Drawer>)
+
     return <>
-        {isDesktop ? <Dialog open={createOpened} onOpenChange={setCreateOpened}>
-            <DialogContent className="sm:max-w-4/5">
-                <DialogHeader>
-                    <DialogTitle>Create a new task</DialogTitle>
-                </DialogHeader>
-                <div className={"w-full"}>
-                    <CreateTaskForm api={api}
-                                    isLoading={isLoading}
-                                    onSave={() => {}} form={{project, kanbanBoard: board, name: ''}}/>
-                </div>
-            </DialogContent>
-        </Dialog> : <Drawer open={createOpened} onOpenChange={setCreateOpened}>
-            <DrawerContent>
-                <DrawerHeader>
-                    <DrawerTitle>Create a new task</DrawerTitle>
-                </DrawerHeader>
-                <div className={'w-full px-3 pb-3'}>
-                    <CreateTaskForm api={api}
-                                    isLoading={isLoading}
-                                    onSave={() => {}} form={{project, kanbanBoard: board, name: ''}}/>
-                </div>
-            </DrawerContent>
-        </Drawer>}
+        <CreateTaskDialog form={{project, kanbanBoard: board, name: ''}}/>
         <div className={'w-full flex flex-col py-2 gap-4'}>
             <div className={"w-full flex flex-row gap-1"}>
                 <Button className={'text-foreground border-dashed border-2 border-foreground cursor-pointer hover:border-solid hover:text-background hover:bg-foreground'}
@@ -254,7 +307,7 @@ const BoardAccordion: FC<RequirePartitionKey & {
             </div>
             <div className={'w-full'}>
                 <div className={'overflow-x-auto'}>
-                    <KanbanProvider columns={columns} data={[]} className={'min-h-20'}>
+                    <KanbanProvider columns={columns} data={taskCards} className={''}>
                         {(column) => column.id === 'add'
                             ? <AddStatusButton/>
                             : <KanbanBoard id={column.id} key={column.id} className={"max-w-fit task-status-min-width"}>
@@ -266,7 +319,48 @@ const BoardAccordion: FC<RequirePartitionKey & {
                                         />
                                         <span>{column.name}</span>
                                     </div>
+                                    {editOn && <div className={'flex gap-1 mt-1'}>
+                                            <Button variant={"outline"} className={'flex-1 cursor-pointer'}>Edit</Button>
+                                            <Button variant={"destructive"} className={'flex-1 cursor-pointer'}>Delete</Button>
+                                        </div>}
                                 </KanbanHeader>
+                                <KanbanCards id={column.id}>
+                                    {(feature: KanbanTaskCardDto) => (
+                                        <KanbanCard
+                                            column={column.id}
+                                            id={feature.id}
+                                            key={feature.id}
+                                            name={feature.name}
+                                        >
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div className="flex flex-col gap-1">
+                                                    <p className="m-0 flex-1 font-medium text-sm">
+                                                        {feature.name}
+                                                    </p>
+                                                </div>
+                                                <Avatar className="h-4 w-4 shrink-0">
+                                                    {feature.assignee
+                                                        ? <Avatar className="h-4 w-4 shrink-0">
+                                                            <AvatarImage src={formatQueryParameters('https://ui-avatars.com/api/', {name: `${feature.assignee.firstName} ${feature.assignee.lastName}`})} />
+                                                            <AvatarFallback>
+                                                                {feature.assignee.firstName[0]}{feature.assignee.lastName[0]}
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                        : <Avatar className="h-4 w-4 shrink-0">
+                                                            <AvatarFallback>
+                                                                <User/>
+                                                            </AvatarFallback>
+                                                        </Avatar>}
+                                                </Avatar>
+                                            </div>
+                                            <p className="m-0 text-muted-foreground text-xs">
+                                                {feature.ticketId}
+                                                {" • "}
+                                                {feature.assignee ? `${feature.assignee.firstName} ${feature.assignee.lastName}` : "Unassigned"}
+                                            </p>
+                                        </KanbanCard>
+                                    )}
+                                </KanbanCards>
                             </KanbanBoard>}
                     </KanbanProvider>
                 </div>
@@ -345,13 +439,14 @@ const ProjectOverviewPageKanbanBoards: FC<RequireEncryptionKey & {
             setIsLoading(true)
 
             const key = await decryptWithPrivateKey(userPrivateKey, base64ToUint8Array(project.userPartitionKey.cipher))
-            setPartitionKey(await crypto.subtle.importKey(
+            const decryptedPartitionKey = await crypto.subtle.importKey(
                 "raw",
                 key,
                 { name: "AES-GCM" },
-                false,
+                true,
                 ["encrypt", "decrypt"]
-            ))
+            )
+            setPartitionKey(decryptedPartitionKey)
         } catch (e){
             notifyApiError(e)
         } finally {

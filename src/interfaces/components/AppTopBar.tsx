@@ -17,7 +17,7 @@ const UserUnlocked = () => {
     return <Tooltip>
         <TooltipTrigger asChild><LockOpen size={15}/></TooltipTrigger>
         <TooltipContent>
-            <p>User's private key decrypted</p>
+            <p>Your data is unlocked. Leave or refresh this page to lock it.</p>
         </TooltipContent>
     </Tooltip>
 }
@@ -48,7 +48,7 @@ const UserLocked = () => {
                 </Button>
             </TooltipTrigger>
             <TooltipContent>
-                <p>User's private key encrypted</p>
+                <p>Your data is locked.</p>
             </TooltipContent>
         </Tooltip>
     </>

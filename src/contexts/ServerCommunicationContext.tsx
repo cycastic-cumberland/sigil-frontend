@@ -1,5 +1,5 @@
 import {createContext, type FC, type ReactNode, useContext, useState} from "react";
-import {base64ToUint8Array, encryptWithPublicKey, uint8ArrayToBase64} from "@/utils/cryptography.ts";
+import {base64ToUint8Array, createPublicKey, encryptWithPublicKey, uint8ArrayToBase64} from "@/utils/cryptography.ts";
 import api from "@/api.ts";
 
 export type ServerCommunicationContextType = {
@@ -18,18 +18,9 @@ const getServerEphemeralKey = async (): Promise<{ publicKey: CryptoKey, version:
     const cleanPem = data.publicKey
         .replace("-----BEGIN PUBLIC KEY-----", "")
         .replace("-----END PUBLIC KEY-----", "")
-        .replace(/\s/g, "");
+        .replace(/\s/g, "")
     const pem = base64ToUint8Array(cleanPem)
-    const publicKey = await crypto.subtle.importKey(
-        "spki",
-        pem,
-        {
-            name: 'RSA-OAEP',
-            hash: { name: 'SHA-256' }
-        },
-        false,
-        ["encrypt"]
-    );
+    const publicKey = await createPublicKey(pem, false)
 
     return {
         publicKey,

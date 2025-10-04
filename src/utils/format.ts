@@ -47,3 +47,30 @@ export const humanizeFileSize = (bytes: number, si = true, dp = 1) => {
 
     return bytes.toFixed(dp) + ' ' + units[u];
 }
+
+export const readFileToString = (file: File) => {
+    let resolve!: (value: string | null | PromiseLike<string | null>) => void;
+    let reject!: (reason?: unknown) => void;
+
+    const promise = new Promise<string | null>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    })
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+        try {
+            if (!e.target){
+                reject(Error("Failed to read file"))
+                return
+            }
+            const fileContent = e.target.result
+            resolve(fileContent as string | null)
+        } catch (e){
+            reject(e)
+        }
+    };
+    reader.readAsText(file);
+
+    return promise
+}

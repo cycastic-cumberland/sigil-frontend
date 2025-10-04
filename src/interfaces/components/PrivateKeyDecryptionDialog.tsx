@@ -23,8 +23,8 @@ const PrivateKeyDecryptionDialog: FC<{
     }} >
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                    <DialogTitle>Unlock your private key</DialogTitle>
-                    <DialogDescription>Unlock your session with one of the method bellow.</DialogDescription>
+                    <DialogTitle>Your data is locked</DialogTitle>
+                    <DialogDescription>Your sensitive data is automatically locked. Choose an option below to unlock it.</DialogDescription>
                 </DialogHeader>
                 <PrivateKeyDecryptor isLoading={isLoading}
                                      setIsLoading={setIsLoading}
@@ -41,8 +41,8 @@ const PrivateKeyDecryptionDialog: FC<{
     }}>
             <DrawerContent>
                 <DrawerHeader>
-                    <DrawerTitle>Unlock your private key</DrawerTitle>
-                    <DrawerDescription>Unlock your session with one of the method bellow.</DrawerDescription>
+                    <DrawerTitle>Your data is locked</DrawerTitle>
+                    <DrawerDescription>Your sensitive data is automatically locked. Choose an option below to unlock it.</DrawerDescription>
                 </DrawerHeader>
                 <div className={"p-5"}>
                     <PrivateKeyDecryptor isLoading={isLoading}
