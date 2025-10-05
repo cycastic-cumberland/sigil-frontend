@@ -84,6 +84,7 @@ export async function patchTask({api, task, partitionKey}: PatchTaskProps){
 
     await api.patch('pm/tasks', {
         taskId: task.taskId,
+        kanbanBoardId: task.kanbanBoard?.id,
         assigneeEmail: task.assignee?.email,
         reporterEmail: task.reporter?.email,
         taskPriority: task.taskPriority,
