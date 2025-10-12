@@ -1,7 +1,6 @@
-import {type ChangeEvent, type FC, type SyntheticEvent, useEffect, useMemo, useState} from "react";
+import {type FC, type SyntheticEvent, useEffect, useMemo, useState} from "react";
 import type {PartitionUserDto} from "@/dto/tenant/PartitionUserDto.ts";
 import {Label} from "@/components/ui/label.tsx";
-import {Input} from "@/components/ui/input.tsx";
 import {
     ALL_PARTITION_PERMISSIONS,
     getHumanReadablePartitionPermission,
@@ -11,11 +10,12 @@ import {
 import {Button} from "@/components/ui/button.tsx";
 import {useTenant} from "@/contexts/TenantContext.tsx";
 import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover.tsx";
-import {Command, CommandEmpty, CommandGroup, CommandInput, CommandItem} from "@/components/ui/command.tsx";
+import {Command, CommandGroup, CommandItem} from "@/components/ui/command.tsx";
 import {Check, ChevronsUpDown} from "lucide-react";
 import {cn} from "@/lib/utils.ts";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
 import type {TenantUserDto} from "@/dto/tenant/TenantUserDto.ts";
+import MemberDebouncedSearchField from "@/interfaces/components/MemberDebouncedSearchField.tsx";
 
 const emptyPartitionUserDto = (): PartitionUserDto => {
     return  {
@@ -33,9 +33,7 @@ const PartitionMemberEditForm: FC<{
     onSave: (project: PartitionUserDto) => void
 }> = ({ disabled, isLoading, partitionMember, onSave }) => {
     const [formValues, setFormValues] = useState(partitionMember ? { ...partitionMember } : emptyPartitionUserDto())
-    const [emailPopoverOpened, setEmailPopoverOpened] = useState(false)
     const [permissionsPopoverOpened, setPermissionsPopoverOpened] = useState(false)
-    const [searching, setSearching] = useState(false)
     const [isCreate, setIsCreate] = useState(!partitionMember)
     const {activeTenant, queryTenantMembers} = useTenant()
     const canListTenantMembers = useMemo(() => isCreate &&
@@ -43,59 +41,11 @@ const PartitionMemberEditForm: FC<{
             (activeTenant.membership === "OWNER" ||
                 activeTenant.permissions.includes("LIST_USERS")),
         [activeTenant, isCreate])
-    const [query, setQuery] = useState('')
-    const [debouncedQuery, setDebouncedQuery] = useState('')
-    const [searchResults, setSearchResult] = useState([] as TenantUserDto[])
 
     useEffect(() => {
         setFormValues(partitionMember ? { ...partitionMember } : emptyPartitionUserDto())
         setIsCreate(!partitionMember)
     }, [partitionMember]);
-
-    useEffect(() => {
-        setSearching(true)
-        const handler = setTimeout(() => {
-            setDebouncedQuery(query.trim());
-        }, 200); // 200ms debounce
-
-        return () => {
-            clearTimeout(handler);
-        };
-    }, [query]);
-
-    useEffect(() => {
-        if (!debouncedQuery || !canListTenantMembers){
-            setSearchResult([])
-            return
-        }
-
-        (async () => {
-            try {
-                setSearching(true)
-                const data = await queryTenantMembers(debouncedQuery, 1, 10, null)
-                setSearchResult(data.items)
-            } finally {
-                setSearching(false)
-            }
-        })()
-    }, [canListTenantMembers, debouncedQuery]);
-
-
-    const handleChange = (
-        e: ChangeEvent<HTMLInputElement>
-    ) => {
-        const { id, name, value, type, checked } = e.target;
-        if (name === 'email' && canListTenantMembers){
-            setQuery(value)
-        }
-        setFormValues((prev) => ({
-            ...prev,
-            [id]:
-                type === 'checkbox'
-                    ? checked
-                    : value,
-        }));
-    };
 
     const handleSubmit = (e: SyntheticEvent) => {
         e.preventDefault();
@@ -111,69 +61,26 @@ const PartitionMemberEditForm: FC<{
         }))
     }
 
+    const setMember = (member: string | TenantUserDto | null) => setFormValues(f => ({
+        ...f,
+        email: !member ? '' : typeof member === 'string' ? member : member.email
+    }))
+
+    const searchMembers = async (contentTerms: string) => {
+        const data = await queryTenantMembers(contentTerms, 1, 10, 'lastName')
+        return data.items
+    }
+
     return <form onSubmit={handleSubmit}>
         <div className="grid gap-2">
             <div className="flex flex-row gap-2">
                 <Label className="w-32">Email:</Label>
-                { !canListTenantMembers || !isCreate ? <Input
-                    className="flex-1 border-foreground"
-                    value={formValues.email}
-                    onChange={handleChange}
-                    id="email"
-                    required
-                    disabled={disabled || !isCreate}
-                /> : <>
-                    <Input
-                        className="hidden"
-                        value={formValues.email}
-                        required
-                        disabled={disabled}
-                    />
-                    <Popover open={emailPopoverOpened} onOpenChange={setEmailPopoverOpened}>
-                        <PopoverTrigger asChild>
-                            <Button
-                                variant="outline"
-                                role="combobox"
-                                aria-expanded={emailPopoverOpened}
-                                className="flex-1 justify-between"
-                            >
-                                {formValues.email
-                                    ? formValues.email
-                                    : "Search email..."}
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[320px] p-0">
-                            <Command>
-                                <CommandInput placeholder="Search user..."
-                                              name={"email"}
-                                              value={query}
-                                              onInput={handleChange}/>
-                                <CommandEmpty>
-                                    { searching ? "Searching..." : query ? "No user found" : "Start typing to search" }
-                                </CommandEmpty>
-                                <CommandGroup>
-                                    {searchResults.map((value, i) => (
-                                        <CommandItem
-                                            key={i}
-                                            className={"cursor-pointer truncate overflow-hidden whitespace-nowrap"}
-                                            onSelect={() => {
-                                                setFormValues((prev) => ({
-                                                    ...prev,
-                                                    email: value.email
-                                                }))
-                                                setQuery('')
-                                                setEmailPopoverOpened(false)
-                                            }}
-                                        >
-                                            {value.email}
-                                        </CommandItem>
-                                    ))}
-                                </CommandGroup>
-                            </Command>
-                        </PopoverContent>
-                    </Popover>
-                </> }
+                <MemberDebouncedSearchField id={'email'}
+                                            onSearch={(canListTenantMembers && isCreate) ? searchMembers : undefined}
+                                            value={formValues.email}
+                                            onChange={setMember}
+                                            disabled={disabled || !isCreate}
+                                            required/>
             </div>
             <div className="flex flex-row gap-2">
                 <Label className="w-32">Permissions:</Label>

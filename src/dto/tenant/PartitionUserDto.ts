@@ -1,8 +1,4 @@
 import type {PartitionPermission} from "@/dto/Permissions.ts";
+import type {ExtendedMemberDto} from "@/dto/MemberDto.ts";
 
-export type PartitionUserDto = {
-    email: string
-    firstName: string
-    lastName: string
-    permissions: PartitionPermission[],
-}
+export type PartitionUserDto = ExtendedMemberDto<PartitionPermission>

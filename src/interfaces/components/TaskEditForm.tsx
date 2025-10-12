@@ -21,6 +21,9 @@ import {toast} from "sonner";
 import type {UserInfoDto} from "@/dto/user/UserInfoDto.ts";
 import {digestSha256, encryptAESGCM, uint8ArrayToBase64} from "@/utils/cryptography.ts";
 import type {CipherDto} from "@/dto/cryptography/CipherDto.ts";
+import MemberDebouncedSearchField from "@/interfaces/components/MemberDebouncedSearchField.tsx";
+import {useTenant} from "@/contexts/TenantContext.tsx";
+import type {PartitionUserDto} from "@/dto/tenant/PartitionUserDto.ts";
 
 export type CreateOrEditTaskDto = {
     taskId?: string,
@@ -94,6 +97,24 @@ export async function patchTask({api, task, partitionKey}: PatchTaskProps){
     })
 }
 
+function MemberInfoCard({member}: {member: UserInfoDto}){
+    return <table className={''}>
+        <thead>
+            <tr>
+                <td></td>
+            </tr>
+        </thead>
+        <tbody>
+            {(member.firstName && member.lastName) && <tr>
+                <td className={'flex w-full text-xs'}>{member.firstName} {member.lastName}</td>
+            </tr>}
+            <tr>
+                <td className={'text-muted-foreground text-xs'}>{member.email}</td>
+            </tr>
+        </tbody>
+    </table>
+}
+
 function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ api, isLoading: parentIsLoading, form, onSave }: TaskEditFormProps<T>) {
     const [formValues, setFormValues] = useState(form ? form : { name: '' } as T)
     const [kanbanSearch, setKanbanSearch] = useState(false)
@@ -105,6 +126,11 @@ function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ api
     const [allBoards, setAllBoards] = useState([] as KanbanBoardDto[])
     const isLoading = useMemo(() => parentIsLoading || localIsLoading, [parentIsLoading, localIsLoading])
     const isDesktop = useMediaQuery("(min-width: 768px)")
+    const {activeTenant} = useTenant()
+    const canListTenantMembers = useMemo(() => !!activeTenant &&
+            (activeTenant.membership === "OWNER" ||
+                activeTenant.permissions.includes("LIST_USERS")),
+        [activeTenant])
 
     const handleChange = (
         e: ChangeEvent<HTMLInputElement>
@@ -166,6 +192,16 @@ function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ api
         }
     }
 
+    const searchMembers = async (contentTerms: string) => {
+        const response = await api.get(formatQueryParameters('partitions/members', {
+            contentTerms,
+            page: 1,
+            pageSize: 10,
+            orderBy: 'lastName'
+        }))
+        return (response.data as PageDto<PartitionUserDto>).items
+    }
+
     useEffect(() => {
         loadBoards().then(undefined)
     }, []);
@@ -219,7 +255,7 @@ function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ api
                             role="combobox"
                             aria-expanded={kanbanSearch}
                             className="flex-1 justify-between"
-                            disabled={isLoading || !formValues.project}
+                            disabled={!!formValues.taskId || isLoading || !formValues.project}
                         >
                             {formValues.kanbanBoard
                                 ? formValues.kanbanBoard.boardName
@@ -383,6 +419,30 @@ function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ api
                     </PopoverContent>
                 </Popover>
             </div>
+            {formValues.taskId && <>
+                <div className="flex flex-row gap-2">
+                    <Label className="w-16">Assignee:</Label>
+                    <MemberDebouncedSearchField value={formValues.assignee?.email} onChange={(v => setFormValues(f => ({
+                        ...f,
+                        assignee: !v ? undefined : typeof v === 'string' ? {email: v} : v
+                    })))} onSearch={canListTenantMembers ? searchMembers : undefined}>
+                        <MemberDebouncedSearchField.Trigger>
+                            {formValues.assignee && <MemberInfoCard member={formValues.assignee}/>}
+                        </MemberDebouncedSearchField.Trigger>
+                    </MemberDebouncedSearchField>
+                </div>
+                <div className="flex flex-row gap-2">
+                    <Label className="w-16">Reporter:</Label>
+                    <MemberDebouncedSearchField value={formValues.reporter?.email} onChange={(v => setFormValues(f => ({
+                        ...f,
+                        reporter: !v ? undefined : typeof v === 'string' ? {email: v} : v
+                    })))} onSearch={canListTenantMembers ? searchMembers : undefined}>
+                        <MemberDebouncedSearchField.Trigger>
+                            {formValues.reporter && <MemberInfoCard member={formValues.reporter}/>}
+                        </MemberDebouncedSearchField.Trigger>
+                    </MemberDebouncedSearchField>
+                </div>
+            </>}
         </div>
     }
 
