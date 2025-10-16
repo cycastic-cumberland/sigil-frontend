@@ -8,7 +8,7 @@ import {Label} from "@/components/ui/label.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import type {ProjectPartitionDto} from "@/dto/tenant/PartitionDto.ts";
 import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover.tsx";
-import {Check, ChevronsUpDown, Plus, Save} from "lucide-react";
+import {ArrowLeft, Check, ChevronsUpDown, MessageSquare, Plus, Save, SquareArrowOutUpRight} from "lucide-react";
 import {Command, CommandGroup, CommandItem} from "@/components/ui/command.tsx";
 import {formatQueryParameters} from "@/utils/format.ts";
 import {notifyApiError} from "@/utils/errors.ts";
@@ -27,6 +27,7 @@ import type {PartitionUserDto} from "@/dto/tenant/PartitionUserDto.ts";
 import TaskCommentsList from "@/interfaces/components/TaskCommentsList.tsx";
 import {createApi} from "@/api.ts";
 import type {CountDto} from "@/dto/CountDto.ts";
+import {encodedListingPath} from "@/utils/path.ts";
 
 export type CreateOrEditTaskDto = {
     taskId?: string,
@@ -123,6 +124,7 @@ function MemberInfoCard({member}: {member: UserInfoDto}){
 
 function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ partitionKey, api, isLoading: parentIsLoading, form, onSave }: TaskEditFormProps<T>) {
     const [formValues, setFormValues] = useState(form ? form : { name: '' } as T)
+    const [commentMode, setCommentMode] = useState(false)
     const [kanbanSearch, setKanbanSearch] = useState(false)
     const [statusSearch, setStatusSearch] = useState(false)
     const [prioritySearch, setPrioritySearch] = useState(false)
@@ -133,7 +135,7 @@ function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ par
     const [commentCount, setCommentCount] = useState(0)
     const isLoading = useMemo(() => parentIsLoading || localIsLoading, [parentIsLoading, localIsLoading])
     const isDesktop = useMediaQuery("(min-width: 768px)")
-    const {activeTenant} = useTenant()
+    const {activeTenant, tenantId} = useTenant()
     const canListTenantMembers = useMemo(() => !!activeTenant &&
             (activeTenant.membership === "OWNER" ||
                 activeTenant.permissions.includes("LIST_USERS")),
@@ -241,6 +243,10 @@ function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ par
     }, [form]);
 
     useEffect(() => {
+        setCommentMode(false)
+    }, [isDesktop]);
+
+    useEffect(() => {
         setKanbanSearch(false)
         setStatusSearch(false)
         setPrioritySearch(false)
@@ -266,6 +272,11 @@ function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ par
                     required
                     readOnly
                 />
+                {formValues.project && <div className={'flex flex-col justify-center'}>
+                    <a href={`/tenant/${tenantId}/project/overview/${encodedListingPath(formValues.project.partitionPath)}`} target={'_blank'}>
+                        <SquareArrowOutUpRight size={16}/>
+                    </a>
+                </div>}
             </div>
             <div className="flex flex-row gap-2">
                 <Label className="w-16">Board:</Label>
@@ -497,8 +508,8 @@ function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ par
                             <Label className={'mt-4 text-2xl font-bold'}>
                                 Comments
                                 <span className={'text-muted-foreground font-normal text-xl'}>
-                                ({commentCount})
-                            </span>
+                                    ({commentCount})
+                                </span>
                             </Label>
                             <TaskCommentsList partitionKey={partitionKey}
                                               onCommentSubmitted={loadCommentCount}
@@ -528,38 +539,62 @@ function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ par
                 </div>
             </>
             : <>
-                <div className="flex flex-row gap-2 mb-2">
-                    <Label className="w-16">Name:</Label>
-                    <Input
-                        className="flex-1 border-foreground"
-                        value={formValues.name}
-                        onChange={handleChange}
-                        id="name"
-                        required
-                        disabled={isLoading}
-                    />
-                </div>
-                <MainGrid/>
-                <div className={'mt-2'}>
-                    <MinimalTiptap content={formValues.content} onChange={content => setFormValues(f => ({
-                        ...f,
-                        content
-                    }))}/>
-                </div>
-                <Button disabled={isLoading}
-                        type={"submit"}
-                        onClick={handleSubmit}
-                        className={'mt-2 flex flex-grow w-full border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background'}>
-                    {formValues.taskId
-                        ? <>
-                            <Save/>
-                            Save
-                        </>
-                        : <>
-                            <Plus/>
-                            Create
-                        </>}
-                </Button>
+                { commentMode && formValues.taskId
+                    ? <>
+                        <Button className={'mt-2 flex flex-grow w-full border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background'}
+                                onClick={() => setCommentMode(false)}>
+                            <ArrowLeft/>
+                            Task details
+                        </Button>
+                        <TaskCommentsList partitionKey={partitionKey}
+                                          onCommentSubmitted={loadCommentCount}
+                                          className={'mt-4'}
+                                          taskId={formValues.taskId}/>
+                    </>
+                    : <>
+                        <div className="flex flex-row gap-2 mb-2">
+                            <Label className="w-16">Name:</Label>
+                            <Input
+                                className="flex-1 border-foreground"
+                                value={formValues.name}
+                                onChange={handleChange}
+                                id="name"
+                                required
+                                disabled={isLoading}
+                            />
+                        </div>
+                        <MainGrid/>
+                        <div className={'mt-2'}>
+                            <MinimalTiptap content={formValues.content} onChange={content => setFormValues(f => ({
+                                ...f,
+                                content
+                            }))}/>
+                        </div>
+                        {formValues.taskId && <Button className={'mt-2 flex flex-grow w-full border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background'}
+                                                      onClick={() => setCommentMode(true)}>
+                            <MessageSquare/>
+                            <span>
+                                Comments
+                                <span className={'text-muted-foreground font-normal'}>
+                                    {` (${commentCount})`}
+                                </span>
+                            </span>
+                        </Button>}
+                        <Button disabled={isLoading}
+                                type={"submit"}
+                                onClick={handleSubmit}
+                                className={'mt-2 flex flex-grow w-full border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background'}>
+                            {formValues.taskId
+                                ? <>
+                                    <Save/>
+                                    Save
+                                </>
+                                : <>
+                                    <Plus/>
+                                    Create
+                                </>}
+                        </Button>
+                    </> }
             </>}
     </div>
 }

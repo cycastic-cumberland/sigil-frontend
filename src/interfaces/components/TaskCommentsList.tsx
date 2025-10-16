@@ -77,6 +77,7 @@ const TaskCommentInput: FC<{
     return <>
         <MinimalTiptap editorRef={editorRef}
                        onBlur={onBlur}
+                       onSubmit={onSubmit}
                        content={comment}
                        onChange={onChange}/>
         <Button onClick={onSubmit} className={'hover:text-background hover:bg-foreground cursor-pointer bg-background text-foreground border-2 border-foreground shadow-none"'}>
@@ -295,7 +296,7 @@ const TaskCommentsList: FC<HTMLAttributes<HTMLDivElement> & {
         if (page > 1){
             rPages = [page - 1, ...rPages]
         }
-        if (totalPage - 1 > page){
+        if (totalPage> page){
             rPages = [...rPages, page + 1]
         }
         return rPages
@@ -429,12 +430,15 @@ const TaskCommentsList: FC<HTMLAttributes<HTMLDivElement> & {
                     <PaginationEllipsis/>
                 </PaginationItem>}
                 {relativePages.map((p, i) => <PaginationItem key={i}>
-                    <PaginationLink onClick={() => setPage(p)} className={'cursor-pointer'}>{p}</PaginationLink>
+                    <PaginationLink onClick={() => setPage(p)}
+                                    className={cn('cursor-pointer', p === page && 'bg-primary')}>
+                        {p}
+                    </PaginationLink>
                 </PaginationItem>)}
                 {ellipsisRight && <PaginationItem>
                     <PaginationEllipsis/>
                 </PaginationItem>}
-                {totalPage && (totalPage - 1 > relativePages[relativePages.length - 1]) && <PaginationItem>
+                {totalPage && (relativePages[relativePages.length - 1] > page) && <PaginationItem>
                     <PaginationNext onClick={() => setPage(p => p + 1)} className={'cursor-pointer'}/>
                 </PaginationItem>}
             </PaginationContent>

@@ -31,8 +31,9 @@ interface MinimalTiptapProps {
   placeholder?: string;
   editable?: boolean;
   className?: string;
-  onBlur?: () => void,
-  editorRef?: RefObject<Editor | null>
+  onBlur?: () => void;
+  onSubmit?: () => void,
+  editorRef?: RefObject<Editor | null>;
 }
 
 function MinimalTiptap({
@@ -42,6 +43,7 @@ function MinimalTiptap({
   editable = true,
   className,
   onBlur,
+  onSubmit,
   editorRef,
 }: MinimalTiptapProps) {
   const editor = useEditor({
@@ -79,17 +81,23 @@ function MinimalTiptap({
   }, [editor]);
 
   useEffect(() => {
-    if (!onBlur){
+    if (!onBlur || !editor){
       return
     }
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (editor && editor.isFocused && event.key === 'Escape') {
+      if (editor.isFocused && event.key === 'Escape') {
         onBlur()
       }
-    };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+        event.preventDefault()
+        event.stopPropagation()
+        onSubmit?.()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
   }, [onBlur, editor]);
 
   if (!editor) {
