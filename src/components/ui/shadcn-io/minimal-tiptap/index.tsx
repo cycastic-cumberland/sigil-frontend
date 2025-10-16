@@ -2,7 +2,7 @@
 
 // @ts-ignore
 import * as React from 'react';
-import { EditorContent, useEditor } from '@tiptap/react';
+import {Editor, EditorContent, useEditor} from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -23,6 +23,7 @@ import {
   Redo,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {type RefObject, useEffect} from "react";
 
 interface MinimalTiptapProps {
   content?: string;
@@ -30,6 +31,8 @@ interface MinimalTiptapProps {
   placeholder?: string;
   editable?: boolean;
   className?: string;
+  onBlur?: () => void,
+  editorRef?: RefObject<Editor | null>
 }
 
 function MinimalTiptap({
@@ -38,6 +41,8 @@ function MinimalTiptap({
   placeholder = 'Start typing...',
   editable = true,
   className,
+  onBlur,
+  editorRef,
 }: MinimalTiptapProps) {
   const editor = useEditor({
     extensions: [
@@ -67,13 +72,33 @@ function MinimalTiptap({
     },
   });
 
+  useEffect(() => {
+    if (editorRef){
+      editorRef.current = editor
+    }
+  }, [editor]);
+
+  useEffect(() => {
+    if (!onBlur){
+      return
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (editor && editor.isFocused && event.key === 'Escape') {
+        onBlur()
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onBlur, editor]);
+
   if (!editor) {
     return null;
   }
 
   return (
     <div className={cn('border rounded-lg overflow-hidden', className)}>
-      <div className="border-b p-2 flex flex-wrap items-center gap-1">
+      <div className={cn('p-2 flex flex-wrap items-center gap-1', (editable === undefined || editable) ? 'border-b' : null)}>
         <Toggle type={"button"}
           size="sm"
           pressed={editor.isActive('bold')}
@@ -193,7 +218,7 @@ function MinimalTiptap({
         </Button>
       </div>
       
-      <EditorContent 
+      <EditorContent
         editor={editor} 
         placeholder={placeholder}
       />

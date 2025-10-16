@@ -24,6 +24,9 @@ import type {CipherDto} from "@/dto/cryptography/CipherDto.ts";
 import MemberDebouncedSearchField from "@/interfaces/components/MemberDebouncedSearchField.tsx";
 import {useTenant} from "@/contexts/TenantContext.tsx";
 import type {PartitionUserDto} from "@/dto/tenant/PartitionUserDto.ts";
+import TaskCommentsList from "@/interfaces/components/TaskCommentsList.tsx";
+import {createApi} from "@/api.ts";
+import type {CountDto} from "@/dto/CountDto.ts";
 
 export type CreateOrEditTaskDto = {
     taskId?: string,
@@ -34,7 +37,7 @@ export type CreateOrEditTaskDto = {
     reporter?: UserInfoDto,
     assignee?: UserInfoDto,
     name: string,
-    content?: string
+    content?: string,
 }
 
 export type EditTaskDto = CreateOrEditTaskDto & {
@@ -44,6 +47,7 @@ export type EditTaskDto = CreateOrEditTaskDto & {
 export interface TaskEditFormProps<T extends CreateOrEditTaskDto> {
     isLoading: boolean,
     api: AxiosInstance,
+    partitionKey: CryptoKey,
     form?: T,
     onSave: Callback<T>
 }
@@ -54,6 +58,8 @@ export type PatchTaskProps = {
     task: EditTaskDto,
     editTaskForm: CreateOrEditTaskDto
 }
+
+const tenantApi = createApi(null);
 
 export async function patchTask({api, task, partitionKey}: PatchTaskProps){
     const encoder = new TextEncoder()
@@ -115,7 +121,7 @@ function MemberInfoCard({member}: {member: UserInfoDto}){
     </table>
 }
 
-function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ api, isLoading: parentIsLoading, form, onSave }: TaskEditFormProps<T>) {
+function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ partitionKey, api, isLoading: parentIsLoading, form, onSave }: TaskEditFormProps<T>) {
     const [formValues, setFormValues] = useState(form ? form : { name: '' } as T)
     const [kanbanSearch, setKanbanSearch] = useState(false)
     const [statusSearch, setStatusSearch] = useState(false)
@@ -124,6 +130,7 @@ function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ api
     const [selectedBoardId, setSelectedBoardId] = useState(null as null | number)
     const [statuses, setStatuses] = useState([] as TaskStatusDto[])
     const [allBoards, setAllBoards] = useState([] as KanbanBoardDto[])
+    const [commentCount, setCommentCount] = useState(0)
     const isLoading = useMemo(() => parentIsLoading || localIsLoading, [parentIsLoading, localIsLoading])
     const isDesktop = useMediaQuery("(min-width: 768px)")
     const {activeTenant} = useTenant()
@@ -202,8 +209,28 @@ function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ api
         return (response.data as PageDto<PartitionUserDto>).items
     }
 
+    const loadCommentCount = async () => {
+        if (!formValues.taskId){
+            return
+        }
+        try {
+            setLocalIsLoading(true)
+            const response = await tenantApi.get(formatQueryParameters('pm/tasks/comments/count', {
+                taskId: formValues.taskId
+            }))
+
+            const {count} = response.data as CountDto
+            setCommentCount(count)
+        } catch (e){
+            notifyApiError(e)
+        } finally {
+            setLocalIsLoading(false)
+        }
+    }
+
     useEffect(() => {
-        loadBoards().then(undefined)
+        loadBoards()
+            .then(loadCommentCount)
     }, []);
 
     useEffect(() => {
@@ -466,27 +493,38 @@ function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ api
                             ...f,
                             content
                         }))}/>
+                        {formValues.taskId && <>
+                            <Label className={'mt-4 text-2xl font-bold'}>
+                                Comments
+                                <span className={'text-muted-foreground font-normal text-xl'}>
+                                ({commentCount})
+                            </span>
+                            </Label>
+                            <TaskCommentsList partitionKey={partitionKey}
+                                              onCommentSubmitted={loadCommentCount}
+                                              className={'mt-4'}
+                                              taskId={formValues.taskId}/>
+                        </>}
                     </div>
                     <div className={"w-80"}>
                         <MainGrid/>
+                        <div className={'mt-2 w-full flex flex-col-reverse'}>
+                            <Button disabled={isLoading}
+                                    type={"submit"}
+                                    onClick={handleSubmit}
+                                    className={'flex flex-grow w-full border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background'}>
+                                {formValues.taskId
+                                    ? <>
+                                        <Save/>
+                                        Save
+                                    </>
+                                    : <>
+                                        <Plus/>
+                                        Create
+                                    </>}
+                            </Button>
+                        </div>
                     </div>
-
-                </div>
-                <div className={'mt-4 w-full flex flex-row-reverse'}>
-                    <Button disabled={isLoading}
-                            type={"submit"}
-                            onClick={handleSubmit}
-                            className={'max-w-fit flex flex-grow border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background'}>
-                        {formValues.taskId
-                            ? <>
-                                <Save/>
-                                Save
-                            </>
-                            : <>
-                                <Plus/>
-                                Create
-                            </>}
-                    </Button>
                 </div>
             </>
             : <>

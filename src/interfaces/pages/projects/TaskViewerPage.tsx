@@ -50,9 +50,10 @@ const TaskViewer : FC<{
     }
 
     return <div className={'w-full flex flex-col px-4 py-2 gap-4'}>
-        <p className={'text-lg font-semibold'}>{editTaskForm.taskId}</p>
+        <p className={'text-2xl font-bold'}>{editTaskForm.taskId}</p>
         <div className={'w-full'}>
             <TaskEditForm isLoading={isLoading}
+                          partitionKey={partitionKey}
                           api={api}
                           form={editTaskForm}
                           onSave={onSave}/>

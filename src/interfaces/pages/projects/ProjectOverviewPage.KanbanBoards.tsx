@@ -205,6 +205,11 @@ const BoardAccordion: FC<RequirePartitionKey & {
         })
         setTaskEditOpened(false)
         toast.success("Task saved successfully")
+        setSearchParams(s => {
+            const params = new URLSearchParams(s)
+            params.delete('task')
+            return params
+        })
         await loadTasks()
     }
 
@@ -402,6 +407,7 @@ const BoardAccordion: FC<RequirePartitionKey & {
                     {taskEditLoading
                         ? <></>
                         : <TaskEditForm api={api}
+                                        partitionKey={partitionKey}
                                         isLoading={isLoading}
                                         onSave={createOrEditTask}
                                         form={editTaskForm}/>}
@@ -425,6 +431,7 @@ const BoardAccordion: FC<RequirePartitionKey & {
                     {taskEditLoading
                         ? <></>
                         : <TaskEditForm api={api}
+                                        partitionKey={partitionKey}
                                         isLoading={isLoading}
                                         onSave={createOrEditTask}
                                         form={editTaskForm}/>}
