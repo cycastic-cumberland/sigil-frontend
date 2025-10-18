@@ -6,9 +6,8 @@ import FullSizeSpinner from "@/interfaces/components/FullSizeSpinner.tsx";
 import {toast} from "sonner";
 import {BACKEND_AUTHORITY} from "@/api.ts";
 import {
-    deriveArgon2idKey,
     type EncodedKeyPair,
-    generateEncodedRsaOaepWithSha256KeyPair,
+    generateEncodedRsaOaepWithSha256KeyPair, toEnrollPasswordBasedCipher,
     uint8ArrayToBase64
 } from "@/utils/cryptography.ts";
 import type {BlockingFC, Callback} from "@/utils/misc.ts";
@@ -20,7 +19,7 @@ import {Eye, EyeOff, KeyRound, RectangleEllipsis} from "lucide-react";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
 import type {WebAuthnCredentialDto} from "@/dto/cryptography/webauthn.ts";
 import type {CipherDto} from "@/dto/cryptography/CipherDto.ts";
-import {validatePassword} from "@/utils/auth.ts";
+import {PasswordValidationText, validatePassword} from "@/utils/auth.ts";
 import {Tooltip, TooltipContent, TooltipTrigger} from "@/components/ui/tooltip.tsx";
 
 type InvitationProbeResultDto = {
@@ -123,11 +122,12 @@ const PasskeyBasedCompletionForm: FC<BaseCompletionFormProps & {
                 lastName: formValues.lastName
             })
             const nonce = crypto.getRandomValues(new Uint8Array(12));
-            const encryptedPkcs8 = await crypto.subtle.encrypt(
+            const encryptedPkcs8 = new Uint8Array(await crypto.subtle.encrypt(
                 { name: "AES-GCM", iv: nonce },
                 encryptionKey,
                 privateKey
-            )
+            ))
+
             const webAuthnCredential: WebAuthnCredentialDto = {
                 credentialId: uint8ArrayToBase64(rawId),
                 salt: uint8ArrayToBase64(salt),
@@ -135,7 +135,7 @@ const PasskeyBasedCompletionForm: FC<BaseCompletionFormProps & {
                 wrappedUserKey: {
                     decryptionMethod: "WEBAUTHN_KEY",
                     iv: uint8ArrayToBase64(nonce),
-                    cipher: uint8ArrayToBase64(new Uint8Array(encryptedPkcs8))
+                    cipher: uint8ArrayToBase64(encryptedPkcs8)
                 } as CipherDto,
             }
             await axios.post(submissionUrl, {
@@ -195,8 +195,6 @@ const PasskeyBasedCompletionForm: FC<BaseCompletionFormProps & {
     </form>
 }
 
-const PasswordValidationText = "Password must be at least 8 character long, have at least one lower case character, one upper case character, one number and one special character.";
-
 const PasswordBasedCompletionForm: FC<BaseCompletionFormProps & {
     onSwitchToPasskey: Callback<BaseCompleteUserRegistrationFormDto>,
 }> = ({ submissionUrl, email, isLoading, setIsLoading, form, privateKey, onSwitchToPasskey }) => {
@@ -244,46 +242,11 @@ const PasswordBasedCompletionForm: FC<BaseCompletionFormProps & {
                 toast.error(PasswordValidationText)
             }
 
-            const parallelism = 1
-            const memory = 32768
-            const iterations = 3
-            const salt = crypto.getRandomValues(new Uint8Array(16))
-            const encoder = new TextEncoder()
-            const parameters = new Uint8Array(12)
-            const parametersView = new DataView(parameters.buffer, parameters.byteOffset, parameters.byteLength)
-            parametersView.setUint32(0, parallelism, true)
-            parametersView.setUint32(4, memory, true)
-            parametersView.setUint32(8, iterations, true)
-            const parametersBase64 = uint8ArrayToBase64(parameters)
-
-            const derivedKey = await deriveArgon2idKey(encoder.encode(formValues.password), salt, iterations, memory, parallelism, 32)
-            const encryptionKey = await crypto.subtle.importKey(
-                "raw",
-                derivedKey,
-                { name: "AES-GCM" },
-                false,
-                ["encrypt"]
-            )
-
-            const nonce = crypto.getRandomValues(new Uint8Array(12))
-            const encryptedPkcs8 = await crypto.subtle.encrypt(
-                { name: "AES-GCM", iv: nonce },
-                encryptionKey,
-                privateKey
-            )
-
-            const keyDerivationSettings = `argon2id$${uint8ArrayToBase64(salt)}$${parametersBase64}`
-            const passwordCredential = {
-                keyDerivationSettings,
-                cipher: {
-                    decryptionMethod: "USER_PASSWORD",
-                    iv: uint8ArrayToBase64(nonce),
-                    cipher: uint8ArrayToBase64(new Uint8Array(encryptedPkcs8))
-                }
-            }
+            const passwordCredential = await toEnrollPasswordBasedCipher(formValues.password, privateKey)
 
             await axios.post(submissionUrl, {
                 ...formValues,
+                repeatPassword: undefined,
                 passwordCredential
             })
 

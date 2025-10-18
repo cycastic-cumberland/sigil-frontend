@@ -3,6 +3,10 @@ import {enc} from 'crypto-js';
 import type {Prf} from "@/dto/cryptography/webauthn.ts";
 // @ts-ignore
 import argon2 from 'argon2-browser/dist/argon2-bundled.min.js';
+import type {
+    EnrollPasswordBasedCipherDto,
+    EnrollPasswordBasedCipherSignedDto
+} from "@/dto/cryptography/EnrollPasswordBasedCipherDto.ts";
 
 export type EncodedKeyPair = {
     publicKey: Uint8Array,
@@ -181,6 +185,18 @@ export const signWithSHA256withRSAPSS = async (key: CryptoKey, data: Uint8Array)
     return new Uint8Array(sig)
 }
 
+export const verifyWithSHA256withRSAPSS = async (key: CryptoKey, data: Uint8Array, signature: Uint8Array): Promise<boolean> => {
+    return crypto.subtle.verify(
+        {
+            name: "RSA-PSS",
+            saltLength: 32
+        },
+        key,
+        signature,
+        data
+    )
+}
+
 export const deriveEncryptionKeyFromWebAuthnPrf = async (prf: Prf) => {
     const ikm = prf.results.first
     const keyDerivationKey = await crypto.subtle.importKey(
@@ -274,27 +290,27 @@ export const createPrivateKey = (pkcs8: Uint8Array, isSign: boolean) => {
     )
 }
 
-export const createPublicKey = (pem: Uint8Array, isSign: boolean) => {
+export const createPublicKey = (pem: Uint8Array, isVerify: boolean) => {
     return crypto.subtle.importKey(
         "spki",
         pem,
         {
-            name: isSign ? 'RSA-PSS' : 'RSA-OAEP',
+            name: isVerify ? 'RSA-PSS' : 'RSA-OAEP',
             hash: { name: 'SHA-256' }
         },
         true,
-        [isSign ? "sign" : "encrypt"]
+        [isVerify ? "verify" : "encrypt"]
     )
 }
 
-export const importPrivateKeyFromPem = (pem: string) => {
+export const importPrivateKeyFromPem = (pem: string, isSign?: boolean) => {
     const cleanPem = pem
         .replace("-----BEGIN PRIVATE KEY-----", "")
         .replace("-----END PRIVATE KEY-----", "")
         .replace(/\s/g, "")
 
     // Import the key
-    return createPrivateKey(base64ToUint8Array(cleanPem), false)
+    return createPrivateKey(base64ToUint8Array(cleanPem), isSign ?? false)
 }
 
 export const tryEncryptText = async <T extends string | undefined>(key: CryptoKey, base64Content: T, iv: Uint8Array): Promise<T> => {
@@ -325,5 +341,70 @@ export const tryDecryptText = async <T extends string | undefined>(key: CryptoKe
             throw Error("Corrupted data detected")
         }
         throw e
+    }
+}
+
+export const toEnrollPasswordBasedCipher = async <T extends CryptoKey | Uint8Array>(password: string, privateKey: T): Promise<EnrollPasswordBasedCipherDto> => {
+    const parallelism = 1
+    const memory = 32768
+    const iterations = 3
+    const salt = crypto.getRandomValues(new Uint8Array(16))
+    const encoder = new TextEncoder()
+    const parameters = new Uint8Array(12)
+    const parametersView = new DataView(parameters.buffer, parameters.byteOffset, parameters.byteLength)
+    parametersView.setUint32(0, parallelism, true)
+    parametersView.setUint32(4, memory, true)
+    parametersView.setUint32(8, iterations, true)
+    const parametersBase64 = uint8ArrayToBase64(parameters)
+
+    const derivedKey = await deriveArgon2idKey(encoder.encode(password), salt, iterations, memory, parallelism, 32)
+    const encryptionKey = await crypto.subtle.importKey(
+        "raw",
+        derivedKey,
+        { name: "AES-GCM" },
+        false,
+        ["encrypt"]
+    )
+
+    let keyBytes: Uint8Array
+    if (privateKey instanceof CryptoKey){
+        keyBytes = new Uint8Array(await crypto.subtle.exportKey('pkcs8', privateKey))
+    } else {
+        keyBytes = privateKey
+    }
+
+    const nonce = crypto.getRandomValues(new Uint8Array(12))
+    const encryptedPkcs8 = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv: nonce },
+        encryptionKey,
+        keyBytes
+    )
+
+    const keyDerivationSettings = `argon2id$${uint8ArrayToBase64(salt)}$${parametersBase64}`
+    return {
+        keyDerivationSettings,
+        cipher: {
+            decryptionMethod: "USER_PASSWORD",
+            iv: uint8ArrayToBase64(nonce),
+            cipher: uint8ArrayToBase64(new Uint8Array(encryptedPkcs8))
+        }
+    }
+}
+
+export const toEnrollPasswordBasedCipherSigned = async <T extends CryptoKey | Uint8Array>(password: string, privateKey: T): Promise<EnrollPasswordBasedCipherSignedDto> => {
+    let keyBytes: Uint8Array
+    if (privateKey instanceof CryptoKey){
+        keyBytes = new Uint8Array(await crypto.subtle.exportKey('pkcs8', privateKey))
+    } else {
+        keyBytes = privateKey
+    }
+
+    const data = await toEnrollPasswordBasedCipher(password, keyBytes)
+    const signingKey = await createPrivateKey(keyBytes, true)
+    const signature = await signWithSHA256withRSAPSS(signingKey, base64ToUint8Array(data.cipher.cipher))
+    return {
+        ...data,
+        signatureAlgorithm: 'SHA256withRSA/PSS',
+        signature: uint8ArrayToBase64(signature)
     }
 }

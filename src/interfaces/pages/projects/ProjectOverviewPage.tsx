@@ -43,7 +43,7 @@ const ProjectDetails: FC<RequireEncryptionKey & {
                     <ProjectOverviewPageKanbanBoards {...props}/>
                 </TabsContent>
                 <TabsContent value="backlog" className={"w-full"}>
-                    <div className={"w-full"}>Password</div>
+                    <div className={"w-full"}></div>
                 </TabsContent>
             </Tabs>
         </div>

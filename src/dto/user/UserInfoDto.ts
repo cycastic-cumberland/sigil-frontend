@@ -10,6 +10,7 @@ export type UserInfoDto = BaseUserInfoDto & {
     id: number
     roles: UserRole[]
     publicRsaKey: string,
+    hasPasswordCredential: boolean,
     hasWebAuthnCredential: boolean,
     tenantOwnerCount: number,
     joinedAt: string

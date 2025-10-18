@@ -1,63 +1,159 @@
 import MainLayout from "@/interfaces/layouts/MainLayout.tsx";
 import {Label} from "@/components/ui/label.tsx";
-import {useEffect, useRef, useState} from "react";
+import {type ChangeEvent, type FC, type SyntheticEvent, useEffect, useRef, useState} from "react";
 import type {UserInfoDto} from "@/dto/user/UserInfoDto.ts";
 import FullSizeSpinner from "@/interfaces/components/FullSizeSpinner.tsx";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
 import {notifyApiError} from "@/utils/errors.ts";
 import {Input} from "@/components/ui/input.tsx";
 import {Button} from "@/components/ui/button.tsx";
-import {KeyRound} from "lucide-react";
+import {Eye, EyeOff, KeyRound, RectangleEllipsis} from "lucide-react";
 import {
-    base64ToUint8Array,
+    base64ToUint8Array, createPrivateKey,
     createPublicKey,
-    decryptWithPrivateKey,
-    encryptWithPublicKey,
-    importPrivateKeyFromPem,
+    importPrivateKeyFromPem, signWithSHA256withRSAPSS, toEnrollPasswordBasedCipherSigned,
     toPem,
-    uint8ArrayToBase64
+    uint8ArrayToBase64, verifyWithSHA256withRSAPSS
 } from "@/utils/cryptography.ts";
 import {toast} from "sonner";
 import api from "@/api.ts";
 import type {CipherDto} from "@/dto/cryptography/CipherDto.ts";
-import useMediaQuery from "@/hooks/use-media-query.tsx";
-import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from "@/components/ui/dialog.tsx";
-import {Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle} from "@/components/ui/drawer.tsx";
-import {getAuth} from "@/utils/auth.ts";
+import {getAuth, PasswordValidationText, validatePassword} from "@/utils/auth.ts";
 import {Tooltip, TooltipContent, TooltipTrigger} from "@/components/ui/tooltip.tsx";
-import {PasswordBasedPrivateKeyDecryptor} from "@/interfaces/components/PrivateKeyDecryptor.tsx";
 import {useConsent} from "@/contexts/ConsentContext.tsx";
 import {readFileToString} from "@/utils/format.ts";
 import {AllStores, openDb} from "@/utils/db.ts";
+import type {Callback} from "@/utils/misc.ts";
+import useMediaQuery from "@/hooks/use-media-query.tsx";
+import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from "@/components/ui/dialog.tsx";
+import {Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle} from "@/components/ui/drawer.tsx";
+import {Spinner} from "@/components/ui/shadcn-io/spinner";
 
 const env = import.meta.env.VITE_FRONTEND_ENV
 
 const verifyKeyPairIntegrity = async (publicKey: CryptoKey, privateKey: CryptoKey) => {
     let data: Uint8Array
-    let decrypted: Uint8Array
+    let signature: Uint8Array
     try {
         data = crypto.getRandomValues(new Uint8Array(16))
-        const encrypted = await encryptWithPublicKey(publicKey, data)
-        decrypted = await decryptWithPrivateKey(privateKey, encrypted)
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        signature = await signWithSHA256withRSAPSS(privateKey, data)
     } catch (e){
+        console.error(e)
         throw Error("Key integrity verification failed")
     }
 
-    if (!data.every((value, index) => value === decrypted[index])){
+    if (!await verifyWithSHA256withRSAPSS(publicKey, data, signature)){
         throw Error("Key integrity verification failed")
     }
 }
 
+type PasswordProps = {
+    password: string,
+    repeatPassword: string
+}
+
+const EnrollPassword: FC<{
+    isLoading: boolean,
+    onSubmit: Callback<string>
+}> = ({isLoading, onSubmit}) => {
+    const [showPassword, setShowPassword] = useState(false)
+    const [showRepeatPassword, setShowRepeatPassword] = useState(false)
+    const [formValues, setFormValues] = useState({
+        password: '',
+        repeatPassword: ''
+    } as PasswordProps)
+
+    const handleChange = (
+        e: ChangeEvent<HTMLInputElement>
+    ) => {
+        const { id, value, type, checked } = e.target;
+        setFormValues((prev) => ({
+            ...prev,
+            [id]:
+                type === 'checkbox'
+                    ? checked
+                    : value,
+        }));
+    }
+
+    const handleSubmit = (e: SyntheticEvent) => {
+        e.preventDefault()
+        if (formValues.password !== formValues.repeatPassword){
+            toast.error("Password does not match");
+            return
+        }
+        if (!validatePassword(formValues.password)){
+            toast.error(PasswordValidationText)
+            return
+        }
+
+        onSubmit(formValues.password)
+    };
+
+    return <form onSubmit={handleSubmit}>
+        <div className="grid gap-2">
+            <div className="flex flex-row gap-2">
+                <Label className="w-32">Password:</Label>
+                <div className="relative flex-1 items-center flex-grow">
+                    <Input
+                        className="flex-1 border-foreground"
+                        value={formValues.password}
+                        onChange={handleChange}
+                        type={showPassword ? "text" : "password"}
+                        id={"password"}
+                        disabled={isLoading}
+                        required
+                    />
+                    <button
+                        type="button"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 cursor-pointer"
+                        tabIndex={-1}
+                    >
+                        {showPassword ? <EyeOff className="h-5 w-5 text-foreground" /> : <Eye className="h-5 w-5 text-muted-foreground" />}
+                    </button>
+                </div>
+            </div>
+            <div className="flex flex-row gap-2">
+                <Label className="w-32">Repeat password:</Label>
+                <div className="relative flex-1 items-center flex-grow">
+                    <Input
+                        className="flex-1 border-foreground"
+                        value={formValues.repeatPassword}
+                        onChange={handleChange}
+                        type={showRepeatPassword ? "text" : "password"}
+                        id={"repeatPassword"}
+                        disabled={isLoading}
+                        required
+                    />
+                    <button
+                        type="button"
+                        onClick={() => setShowRepeatPassword((prev) => !prev)}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 cursor-pointer"
+                        tabIndex={-1}
+                    >
+                        {showRepeatPassword ? <EyeOff className="h-5 w-5 text-foreground" /> : <Eye className="h-5 w-5 text-muted-foreground" />}
+                    </button>
+                </div>
+            </div>
+            <Button disabled={isLoading}
+                    type={"submit"}
+                    className={'flex flex-grow border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background'}>
+                {isLoading ? <Spinner/> : <RectangleEllipsis/>}
+                Enroll password
+            </Button>
+        </div>
+    </form>
+}
 
 const SelfDetailsPage = () => {
     const [isLoading, setIsLoading] = useState(false)
-    const [enrollPasskeyDialog, setEnrollPasskeyDialog] = useState(false)
+    const [enrollPasswordEnabled, setEnrollPasswordEnabled] = useState(false)
     const [user, setUser] = useState(null as UserInfoDto | null)
-    const {setUserPrivateKey, getUserInfo, generateWebAuthnPrfKey, transientDecryptPrivateKey, getEnvelop, invalidateAllSessions, localLogout} = useAuthorization()
+    const {setUserPrivateKey, getUserInfo, generateWebAuthnPrfKey, getEnvelop, invalidateAllSessions, localLogout} = useAuthorization()
     const {requireAgreement, requireDecryption, requireFiles} = useConsent()
-    const isDesktop = useMediaQuery("(min-width: 768px)")
     const agreementRef = useRef(null as Promise<boolean> | null)
+    const isDesktop = useMediaQuery("(min-width: 768px)")
 
     useEffect(() => {
         (async () => {
@@ -73,31 +169,54 @@ const SelfDetailsPage = () => {
         })()
     }, []);
 
+    const attemptEnrollPassword = async (password: string) => {
+        try {
+            setIsLoading(true)
+            const privateKey = await requireDecryption()
+            const passwordCredential = await toEnrollPasswordBasedCipherSigned(password, privateKey)
+
+            await api.post('auth/password/enroll', passwordCredential)
+            setEnrollPasswordEnabled(false)
+            toast.success("Password enrolled")
+        } catch (e){
+            notifyApiError(e)
+        } finally {
+            setIsLoading(false)
+        }
+
+        setUser(await getUserInfo(true))
+    }
+
     const enrollPasskey = async (u: UserInfoDto, pkcs8: Uint8Array) => {
         const {encryptionKey, rawId, salt, transports} = await generateWebAuthnPrfKey(u)
         const nonce = crypto.getRandomValues(new Uint8Array(12));
-        const encryptedPkcs8 = await crypto.subtle.encrypt(
+        const encryptedPkcs8 = new Uint8Array(await crypto.subtle.encrypt(
             { name: "AES-GCM", iv: nonce },
             encryptionKey,
             pkcs8
-        )
+        ))
 
+        const privateKey = await createPrivateKey(pkcs8, true)
+        const cipherSignature = await signWithSHA256withRSAPSS(privateKey, encryptedPkcs8)
         await api.post('auth/webauthn/enroll', {
             credentialId: uint8ArrayToBase64(rawId),
             salt: uint8ArrayToBase64(salt),
             transports,
+            signatureAlgorithm: 'SHA256withRSA/PSS',
+            signature: uint8ArrayToBase64(cipherSignature),
             wrappedUserKey: {
                 decryptionMethod: "WEBAUTHN_KEY",
                 iv: uint8ArrayToBase64(nonce),
-                cipher: uint8ArrayToBase64(new Uint8Array(encryptedPkcs8))
+                cipher: uint8ArrayToBase64(encryptedPkcs8)
             } as CipherDto,
         })
 
         setUser(await getUserInfo(true))
     }
 
-    const attemptEnrollPasskey = async (password: string) => {
+    const attemptEnrollPasskey = async () => {
         try {
+            const privateKey = await requireDecryption()
             setIsLoading(true)
 
             const envelop = await getEnvelop();
@@ -105,9 +224,10 @@ const SelfDetailsPage = () => {
                 toast.error("Password not enabled")
                 return
             }
-            const pkcs8 = await transientDecryptPrivateKey(password, envelop.passwordCipher)
-            await enrollPasskey(user!, pkcs8)
-            setEnrollPasskeyDialog(false)
+            const pkcs8 = await crypto.subtle.exportKey('pkcs8', privateKey)
+            await enrollPasskey(user!, new Uint8Array(pkcs8))
+
+            toast.success("Passkey enrolled")
         } catch (e: unknown) {
             if (e instanceof Error){
                 toast.error(e.message)
@@ -174,9 +294,9 @@ const SelfDetailsPage = () => {
             })
 
             const pem = await readFileToString(files[0])
-            const privateKey = await importPrivateKeyFromPem(pem ?? '')
+            const privateKey = await importPrivateKeyFromPem(pem ?? '', true)
 
-            const publicKey = await createPublicKey(base64ToUint8Array(user.publicRsaKey), false)
+            const publicKey = await createPublicKey(base64ToUint8Array(user.publicRsaKey), true)
             await verifyKeyPairIntegrity(publicKey, privateKey)
 
             const db = await openDb()
@@ -216,25 +336,31 @@ const SelfDetailsPage = () => {
     }
 
     return <MainLayout>
-        { isDesktop ? <Dialog open={enrollPasskeyDialog} onOpenChange={setEnrollPasskeyDialog} >
-            <DialogContent className="sm:max-w-[500px]">
+        {enrollPasswordEnabled && (isDesktop ? <Dialog open={enrollPasswordEnabled} onOpenChange={setEnrollPasswordEnabled}>
+            <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Verification required</DialogTitle>
-                    <DialogDescription>Reenter your password to proceed.</DialogDescription>
+                    <DialogTitle>Enroll password</DialogTitle>
+                    <DialogDescription>
+                        {PasswordValidationText}
+                    </DialogDescription>
                 </DialogHeader>
-                <PasswordBasedPrivateKeyDecryptor isLoading={isLoading} onSave={attemptEnrollPasskey}/>
+                <div className={"w-full"}>
+                    <EnrollPassword isLoading={isLoading} onSubmit={attemptEnrollPassword}/>
+                </div>
             </DialogContent>
-        </Dialog> : <Drawer open={enrollPasskeyDialog} onOpenChange={setEnrollPasskeyDialog}>
+        </Dialog> : <Drawer open={enrollPasswordEnabled} onOpenChange={setEnrollPasswordEnabled}>
             <DrawerContent>
                 <DrawerHeader>
-                    <DrawerTitle>Verification required</DrawerTitle>
-                    <DrawerDescription>Reenter your password to proceed.</DrawerDescription>
+                    <DrawerTitle>Enroll password</DrawerTitle>
+                    <DrawerDescription>
+                        {PasswordValidationText}
+                    </DrawerDescription>
                 </DrawerHeader>
-                <div className={"p-5"}>
-                    <PasswordBasedPrivateKeyDecryptor isLoading={isLoading} onSave={attemptEnrollPasskey}/>
+                <div className={"w-full px-3 pb-3"}>
+                    <EnrollPassword isLoading={isLoading} onSubmit={attemptEnrollPassword}/>
                 </div>
             </DrawerContent>
-        </Drawer> }
+        </Drawer>)}
         { !user
             ? <div className={'w-full flex flex-grow'}>
                 <FullSizeSpinner/>
@@ -289,20 +415,26 @@ const SelfDetailsPage = () => {
                                 />
                             </div>
                             <div className="flex flex-row gap-2">
-                                <Label className="w-32">Passkey enabled:</Label>
-                                { user.hasWebAuthnCredential
-                                    ? <Input className="flex-1 border-foreground"
-                                             value={"Passkey enabled"}
-                                             id="hasWebAuthnCredential"
-                                             disabled={true}/>
-                                    : <Button className="flex-1 border-foreground cursor-pointer"
-                                              variant={"outline"}
-                                              type={"button"}
-                                              onClick={() => setEnrollPasskeyDialog(true)}
-                                              disabled={isLoading}>
-                                        <KeyRound/>
-                                        Enable now
-                                    </Button> }
+                                <Label className="w-32">Password:</Label>
+                                <Button className="flex-1 border-foreground cursor-pointer"
+                                        variant={"outline"}
+                                        type={"button"}
+                                        onClick={() => setEnrollPasswordEnabled(true)}
+                                        disabled={isLoading}>
+                                    <RectangleEllipsis/>
+                                    {user.hasPasswordCredential ? 'Update password' : 'Enroll password'}
+                                </Button>
+                            </div>
+                            <div className="flex flex-row gap-2">
+                                <Label className="w-32">Passkey:</Label>
+                                <Button className="flex-1 border-foreground cursor-pointer"
+                                        variant={"outline"}
+                                        type={"button"}
+                                        onClick={attemptEnrollPasskey}
+                                        disabled={isLoading}>
+                                    <KeyRound/>
+                                    {user.hasWebAuthnCredential ? 'Re-enroll passkey' : 'Enable now'}
+                                </Button>
                             </div>
                         </div>
                     </form>

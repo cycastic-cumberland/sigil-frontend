@@ -50,6 +50,7 @@ export interface TaskEditFormProps<T extends CreateOrEditTaskDto> {
     api: AxiosInstance,
     partitionKey: CryptoKey,
     form?: T,
+    showComments?: boolean,
     onSave: Callback<T>
 }
 
@@ -122,7 +123,7 @@ function MemberInfoCard({member}: {member: UserInfoDto}){
     </table>
 }
 
-function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ partitionKey, api, isLoading: parentIsLoading, form, onSave }: TaskEditFormProps<T>) {
+function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ partitionKey, showComments, api, isLoading: parentIsLoading, form, onSave }: TaskEditFormProps<T>) {
     const [formValues, setFormValues] = useState(form ? form : { name: '' } as T)
     const [commentMode, setCommentMode] = useState(false)
     const [kanbanSearch, setKanbanSearch] = useState(false)
@@ -272,7 +273,7 @@ function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ par
                     required
                     readOnly
                 />
-                {formValues.project && <div className={'flex flex-col justify-center'}>
+                {formValues.project && formValues.taskId && <div className={'flex flex-col justify-center'}>
                     <a href={`/tenant/${tenantId}/project/overview/${encodedListingPath(formValues.project.partitionPath)}`} target={'_blank'}>
                         <SquareArrowOutUpRight size={16}/>
                     </a>
@@ -337,6 +338,11 @@ function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ par
                         </Command>
                     </PopoverContent>
                 </Popover>
+                {formValues.project && formValues.kanbanBoard && formValues.taskId && <div className={'flex flex-col justify-center'}>
+                    <a href={formatQueryParameters(`/tenant/${tenantId}/project/overview/${encodedListingPath(formValues.project.partitionPath)}`, {board: formValues.kanbanBoard.id})} target={'_blank'}>
+                        <SquareArrowOutUpRight size={16}/>
+                    </a>
+                </div>}
             </div>
             <div className="flex flex-row gap-2">
                 <Label className="w-16">Status:</Label>
@@ -505,16 +511,16 @@ function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ par
                             content
                         }))}/>
                         {formValues.taskId && <>
-                            <Label className={'mt-4 text-2xl font-bold'}>
+                            <Label className={cn('mt-4 text-2xl', showComments && 'font-bold')}>
                                 Comments
                                 <span className={'text-muted-foreground font-normal text-xl'}>
                                     ({commentCount})
                                 </span>
                             </Label>
-                            <TaskCommentsList partitionKey={partitionKey}
-                                              onCommentSubmitted={loadCommentCount}
-                                              className={'mt-4'}
-                                              taskId={formValues.taskId}/>
+                            {showComments && <TaskCommentsList partitionKey={partitionKey}
+                                                               onCommentSubmitted={loadCommentCount}
+                                                               className={'mt-4'}
+                                                               taskId={formValues.taskId}/>}
                         </>}
                     </div>
                     <div className={"w-80"}>
@@ -539,7 +545,7 @@ function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ par
                 </div>
             </>
             : <>
-                { commentMode && formValues.taskId
+                { showComments && commentMode && formValues.taskId
                     ? <>
                         <Button className={'mt-2 flex flex-grow w-full border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background'}
                                 onClick={() => setCommentMode(false)}>
@@ -570,8 +576,9 @@ function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ par
                                 content
                             }))}/>
                         </div>
-                        {formValues.taskId && <Button className={'mt-2 flex flex-grow w-full border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background'}
-                                                      onClick={() => setCommentMode(true)}>
+                        {showComments && formValues.taskId && <Button className={'mt-2 flex flex-grow w-full border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background'}
+                                                      onClick={() => setCommentMode(true)}
+                                                      disabled={isLoading}>
                             <MessageSquare/>
                             <span>
                                 Comments

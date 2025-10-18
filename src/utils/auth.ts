@@ -3,6 +3,8 @@ import type {UserRole} from "@/dto/user/UserInfoDto.ts";
 
 const passwordValidationRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[`~!@#$%^&*()_+{}|:"<>?\[\]\\;',.]).{8,}$/;
 
+export const PasswordValidationText = "Password must be at least 8 character long, have at least one lower case character, one upper case character, one number and one special character.";
+
 type JwtPayload = {
     roles: UserRole[]
 }

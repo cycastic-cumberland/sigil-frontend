@@ -17,6 +17,7 @@ import {getRpIdFromUrl} from "@/utils/path.ts";
 import type {Prf} from "@/dto/cryptography/webauthn.ts";
 import type {EnvelopDto} from "@/dto/cryptography/EnvelopDto.ts";
 import {AllStores, openDb} from "@/utils/db.ts";
+import {formatQueryParameters} from "@/utils/format.ts";
 
 export type WebAuthnPrfKey = {
     encryptionKey: CryptoKey,
@@ -178,7 +179,9 @@ export const AuthorizationProvider: FC<{ children?: ReactNode }> = ({ children }
     }
 
     const getEnvelop = async () => {
-        const response = await api.get("auth/envelop")
+        const response = await api.get(formatQueryParameters('auth/envelop', {
+            userEmail: getAuth()?.userEmail
+        }))
         return response.data as EnvelopDto
     }
 

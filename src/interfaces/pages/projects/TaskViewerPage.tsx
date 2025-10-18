@@ -56,7 +56,8 @@ const TaskViewer : FC<{
                           partitionKey={partitionKey}
                           api={api}
                           form={editTaskForm}
-                          onSave={onSave}/>
+                          onSave={onSave}
+                          showComments/>
         </div>
     </div>
 }

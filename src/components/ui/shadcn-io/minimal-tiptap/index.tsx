@@ -89,10 +89,8 @@ function MinimalTiptap({
         onBlur()
       }
 
-      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-        event.preventDefault()
-        event.stopPropagation()
-        onSubmit?.()
+      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && onSubmit) {
+        onSubmit()
       }
     }
 
