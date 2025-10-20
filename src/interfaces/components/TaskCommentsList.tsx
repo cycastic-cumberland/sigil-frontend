@@ -313,7 +313,7 @@ const TaskCommentsList: FC<HTMLAttributes<HTMLDivElement> & {
             return true
         }
 
-        return totalPage - 1 > relativePages[relativePages.length - 1]
+        return totalPage > relativePages[relativePages.length - 1]
     }, [totalPage, relativePages])
     const isUnsaved = useMemo(() => writingComment && writingComment !== '<p></p>', [writingComment])
 
