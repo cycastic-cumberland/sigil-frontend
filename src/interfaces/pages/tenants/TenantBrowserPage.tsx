@@ -16,6 +16,7 @@ import {Tooltip, TooltipContent, TooltipTrigger} from "@/components/ui/tooltip.t
 import {notifyApiError} from "@/utils/errors.ts";
 import {toast} from "sonner";
 import {useTenant} from "@/contexts/TenantContext.tsx";
+import {usePageTitle} from "@/hooks/use-page-title.ts";
 
 const CreateTenantDialog: FC<{
     isLoading: boolean,
@@ -71,6 +72,8 @@ const TenantBrowserPage = () => {
     const [counter, setCounter] = useState(0)
     const {getUserInfo} = useAuthorization()
     const navigate = useNavigate()
+
+    usePageTitle('Tenants')
 
     useEffect(() => {
         (async () => {

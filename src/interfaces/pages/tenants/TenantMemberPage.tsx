@@ -43,6 +43,7 @@ import {toast} from "sonner";
 import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover.tsx";
 import {Command, CommandGroup, CommandItem} from "@/components/ui/command.tsx";
 import {cn} from "@/lib/utils.ts";
+import {usePageTitle} from "@/hooks/use-page-title.ts";
 
 const itemsColumnDef: ColumnDef<TenantUserDto>[] = [
     {
@@ -349,6 +350,8 @@ const TenantMemberPage = () => {
     const [dialogOpened, setDialogOpened] = useState(false)
     const isDesktop = useMediaQuery("(min-width: 768px)")
     const {tenantId, activeTenant} = useTenant()
+
+    usePageTitle('Manage members')
 
     if (!activeTenant){
         return <></>

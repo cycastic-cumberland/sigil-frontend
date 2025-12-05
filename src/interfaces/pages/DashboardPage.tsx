@@ -4,6 +4,7 @@ import TenantTable from "@/interfaces/components/TenantTable.tsx";
 import {useState} from "react";
 import {useNavigate} from "react-router";
 import type {TenantDto} from "@/dto/tenant/TenantDto.ts";
+import {usePageTitle} from "@/hooks/use-page-title.ts";
 
 const getTenantLink = (t: TenantDto): string => {
     return `/tenant/${t.id}/partitions/browser/`
@@ -12,6 +13,8 @@ const getTenantLink = (t: TenantDto): string => {
 const DashboardPage = () => {
     const [isLoading, setIsLoading] = useState(false)
     const navigate = useNavigate()
+
+    usePageTitle('Landing')
 
     return <MainLayout>
         <div className={"w-full p-5 flex flex-col"}>

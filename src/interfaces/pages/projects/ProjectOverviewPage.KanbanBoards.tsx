@@ -16,7 +16,7 @@ import {formatQueryParameters} from "@/utils/format.ts";
 import type {PageDto} from "@/dto/PageDto.ts";
 import {Button} from "@/components/ui/button.tsx";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
-import {Pen, PenOff, Plus, SquareArrowOutUpRight, User, Users} from "lucide-react";
+import {Pen, PenOff, Plus, Split, SquareArrowOutUpRight, User, Users} from "lucide-react";
 import type {BlockingFC} from "@/utils/misc.ts";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog.tsx";
@@ -43,6 +43,10 @@ import type {DragEndEvent} from "@dnd-kit/core";
 import type {IdDto} from "@/dto/IdDto.ts";
 import {h64} from "xxhashjs"
 import type {CipherDto} from "@/dto/cryptography/CipherDto.ts";
+import {Tooltip, TooltipContent, TooltipTrigger} from "@/components/ui/tooltip.tsx";
+import FullSizeSpinner from "@/interfaces/components/FullSizeSpinner.tsx";
+import {useKeyManager} from "@/contexts/KeyManagerContext.tsx";
+import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
 
 type RequirePartitionKey = {
     partitionKey: CryptoKey
@@ -65,7 +69,7 @@ const toKanbanColumns = (statuses: TaskStatusDto[]) => {
     }))
 }
 
-const decryptKanbanCards = async (newCards: TaskCardDto[], oldCards: KanbanTaskCardDto[], partitionKey: CryptoKey) => {
+const decryptKanbanCards = async (newCards: TaskCardDto[], oldCards: KanbanTaskCardDto[], backlogId: string, partitionKey: CryptoKey) => {
     const decrypted = [] as KanbanTaskCardDto[]
     const cachedDecryption = Object.fromEntries(oldCards.map(c => [c.id, c]))
     for (const taskCard of newCards) {
@@ -79,7 +83,7 @@ const decryptKanbanCards = async (newCards: TaskCardDto[], oldCards: KanbanTaskC
             id: `${taskCard.id}`,
             ticketId: taskCard.taskIdentifier,
             name: text,
-            column: taskCard.taskStatusId ? `${taskCard.taskStatusId}` : 'auto-backlog',
+            column: taskCard.taskStatusId ? `${taskCard.taskStatusId}` : backlogId,
             encryptedNameHash: nameHash,
             assignee: taskCard.assignee,
         })
@@ -93,11 +97,33 @@ const squaredMagnitude = (vector: { x: number, y : number }): number => {
     return (x * x) + (y * y)
 }
 
+const getTaskHrefSimple = (tenantId: number, taskId: string) => {
+    return `/tenant/${tenantId}/task/${taskId}`
+}
+
+const getTaskHref = async (tenantId: number, taskId: string, key: Uint8Array | undefined, privateKey: CryptoKey) => {
+    if (!key) {
+        return getTaskHrefSimple(tenantId, taskId)
+    }
+
+    const extractedKey = new Uint8Array(await crypto.subtle.exportKey('pkcs8', privateKey))
+    const {iv, cipherText} = await encryptAESGCM({
+        key,
+        content: extractedKey,
+    })
+
+    return formatQueryParameters(getTaskHrefSimple(tenantId, taskId), {
+        'x-ptf-wrapped-ekey': uint8ArrayToBase64(cipherText),
+        'x-ptf-wrapped-nonce': uint8ArrayToBase64(iv),
+    })
+}
+
 const BoardAccordion: FC<RequirePartitionKey & {
     api: AxiosInstance,
     project: ProjectPartitionDto,
     board: KanbanBoardDto,
 }> = ({ api, project, board, partitionKey }) => {
+    const [backlogId, setBacklogId] = useState('auto-backlog')
     const [isLoading, setIsLoading] = useState(true)
     const [taskEditLoading, setTaskEditLoading] = useState(false)
     const [taskEditOpened, setTaskEditOpened] = useState(false)
@@ -106,29 +132,40 @@ const BoardAccordion: FC<RequirePartitionKey & {
     const [statuses, setStatuses] = useState([] as TaskStatusDto[])
     const [tasks, setTasks] = useState([] as TaskCardDto[])
     const [taskCards, setTaskCards] = useState([] as KanbanTaskCardDto[])
+    const [taskHref, setTaskHref] = useState('#')
+    const {getOrCreateEphemeralSymmetricKey} = useKeyManager()
     const isDesktop = useMediaQuery("(min-width: 768px)")
     const {tenantId} = useTenant()
+    const {userPrivateKey} = useAuthorization()
     const [editTaskForm, setEditTaskForm] = useState({project, kanbanBoard: board, name: ''} as CreateOrEditTaskDto)
     const taskIdPreset = useMemo(() => searchParams.get('task'), [searchParams])
     const columns = useMemo(() => {
-        if (!editOn){
-            return [{
-                id: 'auto-backlog', // TODO: Interactively check if this should appear (using unique statuses)
-                name: 'Backlog',
-                color: '#6B7280',
-            }, ...toKanbanColumns(statuses)]
+        let columns = toKanbanColumns(statuses)
+        if (editOn && backlogId === 'auto-backlog'){
+            return columns
+        }
+        if (backlogId === 'auto-backlog'){
+            columns = [
+                {
+                    id: backlogId,
+                    name: 'Backlog',
+                    color: '#6B7280',
+                },
+                ...columns
+            ]
         }
 
-        return [{
-            id: 'auto-backlog',
-            name: 'Backlog',
-            color: '#6B7280',
-        }, ...toKanbanColumns(statuses), {
-            id: 'add',
-            name: '',
-            color: '',
-        }]
-    }, [statuses, editOn])
+        const [backlog] = columns.filter(c => c.id === backlogId)
+        if (backlog){
+            backlog.color = '#6B7280'
+            columns = [
+                backlog,
+                ...columns.filter(c => c.id !== backlogId)
+            ]
+        }
+
+        return columns
+    }, [backlogId, statuses, editOn])
 
     const loadStatuses = async () => {
         try {
@@ -136,7 +173,12 @@ const BoardAccordion: FC<RequirePartitionKey & {
             const response = await api.get(formatQueryParameters('pm/tasks/statuses', {
                 kanbanBoardId: board.id
             }))
-            setStatuses((response.data as TaskStatusesDto).taskStatuses)
+
+            const s = (response.data as TaskStatusesDto).taskStatuses
+            const [backlog] = s.filter(status => status.stereotype === 'BACKLOG')
+            setBacklogId(backlog ? `${backlog.id}` : 'auto-backlog')
+
+            setStatuses(s)
         } catch (e){
             notifyApiError(e)
         } finally {
@@ -301,8 +343,8 @@ const BoardAccordion: FC<RequirePartitionKey & {
     }, []);
 
     useEffect(() => {
-        decryptKanbanCards(tasks, taskCards, partitionKey).then(setTaskCards)
-    }, [tasks, partitionKey]);
+        decryptKanbanCards(tasks, taskCards, backlogId, partitionKey).then(setTaskCards)
+    }, [tasks, backlogId, partitionKey]);
 
     useEffect(() => {
         if (!taskIdPreset){
@@ -316,6 +358,19 @@ const BoardAccordion: FC<RequirePartitionKey & {
 
         openCard(selectedCard).then(undefined)
     }, [taskIdPreset, taskCards]);
+
+    useEffect(() => {
+        if (!editTaskForm?.taskId){
+            setTaskHref('#')
+            return
+        }
+
+        const taskId = editTaskForm.taskId
+        setTaskHref(getTaskHrefSimple(tenantId!, taskId))
+        getOrCreateEphemeralSymmetricKey()
+            .then(k => getTaskHref(tenantId!, taskId, base64ToUint8Array(k.key), userPrivateKey!))
+            .then(setTaskHref)
+    }, [editTaskForm]);
 
     const AddStatusButton = () => {
         const [isOn, setIsOn] = useState(false)
@@ -384,7 +439,7 @@ const BoardAccordion: FC<RequirePartitionKey & {
 
     if (isLoading && !taskCards.length){
         return <div className={'w-full h-20 flex flex-col justify-center'}>
-            <></>
+            <FullSizeSpinner/>
         </div>
     }
 
@@ -397,7 +452,7 @@ const BoardAccordion: FC<RequirePartitionKey & {
                             ? "Create task"
                             : <p className={'w-full flex flex-row min-w-fit text-center gap-1'}>
                                 {editTaskForm.taskId}
-                                <a href={`/tenant/${tenantId}/task/${editTaskForm.taskId}`} target={'_blank'}>
+                                <a href={taskHref} target={'_blank'}>
                                     <SquareArrowOutUpRight size={16}/>
                                 </a>
                             </p>}
@@ -445,11 +500,32 @@ const BoardAccordion: FC<RequirePartitionKey & {
                     <Plus/>
                     Create task
                 </Button>
-                { project.permissions.includes("WRITE") && <Button className={cn('cursor-pointer', editOn ? 'text-background bg-primary hover:text-primary hover:bg-background' : 'text-foreground hover:text-background hover:bg-foreground')}
-                                                                   onClick={() => setEditOn(o => !o)}
-                                                                   disabled={isLoading}>
-                    { editOn ? <PenOff/> : <Pen/> }
-                </Button> }
+                { project.permissions.includes("WRITE") && <>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button className={cn('cursor-pointer', editOn ? 'text-background bg-primary hover:text-primary hover:bg-background' : 'text-foreground hover:text-background hover:bg-foreground')}
+                                    onClick={() => setEditOn(o => !o)}
+                                    disabled={isLoading}>
+                                { editOn ? <PenOff/> : <Pen/> }
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{editOn ? 'Exit' : 'Enter'} edit mode</TooltipContent>
+                    </Tooltip>
+                    {editOn && <>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button className={'cursor-pointer text-foreground hover:text-background hover:bg-foreground'} asChild>
+                                    <Link to={formatQueryParameters(`/tenant/${tenantId}/project/progression/${encodedListingPath(project.partitionPath)}`, {
+                                        board: board.id
+                                    })}>
+                                        <Split/>
+                                    </Link>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Task progression</TooltipContent>
+                        </Tooltip>
+                    </>}
+                </> }
             </div>
             <div className={'w-full'}>
                 <div className={'overflow-x-auto'}>
@@ -573,6 +649,7 @@ const BoardSelector: FC<BlockingFC & RequirePartitionKey & {
                 params.delete('board')
                 return params
             })
+            setOpenItem(undefined)
         }
     }
 

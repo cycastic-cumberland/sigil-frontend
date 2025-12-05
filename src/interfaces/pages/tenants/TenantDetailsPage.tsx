@@ -1,6 +1,6 @@
 import MainLayout from "@/interfaces/layouts/MainLayout.tsx";
 import {Label} from "@/components/ui/label.tsx";
-import {useEffect, useRef, useState} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import type {TenantDto} from "@/dto/tenant/TenantDto.ts";
 import FullSizeSpinner from "@/interfaces/components/FullSizeSpinner.tsx";
 import {useTenant} from "@/contexts/TenantContext.tsx";
@@ -9,6 +9,7 @@ import {Button} from "@/components/ui/button.tsx";
 import {notifyApiError} from "@/utils/errors.ts";
 import {toast} from "sonner";
 import {useConsent} from "@/contexts/ConsentContext.tsx";
+import {usePageTitle} from "@/hooks/use-page-title.ts";
 
 const TenantDetailsPage = () => {
     const [tenant, setTenant] = useState(null as TenantDto | null)
@@ -17,6 +18,9 @@ const TenantDetailsPage = () => {
     const {requireAgreement} = useConsent()
     const {tenantId} = useTenant()
     const { getTenant, saveTenant } = useTenant()
+    const pageTitle = useMemo(() => tenant ? 'Manage ' + tenant.tenantName : 'Manage tenant', [tenant])
+
+    usePageTitle(pageTitle)
 
     const reloadProject = async (id: number) => {
         try {

@@ -14,6 +14,7 @@ import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
 import {useConsent} from "@/contexts/ConsentContext.tsx";
 import type {RequireEncryptionKey} from "@/utils/cryptography.ts";
 import ProjectOverviewPageKanbanBoards from "@/interfaces/pages/projects/ProjectOverviewPage.KanbanBoards.tsx";
+import {usePageTitle} from "@/hooks/use-page-title.ts";
 
 const extractPath = (path: string): string => {
     let subPath = path.replace(/^\/tenant\/[^/]+\/project\/overview\/?/, '');
@@ -27,6 +28,8 @@ const extractPath = (path: string): string => {
 const ProjectDetails: FC<RequireEncryptionKey & {
     project: ProjectPartitionDto,
 }> = (props) => {
+    usePageTitle(props.project.uniqueIdentifier)
+
     return <>
         <div className="flex w-full flex-col gap-6 my-2">
             <Tabs defaultValue="kanban-boards">
@@ -93,6 +96,8 @@ const PartitionLoaderStub: FC<RequireEncryptionKey> = ({userPrivateKey}) => {
 const ProjectOverviewPage = () => {
     const {userPrivateKey} = useAuthorization()
     const {requireDecryption} = useConsent()
+
+    usePageTitle('Project')
 
     useEffect(() => {
         requireDecryption()

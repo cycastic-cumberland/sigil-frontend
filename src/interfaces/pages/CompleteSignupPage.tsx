@@ -21,6 +21,7 @@ import type {WebAuthnCredentialDto} from "@/dto/cryptography/webauthn.ts";
 import type {CipherDto} from "@/dto/cryptography/CipherDto.ts";
 import {PasswordValidationText, validatePassword} from "@/utils/auth.ts";
 import {Tooltip, TooltipContent, TooltipTrigger} from "@/components/ui/tooltip.tsx";
+import {usePageTitle} from "@/hooks/use-page-title.ts";
 
 type InvitationProbeResultDto = {
     email: string
@@ -433,6 +434,8 @@ const CompleteSignupPage = () => {
     const [firstLoad, setFirstLoad] = useState(true)
     const [probeResult, setProbeResult] = useState(null as InvitationProbeResultDto | null)
     const navigate = useNavigate()
+
+    usePageTitle('Complete you sign up')
 
     useEffect(() => {
         setSubmission(searchParams.get('submission'))

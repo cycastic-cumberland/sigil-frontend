@@ -5,6 +5,7 @@ import {BACKEND_AUTHORITY} from "@/api.ts";
 import axios from "axios";
 import {notifyApiError} from "@/utils/errors.ts";
 import FullSizeSpinner from "@/interfaces/components/FullSizeSpinner.tsx";
+import {usePageTitle} from "@/hooks/use-page-title.ts";
 
 type InvitationProbeResultDto = {
     email: string,
@@ -16,6 +17,8 @@ const CompleteTenantInvitationPage = () => {
     const [submission, setSubmission] = useState(null as string | null)
     const [firstLoad, setFirstLoad] = useState(true)
     const navigate = useNavigate()
+
+    usePageTitle('Complete you sign up')
 
     useEffect(() => {
         setSubmission(searchParams.get('submission'))

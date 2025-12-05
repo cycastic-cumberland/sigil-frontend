@@ -11,6 +11,7 @@ import {ExceptionCodes, notifyApiError} from "@/utils/errors.ts";
 import {useQuery} from "@/utils/path.ts";
 import {Eye, EyeOff, KeyRound, RectangleEllipsis} from "lucide-react";
 import axios from "axios";
+import {usePageTitle} from "@/hooks/use-page-title.ts";
 
 const isRegistrationInProgress = (e: unknown) =>
     (axios.isAxiosError(e) && (e.response?.data?.exceptionCode ?? null) === ExceptionCodes.registrationInProgress)
@@ -299,6 +300,8 @@ const LoginPage = () => {
     const [searchParams] = useSearchParams()
     const [errorMessage, setErrorMessage] = useState(null as string | null)
     const navigate = useNavigate()
+
+    usePageTitle('Login')
 
     useEffect(() => {
         setErrorMessage(searchParams.get('error'))

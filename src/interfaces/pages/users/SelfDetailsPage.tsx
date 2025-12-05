@@ -1,6 +1,6 @@
 import MainLayout from "@/interfaces/layouts/MainLayout.tsx";
 import {Label} from "@/components/ui/label.tsx";
-import {type ChangeEvent, type FC, type SyntheticEvent, useEffect, useRef, useState} from "react";
+import {type ChangeEvent, type FC, type SyntheticEvent, useEffect, useMemo, useRef, useState} from "react";
 import type {UserInfoDto} from "@/dto/user/UserInfoDto.ts";
 import FullSizeSpinner from "@/interfaces/components/FullSizeSpinner.tsx";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
@@ -28,6 +28,7 @@ import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from "@/components/ui/dialog.tsx";
 import {Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle} from "@/components/ui/drawer.tsx";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
+import {usePageTitle} from "@/hooks/use-page-title.ts";
 
 const env = import.meta.env.VITE_FRONTEND_ENV
 
@@ -154,6 +155,9 @@ const SelfDetailsPage = () => {
     const {requireAgreement, requireDecryption, requireFiles} = useConsent()
     const agreementRef = useRef(null as Promise<boolean> | null)
     const isDesktop = useMediaQuery("(min-width: 768px)")
+    const pageTitle = useMemo(() => !user ? 'Your profile' : `${user.firstName} ${user.lastName}`, [user])
+
+    usePageTitle(pageTitle)
 
     useEffect(() => {
         (async () => {

@@ -9,6 +9,7 @@ import {Link} from "react-router";
 import {notifyApiError} from "@/utils/errors.ts";
 import api from "@/api.ts";
 import {toast} from "sonner";
+import {usePageTitle} from "@/hooks/use-page-title.ts";
 
 const RegisterForm: FC<HTMLAttributes<HTMLDivElement> & {
     formData: RegisterUserDto,
@@ -155,6 +156,8 @@ const RegisterPage = () => {
             setIsLoading(false)
         }
     }
+
+    usePageTitle('Register')
 
     return <div className={"min-h-screen w-full flex flex-row"}>
         <div className={"min-w-1/2 bg-muted hidden lg:flex border-r border-sidebar"}>

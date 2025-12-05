@@ -10,15 +10,18 @@ import type {FC, ReactNode} from "react";
 import {TenantProvider} from "@/contexts/TenantContext.tsx";
 import {NotificationProvider} from "@/contexts/NotificationContext.tsx";
 import {ConsentProvider} from "@/contexts/ConsentContext.tsx";
+import {KeyManagerProvider} from "@/contexts/KeyManagerContext.tsx";
 
 const RouteDependentProviders: FC<{children: ReactNode | ReactNode[]}> = ({ children }) => {
-    return <NotificationProvider>
-        <TenantProvider>
-            <ConsentProvider>
-                { children }
-            </ConsentProvider>
-        </TenantProvider>
-    </NotificationProvider>
+    return <KeyManagerProvider>
+        <NotificationProvider>
+            <TenantProvider>
+                <ConsentProvider>
+                    { children }
+                </ConsentProvider>
+            </TenantProvider>
+        </NotificationProvider>
+    </KeyManagerProvider>
 }
 
 const App = () =>  {

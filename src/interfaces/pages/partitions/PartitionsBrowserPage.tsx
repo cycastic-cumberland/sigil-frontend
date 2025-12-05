@@ -52,6 +52,7 @@ import {cn} from "@/lib/utils.ts";
 import type {UploadProjectDto} from "@/dto/tenant/UploadProjectDto.ts";
 import ProjectEditForm from "@/interfaces/components/ProjectEditForm.tsx";
 import {useConsent} from "@/contexts/ConsentContext.tsx";
+import {usePageTitle} from "@/hooks/use-page-title.ts";
 
 const extractPath = (path: string): string => {
     let subPath = path.replace(/^\/tenant\/[^/]+\/partitions\/browser\/?/, '');
@@ -489,6 +490,9 @@ const FileTable: FC<{ currentDir: string, partitionPath: string | null }> = ({ c
 const CurrentDirectory: FC<{ currentDir: string }> = ({ currentDir }) => {
     const [slices, setSlices] = useState([] as ListingPathFragment[])
     const {tenantId} = useTenant()
+    const pageTitle = useMemo(() => slices.length > 1 ? 'Browsing ' + slices[slices.length - 1].display : 'Browsing', [slices])
+
+    usePageTitle(pageTitle)
 
     useEffect(() => {
         setSlices(extractAndEncodePathFragments(currentDir))

@@ -47,6 +47,7 @@ import {useTenant} from "@/contexts/TenantContext.tsx";
 import FullSizeSpinner from "@/interfaces/components/FullSizeSpinner.tsx";
 import {PrivateKeyDecryptor} from "@/interfaces/components/PrivateKeyDecryptor.tsx";
 import {useConsent} from "@/contexts/ConsentContext.tsx";
+import {usePageTitle} from "@/hooks/use-page-title.ts";
 
 const itemsColumnDef: ColumnDef<PartitionUserDto>[] = [
     {
@@ -516,6 +517,8 @@ const PartitionMembersPage = () => {
     const localApi = createApi(partitionIdRef)
     const query = useQuery()
     const location = useLocation()
+
+    usePageTitle('Manage members')
 
     const getPartition = async (path: string): Promise<PartitionDto> => {
         const pResponse = await api.get(`partitions/partition?partitionPath=${encodeURIComponent(path)}`)

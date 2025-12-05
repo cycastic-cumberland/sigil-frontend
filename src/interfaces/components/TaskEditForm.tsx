@@ -99,6 +99,7 @@ export async function patchTask({api, task, partitionKey}: PatchTaskProps){
         assigneeEmail: task.assignee?.email,
         reporterEmail: task.reporter?.email,
         taskPriority: task.taskPriority,
+        taskStatusId: task.taskStatus?.id,
         encryptedName,
         encryptedContent,
         partitionChecksum,
@@ -141,6 +142,10 @@ function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ par
             (activeTenant.membership === "OWNER" ||
                 activeTenant.permissions.includes("LIST_USERS")),
         [activeTenant])
+    const definedBacklog = useMemo(() => {
+        const [backlog] = statuses.filter(s => s.stereotype === 'BACKLOG')
+        return !!backlog
+    }, [statuses])
 
     const handleChange = (
         e: ChangeEvent<HTMLInputElement>
@@ -194,7 +199,16 @@ function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ par
             const response = await api.get(formatQueryParameters('pm/tasks/statuses', {
                 kanbanBoardId: boardId
             }))
-            setStatuses((response.data as TaskStatusesDto).taskStatuses)
+
+            let s = (response.data as TaskStatusesDto).taskStatuses
+            const [backlog] = s.filter(status => status.stereotype === 'BACKLOG')
+            if (backlog){
+                s = [
+                    backlog,
+                    ...s.filter(status => status.stereotype !== 'BACKLOG')
+                ]
+            }
+            setStatuses(s)
         } catch (e){
             notifyApiError(e)
         } finally {
@@ -370,7 +384,7 @@ function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ par
                     <PopoverContent className="w-48 p-0">
                         <Command>
                             <CommandGroup>
-                                <CommandItem
+                                {!definedBacklog && <CommandItem
                                     key={0}
                                     className={"cursor-pointer truncate overflow-hidden whitespace-nowrap text-muted-foreground"}
                                     onSelect={() => {
@@ -381,7 +395,7 @@ function TaskEditForm<T extends CreateOrEditTaskDto = CreateOrEditTaskDto>({ par
                                     }}
                                 >
                                     Backlog
-                                </CommandItem>
+                                </CommandItem>}
                                 {statuses.map((value, i) => (<CommandItem key={i + 1}
                                                                           className={"cursor-pointer truncate overflow-hidden whitespace-nowrap"}
                                                                           onSelect={() => {

@@ -18,6 +18,8 @@ import {isProjectPartition, type PartitionDto} from "@/dto/tenant/PartitionDto.t
 import {createApi} from "@/api.ts";
 import axios, {type AxiosInstance} from "axios";
 import type {KanbanBoardDto} from "@/dto/pm/KanbanBoardDto.ts";
+import {Label} from "@/components/ui/label.tsx";
+import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
 
 const tenantApi = createApi(null)
 
@@ -67,10 +69,11 @@ const TaskViewerPage = () => {
     const [isLoading, setIsLoading] = useState(true)
     const [partitionKey, setPartitionKey] = useState(null as CryptoKey | null)
     const {tenantId} = useTenant()
-    const {taskId} = useParams();
+    const {taskId} = useParams()
     const partitionRef = useRef(null as number | null)
     const [editTaskForm, setEditTaskForm] = useState(null as EditTaskDto | null)
     const {requireDecryption} = useConsent()
+    const {userPrivateKey} = useAuthorization()
     const navigate = useNavigate()
     const api = useMemo(() => createApi(partitionRef), [])
 
@@ -154,7 +157,7 @@ const TaskViewerPage = () => {
 
     useEffect(() => {
         reloadTask().then(undefined)
-    }, [counter]);
+    }, [counter, userPrivateKey]);
 
     if (isLoading){
         return <MainLayout>
@@ -165,11 +168,27 @@ const TaskViewerPage = () => {
     }
 
     return <MainLayout>
-        {(partitionKey && editTaskForm)
-            && <TaskViewer api={api}
-                           editTaskForm={editTaskForm}
-                           partitionKey={partitionKey}
-                           reloadTrigger={() => setCounter(c => c + 1)}/>}
+        {partitionKey
+            ? (editTaskForm
+                ? <TaskViewer api={api}
+                              editTaskForm={editTaskForm}
+                              partitionKey={partitionKey}
+                              reloadTrigger={() => setCounter(c => c + 1)}/>
+                : <div className={'w-full flex flex-col flex-grow'}>
+                    <FullSizeSpinner/>
+                </div>)
+            : <div className={"flex flex-col flex-grow w-full justify-center gap-2"}>
+                <div className={"w-full flex flex-row justify-center"}>
+                    <Label className={"text-foreground font-bold text-4xl"}>
+                        Task data locked
+                    </Label>
+                </div>
+                <div className={"w-full flex flex-row justify-center"}>
+                    <p className={"text-muted-foreground px-2 text-center"}>
+                        Your data is locked. Tap the padlock above to unlock.
+                    </p>
+                </div>
+            </div>}
     </MainLayout>
 }
 
