@@ -241,6 +241,7 @@ const PasswordBasedCompletionForm: FC<BaseCompletionFormProps & {
             }
             if (!validatePassword(formValues.password)){
                 toast.error(PasswordValidationText)
+                return
             }
 
             const passwordCredential = await toEnrollPasswordBasedCipher(formValues.password, privateKey)

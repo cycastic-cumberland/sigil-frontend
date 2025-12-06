@@ -1,3 +1,5 @@
+export type UserStatus = 'INVITED' | 'ACTIVE' | 'DISABLED'
+
 export type BaseUserInfoDto = {
     email: string
     firstName: string
@@ -13,5 +15,7 @@ export type UserInfoDto = BaseUserInfoDto & {
     hasPasswordCredential: boolean,
     hasWebAuthnCredential: boolean,
     tenantOwnerCount: number,
-    joinedAt: string
+    joinedAt: string,
+    emailVerified: boolean,
+    status: UserStatus,
 }

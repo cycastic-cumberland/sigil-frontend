@@ -15,6 +15,9 @@ import NotificationPage from "@/interfaces/pages/NotificationPage.tsx";
 import ProjectOverviewPage from "@/interfaces/pages/projects/ProjectOverviewPage.tsx";
 import TaskViewerPage from "@/interfaces/pages/projects/TaskViewerPage.tsx";
 import TaskProgressionPage from "@/interfaces/pages/projects/TaskProgressionPage.tsx";
+import AdminUsersPage from "@/interfaces/pages/admin/users/AdminUsersPage.tsx";
+import AdminUserDetailsPage from "@/interfaces/pages/admin/users/AdminUserDetailsPage.tsx";
+import AdminUserCreatePage from "@/interfaces/pages/admin/users/AdminUserCreatePage.tsx";
 
 export type RouteInfo = { index?: boolean, isPrivate: boolean, path?: string, element: ReactNode };
 
@@ -98,5 +101,20 @@ export const AppRoutes : RouteInfo[] = [
         isPrivate: true,
         path: "/tenant/:tenantId/task/:taskId",
         element: <TaskViewerPage/>
+    },
+    {
+        isPrivate: true,
+        path: "/admin/users",
+        element: <AdminUsersPage/>
+    },
+    {
+        isPrivate: true,
+        path: "/admin/user/details/:userId",
+        element: <AdminUserDetailsPage/>
+    },
+    {
+        isPrivate: true,
+        path: "/admin/user/new",
+        element: <AdminUserCreatePage/>
     },
 ]

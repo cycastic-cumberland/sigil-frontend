@@ -20,6 +20,7 @@ import axios, {type AxiosInstance} from "axios";
 import type {KanbanBoardDto} from "@/dto/pm/KanbanBoardDto.ts";
 import {Label} from "@/components/ui/label.tsx";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
+import {usePageTitle} from "@/hooks/use-page-title.ts";
 
 const tenantApi = createApi(null)
 
@@ -30,6 +31,8 @@ const TaskViewer : FC<{
     reloadTrigger: () => void,
 }> = ({api, editTaskForm, reloadTrigger, partitionKey}) => {
     const [isLoading, setIsLoading] = useState(false)
+
+    usePageTitle(editTaskForm.taskId)
 
     const onSave = async (task: EditTaskDto) => {
         try {
@@ -103,11 +106,13 @@ const TaskViewerPage = () => {
 
         try {
             setIsLoading(true)
-            const userPrivateKey = await requireDecryption()
 
             const taskResponse = await tenantApi.get(formatQueryParameters('pm/tasks/task',{
                 taskId
             }))
+
+            const userPrivateKey = await requireDecryption()
+
             const task = taskResponse.data as TaskDto
             partitionRef.current = task.projectPartitionId
 

@@ -1,4 +1,4 @@
-import {type ReactNode, useEffect, useState} from "react";
+import {type ReactNode, useEffect, useMemo, useState} from "react";
 import type {UserInfoDto} from "@/dto/user/UserInfoDto.ts";
 import {
     Sidebar,
@@ -15,7 +15,7 @@ import {
     BellDot,
     Building2,
     Folder, List,
-    Menu,
+    Menu, Triangle,
     Users, Wrench
 } from "lucide-react";
 import {Link, useLocation} from "react-router";
@@ -25,6 +25,7 @@ import {useTenant} from "@/contexts/TenantContext.tsx";
 import {format} from "@/utils/format.ts";
 import {cn} from "@/lib/utils.ts";
 import {useNotification} from "@/contexts/NotificationContext.tsx";
+import {getUserRole} from "@/utils/auth.ts";
 
 const NotificationIcon = () => {
     const {notificationCount} = useNotification()
@@ -39,10 +40,10 @@ const NotificationTitle = () => {
 
 type MenuGroup = {
     title: string,
-    items: {name: string | ReactNode, icon: ReactNode, url: string}[]
+    items: {name: string | ReactNode, icon?: ReactNode, url: string}[]
 }
 
-const startingMeuGroups: MenuGroup[] = [
+const startingMenuGroups: MenuGroup[] = [
     {
         title: "User",
         items: [
@@ -103,6 +104,29 @@ const fullMenuGroups: MenuGroup[] = [
     }
 ]
 
+const AdminMenuGroups: MenuGroup[] = [
+    {
+        title: "Admin",
+        items: [
+            {
+                name: "Users",
+                url: '/admin/users',
+                icon: <Users/>,
+            },
+            {
+                name: "Tenants",
+                url: '#',
+                icon: <Building2/>
+            },
+            {
+                name: "Entitlements",
+                url: '#',
+                icon: <Triangle/>
+            },
+        ]
+    }
+]
+
 const AppSidebar = () => {
     const [avatarUrl, setAvatarUrl] = useState(null as string | null)
     const {localLogout, getUserInfo} = useAuthorization()
@@ -111,7 +135,20 @@ const AppSidebar = () => {
     const {tenantId} = useTenant()
     const {state, setOpenMobile} = useSidebar()
     const isDesktop = useMediaQuery("(min-width: 768px)")
-    const location = useLocation();
+    const location = useLocation()
+    const menuGroups = useMemo(() => {
+        const groups = tenantId ? fullMenuGroups : startingMenuGroups;
+        if ((getUserRole() ?? []).includes("ADMIN")){
+            return [
+                ...groups,
+                ...AdminMenuGroups
+            ]
+        }
+
+        return [
+            ...groups
+        ]
+    }, [tenantId])
 
     useEffect(() => {
         (async () => {
@@ -147,7 +184,7 @@ const AppSidebar = () => {
             </Link> : <Link to={'/'}><img className={"w-8 aspect-square"} src={theme === 'dark' ? '/icon-dark.svg' : "/icon-light.svg"} alt={"logo"}/></Link> }
         </SidebarHeader>
         <SidebarContent className={"bg-sidebar-accent"}>
-            { (tenantId ? fullMenuGroups : startingMeuGroups).map((mg, i) => <SidebarGroup key={i}>
+            { menuGroups.map((mg, i) => <SidebarGroup key={i}>
                 <SidebarGroupLabel className={"text-foreground"}>{ mg.title }</SidebarGroupLabel>
                 <SidebarGroupContent className={"text-foreground"}>
                     <SidebarMenu>

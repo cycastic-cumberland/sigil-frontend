@@ -996,7 +996,7 @@ const TaskProgressionPage = () => {
                 </Link>
             </Button>
             <div className={'flex gap-2'}>
-                <Button className={'cursor-pointer bg-background text-foreground hover:bg-foreground hover:text-background'}
+                <Button className={'cursor-pointer bg-background text-primary hover:bg-primary hover:text-background'}
                         disabled={isLoading}
                         onClick={() => setOpenSidePanel(true)}>
                     <Asterisk/>
@@ -1007,7 +1007,7 @@ const TaskProgressionPage = () => {
                     <Plus/>
                     Add status
                 </Button>
-                <Button className={'cursor-pointer bg-foreground text-background border-foreground border-1 hover:bg-background hover:text-foreground'}
+                <Button className={'cursor-pointer bg-primary text-background border-primary border-1 hover:bg-background hover:text-primary'}
                         onClick={() => saveTrigger.current()}
                         disabled={isLoading}>
                     <Save/>

@@ -5,4 +5,5 @@ export type AuthenticationResponseDto = {
     kdfSettings?: string,
     publicRsaKey: string,
     notificationToken: `${string}-${string}-${string}-${string}-${string}`,
+    roles: string[]
 }

@@ -9,7 +9,7 @@ import {formatQueryParameters} from "@/utils/format.ts";
 import {isProjectPartition, type PartitionDto, type ProjectPartitionDto} from "@/dto/tenant/PartitionDto.ts";
 import {toast} from "sonner";
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs.tsx";
-import {KanbanSquare, List, Rows3} from "lucide-react";
+import {KanbanSquare} from "lucide-react";
 import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
 import {useConsent} from "@/contexts/ConsentContext.tsx";
 import type {RequireEncryptionKey} from "@/utils/cryptography.ts";
@@ -35,8 +35,8 @@ const ProjectDetails: FC<RequireEncryptionKey & {
             <Tabs defaultValue="kanban-boards">
                 <TabsList className={"max-w-fit"}>
                     <TabsTrigger className={'cursor-pointer'} value="kanban-boards"><KanbanSquare/>Kanban boards</TabsTrigger>
-                    <TabsTrigger className={'cursor-pointer'} value="all-sprints"><List/>All sprints</TabsTrigger>
-                    <TabsTrigger className={'cursor-pointer'} value="backlog"><Rows3/>Backlog</TabsTrigger>
+                    {/*<TabsTrigger className={'cursor-pointer'} value="all-sprints"><List/>All sprints</TabsTrigger>*/}
+                    {/*<TabsTrigger className={'cursor-pointer'} value="backlog"><Rows3/>Backlog</TabsTrigger>*/}
                 </TabsList>
                 <TabsContent value="all-sprints">
                     <div className={"w-full overflow-x-auto"}>
