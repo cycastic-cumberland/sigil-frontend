@@ -10,8 +10,10 @@ import {notifyApiError} from "@/utils/errors.ts";
 import {toast} from "sonner";
 import {useConsent} from "@/contexts/ConsentContext.tsx";
 import {usePageTitle} from "@/hooks/use-page-title.ts";
+import {useAuthorization} from "@/contexts/AuthorizationContext.tsx";
 
 const TenantDetailsPage = () => {
+    const {authData} = useAuthorization()
     const [tenant, setTenant] = useState(null as TenantDto | null)
     const [isLoading, setIsLoading] = useState(true)
     const consentRef =useRef(null as Promise<boolean> | null)
@@ -19,6 +21,7 @@ const TenantDetailsPage = () => {
     const {tenantId} = useTenant()
     const { getTenant, saveTenant } = useTenant()
     const pageTitle = useMemo(() => tenant ? 'Manage ' + tenant.tenantName : 'Manage tenant', [tenant])
+    const isAdmin = useMemo(() => authData?.roles.includes('ADMIN') ?? false, [authData])
 
     usePageTitle(pageTitle)
 
@@ -98,7 +101,7 @@ const TenantDetailsPage = () => {
                                     isLoading={isLoading}
                                     onSave={onSave}
                                     tenant={tenant} disableSave={!!tenant && tenant.membership !== "OWNER"}/>
-                    {(!!tenant && tenant.membership === "OWNER") && <Button className={"cursor-pointer bg-destructive text-background border-destructive border-1 hover:bg-background hover:text-destructive"}
+                    {(!!tenant && (isAdmin || tenant.membership === "OWNER")) && <Button className={"cursor-pointer bg-destructive text-background border-destructive border-1 hover:bg-background hover:text-destructive"}
                             onClick={onDelete}
                             disabled>
                         Delete tenant

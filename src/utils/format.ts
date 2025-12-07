@@ -20,7 +20,7 @@ export type FormattableQueryParameterType = string | number | boolean | undefine
 
 export const formatQueryParameters = (url: string, params: Record<string, FormattableQueryParameterType>) => {
     const encodedParams = Object.keys(params)
-        .filter(k => params[k] != null)
+        .filter(k => params[k] != null && params[k] != undefined)
         .map(k => `${encodeURIComponent(k)}=${encodeURIComponent(`${params[k]}`)}`)
         .join("&")
 

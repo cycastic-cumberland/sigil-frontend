@@ -5,3 +5,9 @@ export type PageDto<T> = {
     totalPages: number,
     totalElements: number,
 }
+
+export type EnumerablePageDto<T> = {
+    items: T[],
+    prevToken?: string,
+    nextToken?: string,
+}

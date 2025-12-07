@@ -44,6 +44,7 @@ import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover.t
 import {Command, CommandGroup, CommandItem} from "@/components/ui/command.tsx";
 import {cn} from "@/lib/utils.ts";
 import {usePageTitle} from "@/hooks/use-page-title.ts";
+import {getUserRole} from "@/utils/auth.ts";
 
 const itemsColumnDef: ColumnDef<TenantUserDto>[] = [
     {
@@ -346,6 +347,7 @@ const InviteUserDialog: FC<BlockingFC> = ({ isLoading, setIsLoading }) => {
 }
 
 const TenantMemberPage = () => {
+    const [isAdmin, setIsAdmin] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const [dialogOpened, setDialogOpened] = useState(false)
     const isDesktop = useMediaQuery("(min-width: 768px)")
@@ -353,11 +355,17 @@ const TenantMemberPage = () => {
 
     usePageTitle('Manage members')
 
+    useEffect(() => {
+        if (getUserRole()?.includes('ADMIN')){
+            setIsAdmin(true)
+        }
+    }, [])
+
     if (!activeTenant){
         return <></>
     }
 
-    if (activeTenant.membership !== "OWNER" && !activeTenant.permissions.includes("LIST_USERS")){
+    if (!isAdmin && activeTenant.membership !== "OWNER" && !activeTenant.permissions.includes("LIST_USERS")){
         return <MainLayout>
             <div className={"flex flex-col flex-grow w-full justify-center gap-2"}>
                 <div className={"w-full flex flex-row justify-center"}>

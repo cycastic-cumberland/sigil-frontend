@@ -5,7 +5,6 @@ import {Link, useNavigate} from "react-router";
 import {toast} from "sonner";
 import {Label} from "@/components/ui/label.tsx";
 import {Input} from "@/components/ui/input.tsx";
-import FullSizeSpinner from "@/interfaces/components/FullSizeSpinner.tsx";
 import {notifyApiError} from "@/utils/errors.ts";
 import api from "@/api.ts";
 import {formatQueryParameters} from "@/utils/format.ts";
@@ -20,8 +19,36 @@ import {
 } from "@/components/ui/pagination.tsx";
 import {cn} from "@/lib/utils.ts";
 import {Button} from "@/components/ui/button.tsx";
+import {PenLine, Plus} from "lucide-react";
+import {type ColumnDef, flexRender, getCoreRowModel, getSortedRowModel, useReactTable} from "@tanstack/react-table";
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table.tsx";
+import {Spinner} from "@/components/ui/shadcn-io/spinner";
 
 const MAX_PAGE_SIZE = 10
+
+const columnDefs: ColumnDef<UserInfoDto>[] = [
+    {
+        accessorKey: 'id',
+        header: 'ID'
+    },
+    {
+        accessorKey: 'email',
+        header: 'Email'
+    },
+    {
+        accessorKey: 'firstName',
+        header: 'First name'
+    },
+    {
+        accessorKey: 'lastName',
+        header: 'Last name'
+    },
+    {
+        id: 'details',
+        accessorFn: () => null,
+        header: 'Edit',
+    },
+]
 
 const AdminUsersPage = () => {
     const [isLoading, setIsLoading] = useState(false)
@@ -29,6 +56,15 @@ const AdminUsersPage = () => {
     const [query, setQuery] = useState('')
     const [page, setPage] = useState(1)
     const [totalPage, setTotalPage] = useState(null as number | null)
+    const table = useReactTable({
+        data: users,
+        columns: columnDefs,
+        pageCount: page,
+        manualPagination: true,
+        manualSorting: true,
+        getCoreRowModel: getCoreRowModel(),
+        getSortedRowModel: getSortedRowModel(),
+    })
     const relativePages = useMemo(() => {
         if (totalPage === null){
             return [page]
@@ -110,27 +146,65 @@ const AdminUsersPage = () => {
                 <Input placeholder={'Search by email prefix…'} value={query} onChange={c => setQuery(c.target.value)}/>
                 <Button variant={"ghost"} className={'cursor-pointer'} asChild>
                     <Link to={'/admin/user/new'}>
+                        <Plus/>
                         Create
                     </Link>
                 </Button>
             </div>
-            {isLoading ? <div className={'w-full flex flex-col h-56 justify-center'}>
-                <FullSizeSpinner/>
-            </div> : <div className={'w-full my-5'}>
-                <table className={''}>
-                    <thead>
-                        <tr><td></td><td></td></tr>
-                    </thead>
-                    <tbody className={''}>
-                        {users.map((u, i) => <tr key={i} className={'w-full'}>
-                            <td className={'w-full'}>{u.email}</td>
-                            <td className={'min-w-36'}>
-                                <Link to={'/admin/user/details/' + u.id}>Details</Link>
-                            </td>
-                        </tr> )}
-                    </tbody>
-                </table>
-            </div>}
+            <div className={'w-full my-5'}>
+                <div className={'rounded-md border'}>
+                    <Table>
+                        <TableHeader>
+                            {table.getHeaderGroups().map(headerGroup => (<TableRow key={headerGroup.id}>
+                                {headerGroup.headers.map(header => (<TableHead key={header.id}>
+                                    {header.isPlaceholder
+                                        ? null
+                                        : flexRender(
+                                            header.column.columnDef.header,
+                                            header.getContext()
+                                        )}
+                                </TableHead>))}
+                            </TableRow>))}
+                        </TableHeader>
+                        <TableBody>
+                            {isLoading && <TableRow>
+                                <TableCell colSpan={columnDefs.length}
+                                           className="h-24 text-foreground text-xl font-bold">
+                                    <div className={"flex flex-row justify-center items-center content-center w-full"}>
+                                        <Spinner/>
+                                    </div>
+                                </TableCell>
+                            </TableRow>}
+                            {!isLoading && <>
+                                {table.getRowModel().rows?.length
+                                    ? (table.getRowModel().rows.map(row => (
+                                        <TableRow key={row.id}
+                                                  data-state={row.getIsSelected() && "selected"}
+                                                  className={"cursor-pointer"}>
+                                            {row.getVisibleCells().map(cell => (
+                                                <TableCell key={cell.id}>
+                                                    {cell.column.id === 'details' ? <>
+                                                        <Button className={'text-primary border-primary border-2 cursor-pointer hover:bg-primary hover:text-background'} asChild>
+                                                            <Link to={'/admin/user/details/' + row.original.id}>
+                                                                <PenLine/>
+                                                                Edit
+                                                            </Link>
+                                                        </Button>
+                                                    </> : flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                                </TableCell>
+                                            ))}
+                                        </TableRow>
+                                    )))
+                                    : <TableRow>
+                                        <TableCell colSpan={columnDefs.length} className="h-24 text-center">
+                                            No results.
+                                        </TableCell>
+                                    </TableRow>}
+                            </>}
+                        </TableBody>
+                    </Table>
+                </div>
+            </div>
             <Pagination>
                 <PaginationContent>
                     {relativePages[0] < page && <PaginationItem>

@@ -23,6 +23,7 @@ import api from "@/api.ts";
 import type {IdDto} from "@/dto/IdDto.ts";
 import {useNavigate} from "react-router";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
+import {ArrowLeft} from "lucide-react";
 
 type FormType = AdminUserCreatePageEditFormType & {
     password: string,
@@ -115,49 +116,52 @@ const AdminUserCreatePage = () => {
     }, [navigate])
 
     return <MainLayout>
-        <div className={"w-full p-5 flex flex-col"}>
-            <div className={"my-2"}>
-                <Label className={"text-2xl text-foreground font-bold"}>
-                    Create user
-                </Label>
+        <div className={cn("p-5 flex flex-col gap-2", isDesktop ? 'w-1/2' : 'w-full')}>
+            <Label className={"my-2 text-2xl text-foreground font-bold"}>
+                Create user
+            </Label>
+            <div>
+                <Button className={'text-background bg-foreground border-2 border-foreground cursor-pointer hover:border-solid hover:text-foreground hover:bg-background'}
+                        onClick={() => navigate(-1)}>
+                    <ArrowLeft/>
+                    Back
+                </Button>
             </div>
-            <div className={cn("my-3 flex gap-2", isDesktop ? 'w-1/2' : 'w-full')}>
-                <form onSubmit={handleSubmit} className={'w-full'}>
-                    <div className="grid gap-2">
-                        <AdminUserCreatePageEditForm values={formValues} setValues={onSetFormValues} isLoading={isLoading}/>
-                        <div className="flex flex-row gap-2">
-                            <Label className="w-32">Password:</Label>
-                            <Input
-                                className={"flex-1 border-foreground"}
-                                value={formValues.password}
-                                onChange={handleChange}
-                                id={"password"}
-                                type={'password'}
-                                required
-                                disabled={isLoading}
-                            />
-                        </div>
-                        <div className="flex flex-row gap-2">
-                            <Label className="w-32">Repeat password:</Label>
-                            <Input
-                                className={"flex-1 border-foreground"}
-                                value={formValues.repeatPassword}
-                                onChange={handleChange}
-                                id={"repeatPassword"}
-                                type={'password'}
-                                required
-                                disabled={isLoading}
-                            />
-                        </div>
-                    </div>
-                    <Button className={'mt-4 w-full flex flex-grow text-primary border-primary border-2 cursor-pointer hover:bg-primary hover:text-background'}
+            <form onSubmit={handleSubmit} className={'w-full'}>
+                <div className="grid gap-2">
+                    <AdminUserCreatePageEditForm values={formValues} setValues={onSetFormValues} isLoading={isLoading}/>
+                    <div className="flex flex-row gap-2">
+                        <Label className="w-32">Password:</Label>
+                        <Input
+                            className={"flex-1 border-foreground"}
+                            value={formValues.password}
+                            onChange={handleChange}
+                            id={"password"}
+                            type={'password'}
+                            required
                             disabled={isLoading}
-                            type={"submit"}>
-                        {isLoading && <Spinner/>}
-                        Create
-                    </Button>
-                </form>
-            </div>
+                        />
+                    </div>
+                    <div className="flex flex-row gap-2">
+                        <Label className="w-32">Repeat password:</Label>
+                        <Input
+                            className={"flex-1 border-foreground"}
+                            value={formValues.repeatPassword}
+                            onChange={handleChange}
+                            id={"repeatPassword"}
+                            type={'password'}
+                            required
+                            disabled={isLoading}
+                        />
+                    </div>
+                </div>
+                <Button className={'mt-4 w-full flex flex-grow text-primary border-primary border-2 cursor-pointer hover:bg-primary hover:text-background'}
+                        disabled={isLoading}
+                        type={"submit"}>
+                    {isLoading && <Spinner/>}
+                    Create
+                </Button>
+            </form>
         </div>
     </MainLayout>
 }

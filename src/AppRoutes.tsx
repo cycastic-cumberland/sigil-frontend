@@ -18,6 +18,10 @@ import TaskProgressionPage from "@/interfaces/pages/projects/TaskProgressionPage
 import AdminUsersPage from "@/interfaces/pages/admin/users/AdminUsersPage.tsx";
 import AdminUserDetailsPage from "@/interfaces/pages/admin/users/AdminUserDetailsPage.tsx";
 import AdminUserCreatePage from "@/interfaces/pages/admin/users/AdminUserCreatePage.tsx";
+import AdminTenantsPage from "@/interfaces/pages/admin/tenants/AdminTenantsPage.tsx";
+import AdminEntitlementsPage from "@/interfaces/pages/admin/entitlements/AdminEntitlementsPage.tsx";
+import AdminEntitlementDetailsPage from "@/interfaces/pages/admin/entitlements/AdminEntitlementDetailsPage.tsx";
+import AdminEntitlementCreatePage from "@/interfaces/pages/admin/entitlements/AdminEntitlementCreatePage.tsx";
 
 export type RouteInfo = { index?: boolean, isPrivate: boolean, path?: string, element: ReactNode };
 
@@ -116,5 +120,25 @@ export const AppRoutes : RouteInfo[] = [
         isPrivate: true,
         path: "/admin/user/new",
         element: <AdminUserCreatePage/>
+    },
+    {
+        isPrivate: true,
+        path: "/admin/tenants",
+        element: <AdminTenantsPage/>
+    },
+    {
+        isPrivate: true,
+        path: "/admin/entitlements/:tenantId/new",
+        element: <AdminEntitlementCreatePage/>
+    },
+    {
+        isPrivate: true,
+        path: "/admin/entitlements/:tenantId/details/:entitlementType",
+        element: <AdminEntitlementDetailsPage/>
+    },
+    {
+        isPrivate: true,
+        path: "/admin/entitlements/:tenantId",
+        element: <AdminEntitlementsPage/>
     },
 ]

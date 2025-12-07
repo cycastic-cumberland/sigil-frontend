@@ -12,7 +12,7 @@ import {formatQueryParameters} from "@/utils/format.ts";
 export type TenantContextType = {
     tenantId: number | null,
     activeTenant: TenantDto | null,
-    queryTenants: (userId: number, page: number, pageSize: number, orderBy: string | null) => Promise<PageDto<TenantDto>>,
+    queryTenants: (userId: number | null, page: number, pageSize: number, orderBy: string | null) => Promise<PageDto<TenantDto>>,
     queryTenantMembers: (contentTerm: string | null, page: number, pageSize: number, orderBy: string | null) => Promise<PageDto<TenantUserDto>>,
     getTenant: (id: number) => Promise<TenantDto>,
     deleteTenant: (id: number) => Promise<void>,
@@ -64,23 +64,23 @@ export const TenantProvider: FC<{ children: ReactNode }> = ({ children }) => {
         return await getTenant(activeProjectId)
     }
 
-    const queryTenants = async (userId: number, page: number, pageSize: number, orderBy: string | null): Promise<PageDto<TenantDto>> => {
-        let url = `tenants?userId=${userId}&page=${page}&pageSize=${pageSize}`
-        if (orderBy){
-            url = `${url}&orderBy=${orderBy}`
-        }
-
-        const response = await api.get(url)
+    const queryTenants = async (userId: number | null, page: number, pageSize: number, orderBy: string | null): Promise<PageDto<TenantDto>> => {
+        const response = await api.get(formatQueryParameters('tenants', {
+            userId,
+            page,
+            pageSize,
+            orderBy,
+        }))
         return response.data as PageDto<TenantDto>
     }
 
     const getTenant = async (id: number): Promise<TenantDto> => {
-        const response = await api.get(`tenants/tenant?id=${id}`)
+        const response = await api.get(formatQueryParameters('tenants/tenant', { id }))
         return response.data as TenantDto
     }
 
     const deleteTenant = (id: number): Promise<void> => {
-        return api.delete(`tenants/tenant?id=${id}`)
+        return api.delete(formatQueryParameters('tenants/tenant', { id }))
     }
 
     const saveTenant = async (tenant: TenantDto): Promise<IdDto> => {

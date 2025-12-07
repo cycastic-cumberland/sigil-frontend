@@ -1,6 +1,8 @@
 import {useLocation} from "react-router";
 import {useMemo} from "react";
 import psl, {type ParsedDomain} from 'psl';
+import type {TenantDto} from "@/dto/tenant/TenantDto.ts";
+import {formatQueryParameters} from "@/utils/format.ts";
 
 export type ListingPathFragment = {
     display: string,
@@ -15,6 +17,16 @@ export const useQuery = () => {
 
 export const encodedListingPath = (path: string): string => {
     return path.split("/").filter(s => s).map(encodeURIComponent).join("/")
+}
+
+export const getTenantListingLink = (t: TenantDto): string => {
+    return `/tenant/${t.id}/partitions/browser/`
+}
+
+export const getAdminTenantListingLink = (tenant: TenantDto) => {
+    return formatQueryParameters(getTenantListingLink(tenant), {
+        admin: true
+    })
 }
 
 export const splitByFirst= (str: string, separator: string): string[] => {

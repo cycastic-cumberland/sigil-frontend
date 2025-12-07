@@ -3,12 +3,9 @@ import {Label} from "@/components/ui/label.tsx";
 import TenantTable from "@/interfaces/components/TenantTable.tsx";
 import {useState} from "react";
 import {useNavigate} from "react-router";
-import type {TenantDto} from "@/dto/tenant/TenantDto.ts";
 import {usePageTitle} from "@/hooks/use-page-title.ts";
+import {getTenantListingLink} from "@/utils/path.ts";
 
-const getTenantLink = (t: TenantDto): string => {
-    return `/tenant/${t.id}/partitions/browser/`
-}
 
 const DashboardPage = () => {
     const [isLoading, setIsLoading] = useState(false)
@@ -26,8 +23,8 @@ const DashboardPage = () => {
             <div className={"my-3 w-full"}>
                 <TenantTable isLoading={isLoading}
                              setIsLoading={setIsLoading}
-                             getRowLink={getTenantLink}
-                             onSelect={t => navigate(getTenantLink(t))}/>
+                             getRowLink={getTenantListingLink}
+                             onSelect={t => navigate(getTenantListingLink(t))}/>
             </div>
         </div>
     </MainLayout>

@@ -46,7 +46,8 @@ const TenantTable: FC<{
     onSelect: (p: TenantDto) => void,
     getRowLink?: (p: TenantDto) => string,
     isDialog?: boolean,
-}> = ({ isLoading, setIsLoading, onSelect, getRowLink, isDialog }) => {
+    userId?: number | null,
+}> = ({ isLoading, setIsLoading, onSelect, getRowLink, isDialog, userId }) => {
     const [data, setData] = useState([] as TenantDto[])
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [pageCount, setPageCount] = useState(0);
@@ -70,7 +71,7 @@ const TenantTable: FC<{
         try {
             setIsLoading(true)
 
-            const page = await queryTenants(getAuth()!.userId, pageIndex + 1, pageSize, sortParams)
+            const page = await queryTenants(userId === undefined ? getAuth()!.userId : userId, pageIndex + 1, pageSize, sortParams)
             setData(page.items)
             setPageCount(page.totalPages)
         } catch (e) {

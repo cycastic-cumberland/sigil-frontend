@@ -115,14 +115,22 @@ const AdminMenuGroups: MenuGroup[] = [
             },
             {
                 name: "Tenants",
-                url: '#',
+                url: '/admin/tenants',
                 icon: <Building2/>
             },
+        ]
+    }
+]
+
+const AdminMenuGroupsAlternate: MenuGroup[] = [
+    {
+        title: "Admin",
+        items: [
             {
                 name: "Entitlements",
-                url: '#',
+                url: '/admin/entitlements/{}',
                 icon: <Triangle/>
-            },
+            }
         ]
     }
 ]
@@ -139,9 +147,10 @@ const AppSidebar = () => {
     const menuGroups = useMemo(() => {
         const groups = tenantId ? fullMenuGroups : startingMenuGroups;
         if ((getUserRole() ?? []).includes("ADMIN")){
+            const adminGroups = tenantId ? AdminMenuGroupsAlternate : AdminMenuGroups
             return [
                 ...groups,
-                ...AdminMenuGroups
+                ...adminGroups
             ]
         }
 
