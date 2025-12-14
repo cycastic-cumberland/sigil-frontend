@@ -22,6 +22,7 @@ const emptyPartitionUserDto = (): PartitionUserDto => {
         email: '',
         firstName: '',
         lastName: '',
+        avatarToken: '',
         permissions: ["READ"],
     }
 }
@@ -125,7 +126,7 @@ const PartitionMemberEditForm: FC<{
             </div>
             <Button disabled={disabled} type={"submit"} className={'flex flex-grow border-foreground border-2 cursor-pointer hover:bg-foreground hover:text-background'}>
                 { isLoading && <Spinner/> }
-                { isCreate ? "Create" : "Save" }
+                { isCreate ? "Add" : "Save" }
             </Button>
         </div>
     </form>

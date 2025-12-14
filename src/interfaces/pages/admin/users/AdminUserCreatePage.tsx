@@ -24,6 +24,7 @@ import type {IdDto} from "@/dto/IdDto.ts";
 import {useNavigate} from "react-router";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
 import {ArrowLeft} from "lucide-react";
+import {usePageTitle} from "@/hooks/use-page-title.ts";
 
 type FormType = AdminUserCreatePageEditFormType & {
     password: string,
@@ -107,6 +108,8 @@ const AdminUserCreatePage = () => {
             setIsLoading(false)
         }
     }
+
+    usePageTitle('Create users')
 
     useEffect(() => {
         if (!(getUserRole() ?? []).includes('ADMIN')){

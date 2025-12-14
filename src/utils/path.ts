@@ -3,6 +3,7 @@ import {useMemo} from "react";
 import psl, {type ParsedDomain} from 'psl';
 import type {TenantDto} from "@/dto/tenant/TenantDto.ts";
 import {formatQueryParameters} from "@/utils/format.ts";
+import {BACKEND_AUTHORITY} from "@/api.ts";
 
 export type ListingPathFragment = {
     display: string,
@@ -26,6 +27,13 @@ export const getTenantListingLink = (t: TenantDto): string => {
 export const getAdminTenantListingLink = (tenant: TenantDto) => {
     return formatQueryParameters(getTenantListingLink(tenant), {
         admin: true
+    })
+}
+
+export const getAvatarSource = (avatarToken: string, size: number) => {
+    return formatQueryParameters(`${BACKEND_AUTHORITY}/api/auth/avatar`, {
+        avatarToken,
+        size
     })
 }
 

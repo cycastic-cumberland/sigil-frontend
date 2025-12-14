@@ -4,10 +4,13 @@ import {useState} from "react";
 import {useNavigate} from "react-router";
 import {getAdminTenantListingLink} from "@/utils/path.ts";
 import TenantTable from "@/interfaces/components/TenantTable.tsx";
+import {usePageTitle} from "@/hooks/use-page-title.ts";
 
 const AdminTenantsPage = () => {
     const [isLoading, setIsLoading] = useState(true)
     const navigate = useNavigate()
+
+    usePageTitle('Tenants')
 
     return <MainLayout>
         <div className={"w-full gap-3 p-5 flex flex-col"}>

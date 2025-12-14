@@ -35,6 +35,7 @@ import {Skeleton} from "@/components/ui/skeleton.tsx";
 import StarterKit from "@tiptap/starter-kit";
 import type {Callback} from "@/utils/misc.ts";
 import {useConsent} from "@/contexts/ConsentContext.tsx";
+import {getAvatarSource} from "@/utils/path.ts";
 
 const tenantApi = createApi(null)
 
@@ -221,10 +222,7 @@ const TaskCommentCard: FC<{
 
     return <div className={'flex items-start gap-4'}>
         <Avatar className={"h-10 w-10 shrink-0"}>
-            <AvatarImage src={formatQueryParameters('https://ui-avatars.com/api/', {
-                name: `${sender.firstName} ${sender.lastName}`,
-                size: 256
-            })} />
+            <AvatarImage src={getAvatarSource(sender.avatarToken, 100)} />
             <AvatarFallback>
                 {sender.firstName[0]}{sender.lastName[0]}
             </AvatarFallback>

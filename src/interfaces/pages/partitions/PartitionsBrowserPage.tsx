@@ -9,7 +9,7 @@ import {
 } from "react";
 import {Label} from "@/components/ui/label.tsx";
 import {Button} from "@/components/ui/button.tsx";
-import {File as FileIcon, KanbanSquare, KeyRound, Plus, Users, Vault} from "lucide-react";
+import {File as FileIcon, KanbanSquare, KeyRound, Plus, Search, Users, Vault} from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -53,6 +53,8 @@ import type {UploadProjectDto} from "@/dto/tenant/UploadProjectDto.ts";
 import ProjectEditForm from "@/interfaces/components/ProjectEditForm.tsx";
 import {useConsent} from "@/contexts/ConsentContext.tsx";
 import {usePageTitle} from "@/hooks/use-page-title.ts";
+import {Input} from "@/components/ui/input.tsx";
+import {format} from "@/utils/format.ts";
 
 const extractPath = (path: string): string => {
     let subPath = path.replace(/^\/tenant\/[^/]+\/partitions\/browser\/?/, '');
@@ -518,8 +520,13 @@ const CurrentDirectory: FC<{ currentDir: string }> = ({ currentDir }) => {
 }
 
 const PartitionsBrowserPage = () => {
-    const location = useLocation()
+    const [navigateModePath, setNavigateModePath] = useState('')
+    const [navigateMode, setNavigateMode] = useState(false)
     const [currentDir, setCurrentDir] = useState('/')
+    const location = useLocation()
+    const {tenantId} = useTenant()
+    const navigate = useNavigate()
+    const inputRef = useRef<HTMLInputElement | null>(null)
     const partitionPath = useMemo<string | null>(() => {
         const split = splitByFirst(currentDir, '/_/')
         return split.length === 1 ? null : split[0]
@@ -527,7 +534,35 @@ const PartitionsBrowserPage = () => {
 
     useEffect(() => {
         setCurrentDir(extractPath(location.pathname))
-    }, [location]);
+    }, [location])
+
+    useEffect(() => {
+        const split = splitByFirst(currentDir, '/_/')
+        setNavigateModePath(split.length === 1 ? '' : '/' + split[split.length - 1])
+    }, [currentDir])
+
+    useEffect(() => {
+        if (navigateMode && inputRef.current){
+            inputRef.current.focus()
+        }
+    }, [navigateMode, inputRef])
+
+    const handleKeyDown = (e: {key: string}) => {
+        if (e.key === "Escape") {
+            setNavigateMode(false)
+            return
+        }
+        if (e.key === 'Enter'){
+            if (!inputRef.current?.value){
+                setNavigateMode(false)
+                return
+            }
+            navigate(format('/tenant/{}/partitions/browser/{}/_/{}', tenantId, encodedListingPath(partitionPath ?? ''), encodedListingPath(navigateModePath)))
+            setNavigateMode(false)
+            // navigate('/tenant/' + tenantId + '/partitions/browser' + partitionPath + '/_' + navigateModePath)
+            return
+        }
+    }
 
     return <MainLayout>
         <ProjectGuard>
@@ -537,9 +572,15 @@ const PartitionsBrowserPage = () => {
                         { partitionPath ? "Listing browser" : "Partition browser" }
                     </Label>
                 </div>
-                <div className={"my-2"}>
+                <div className={cn("my-2 flex flex-row gap-2", navigateMode ? 'hidden' : '')}>
                     <CurrentDirectory currentDir={currentDir}/>
+                    {partitionPath && <Search size={20} className={'cursor-pointer'} onClick={() => setNavigateMode(true)}/>}
                 </div>
+                <Input ref={inputRef}
+                       value={navigateModePath}
+                       onChange={e => setNavigateModePath(e.target.value)}
+                       className={cn("my-2", !navigateMode ? 'hidden' : '')}
+                       onKeyDown={handleKeyDown}/>
                 <FileTable key={currentDir}
                            partitionPath={partitionPath}
                            currentDir={currentDir}/>

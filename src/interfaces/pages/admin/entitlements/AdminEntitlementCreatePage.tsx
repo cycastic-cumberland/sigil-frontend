@@ -13,6 +13,7 @@ import api from "@/api.ts";
 import {notifyApiError} from "@/utils/errors.ts";
 import {toast} from "sonner";
 import {useTenant} from "@/contexts/TenantContext.tsx";
+import {usePageTitle} from "@/hooks/use-page-title.ts";
 
 type FormType = {
     entitlementType: string,
@@ -64,6 +65,8 @@ const AdminEntitlementCreatePage = () => {
             navigate(`/admin/entitlements/${tenantId}/details/${encodeURIComponent(entitlementType)}`)
         }
     }
+
+    usePageTitle('Create entitlement')
 
     return <MainLayout>
         <div className={cn("p-5 flex flex-col gap-2", isDesktop ? 'w-1/2' : 'w-full')}>

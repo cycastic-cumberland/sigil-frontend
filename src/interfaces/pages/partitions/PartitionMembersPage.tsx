@@ -28,7 +28,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu.tsx";
-import {encodedListingPath, useQuery} from "@/utils/path.ts";
+import {encodedListingPath, getAvatarSource, useQuery} from "@/utils/path.ts";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from "@/components/ui/dialog.tsx";
 import {Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle} from "@/components/ui/drawer.tsx";
@@ -48,11 +48,23 @@ import FullSizeSpinner from "@/interfaces/components/FullSizeSpinner.tsx";
 import {PrivateKeyDecryptor} from "@/interfaces/components/PrivateKeyDecryptor.tsx";
 import {useConsent} from "@/contexts/ConsentContext.tsx";
 import {usePageTitle} from "@/hooks/use-page-title.ts";
+import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar.tsx";
 
 const itemsColumnDef: ColumnDef<PartitionUserDto>[] = [
     {
         accessorKey: 'email',
-        header: "Email"
+        header: "Email",
+        cell: v => {
+            return <div className={'flex text-center gap-2'}>
+                <Avatar className={"h-5 w-5 shrink-0"}>
+                    <AvatarImage src={getAvatarSource(v.row.original.avatarToken, 100)} />
+                    <AvatarFallback>
+                        {v.row.original.firstName && v.row.original.firstName[0]}{v.row.original.lastName && v.row.original.lastName[0]}
+                    </AvatarFallback>
+                </Avatar>
+                {v.row.original.email}
+            </div>
+        }
     },
     {
         accessorKey: 'firstName',

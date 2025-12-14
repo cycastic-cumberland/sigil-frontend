@@ -18,4 +18,5 @@ export type UserInfoDto = BaseUserInfoDto & {
     joinedAt: string,
     emailVerified: boolean,
     status: UserStatus,
+    avatarToken: string,
 }

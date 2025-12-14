@@ -15,6 +15,7 @@ import {PenLine, Plus} from "lucide-react";
 import {type ColumnDef, flexRender, getCoreRowModel, getSortedRowModel, useReactTable} from "@tanstack/react-table";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table.tsx";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
+import {usePageTitle} from "@/hooks/use-page-title.ts";
 
 const columnDefs: ColumnDef<EntitlementDto>[] = [
     {
@@ -62,6 +63,8 @@ const AdminEntitlementsPage = () => {
             setIsLoading(false)
         }
     }
+
+    usePageTitle('Entitlements')
 
     useEffect(() => {
         getEntitlements().then(undefined)

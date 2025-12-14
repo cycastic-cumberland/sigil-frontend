@@ -29,6 +29,9 @@ import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} fro
 import {Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle} from "@/components/ui/drawer.tsx";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
 import {usePageTitle} from "@/hooks/use-page-title.ts";
+import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar.tsx";
+import {Link} from "react-router";
+import {getAvatarSource} from "@/utils/path.ts";
 
 const env = import.meta.env.VITE_FRONTEND_ENV
 
@@ -379,6 +382,16 @@ const SelfDetailsPage = () => {
                 <div className={"lg:w-1/2 text-foreground flex flex-col gap-2"}>
                     <form>
                         <div className="grid gap-2">
+                            <div className={"gap-2 flex flex-row justify-center w-full"}>
+                                <Link to={'https://wordpress.com/log-in/link?client_id=1854&redirect_to=https%3A%2F%2Fpublic-api.wordpress.com%2Foauth2%2Fauthorize%3Fclient_id%3D1854%26response_type%3Dcode%26blog_id%3D0%26state%3Da72aebc32bd8e2df85ac386d9bcd6515b5941c886af7a20e28c33fb662c81491%26redirect_uri%3Dhttps%253A%252F%252Fgravatar.com%252Fconnect%252F%253Faction%253Drequest_access_token%26from-calypso%3D1'} target={'_blank'}>
+                                    <Avatar className={'h-64 w-64 my-2'}>
+                                        <AvatarImage src={getAvatarSource(user.avatarToken, 300)}/>
+                                        <AvatarFallback>
+                                            {user.firstName[0]}{user.lastName[0]}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                </Link>
+                            </div>
                             <div className="flex flex-row gap-2">
                                 <Label className="w-32">Email:</Label>
                                 <Input

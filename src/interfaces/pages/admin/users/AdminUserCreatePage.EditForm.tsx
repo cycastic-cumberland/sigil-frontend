@@ -122,7 +122,7 @@ export const AdminUserCreatePageEditForm: FC<{
                 checked={values.emailVerified}
                 onChange={handleChange}
                 id={"emailVerified"}
-                disabled={true}
+                disabled={values.emailVerified}
                 type={'checkbox'}
             />
         </div>

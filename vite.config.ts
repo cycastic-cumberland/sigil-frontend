@@ -41,5 +41,52 @@ export default ({ mode }: { mode: string }) => {
         "@": path.resolve(__dirname, "./src"),
       },
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id: string) {
+            if (id.includes('elkjs')){
+              return 'elkjs'
+            }
+            if (id.includes('@radix-ui')) {
+              return 'radix-ui';
+            }
+            if (id.includes('@tiptap')){
+              return 'tiptap'
+            }
+            if (id.includes('reactflow') || id.includes('@xyflow')){
+              return 'reactflow'
+            }
+            if (id.includes('lucide')){
+              return 'lucide'
+            }
+            if (id.includes('argon2-browser')){
+              return 'argon2-browser'
+            }
+            if (id.includes('react-dom')){
+              return 'react-dom'
+            }
+            if (id.includes('crypto-js')){
+              return 'crypto-js'
+            }
+            if (id.includes('tanstack')){
+              return 'tanstack'
+            }
+            if (id.includes('src/components/ui')){
+              return 'shadcn'
+            }
+            if (
+                id.includes('react-router-dom') ||
+                id.includes('@remix-run') ||
+                id.includes('react-router')
+            ) {
+              return 'react-router';
+            }
+
+            return undefined
+          }
+        }
+      }
+    }
   })
 }

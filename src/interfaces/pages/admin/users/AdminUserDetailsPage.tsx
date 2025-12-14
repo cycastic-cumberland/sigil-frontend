@@ -23,6 +23,7 @@ import {ArrowLeft, Download, Save} from "lucide-react";
 import {getAdminTenantListingLink} from "@/utils/path.ts";
 import TenantTable from "@/interfaces/components/TenantTable.tsx";
 import {useConsent} from "@/contexts/ConsentContext.tsx";
+import {usePageTitle} from "@/hooks/use-page-title.ts";
 
 type FormType = AdminUserCreatePageEditFormType & {
     publicRsaKey: string
@@ -148,6 +149,8 @@ const AdminUserDetailsPage = () => {
             setIsLoading(false)
         }
     }
+
+    usePageTitle('User details')
 
     useEffect(() => {
         loadData().then(undefined)

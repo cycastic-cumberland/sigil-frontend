@@ -5,7 +5,7 @@ import {Link} from "react-router";
 import {ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronDown, ChevronsUpDown, Folder, Plus} from "lucide-react";
 import {useTenant} from "@/contexts/TenantContext.tsx";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
-import {type FC, type SyntheticEvent, useEffect, useState} from "react";
+import {type FC, type SyntheticEvent, useCallback, useEffect, useRef, useState} from "react";
 import type {BlockingFC} from "@/utils/misc.ts";
 import type {TenantDto} from "@/dto/tenant/TenantDto.ts";
 import type {TenantUserDto} from "@/dto/tenant/TenantUserDto.ts";
@@ -38,6 +38,7 @@ import {formatQueryParameters} from "@/utils/format.ts";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from "@/components/ui/dialog.tsx";
 import {Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle} from "@/components/ui/drawer.tsx";
+import {Sheet, SheetContent, SheetHeader, SheetTitle} from "@/components/ui/sheet.tsx";
 import {Input} from "@/components/ui/input.tsx";
 import {toast} from "sonner";
 import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover.tsx";
@@ -45,11 +46,25 @@ import {Command, CommandGroup, CommandItem} from "@/components/ui/command.tsx";
 import {cn} from "@/lib/utils.ts";
 import {usePageTitle} from "@/hooks/use-page-title.ts";
 import {getUserRole} from "@/utils/auth.ts";
+import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar.tsx";
+import {getAvatarSource} from "@/utils/path.ts";
+import {useConsent} from "@/contexts/ConsentContext.tsx";
 
 const itemsColumnDef: ColumnDef<TenantUserDto>[] = [
     {
         accessorKey: 'email',
-        header: "Email"
+        header: "Email",
+        cell: v => {
+            return <div className={'flex text-center gap-2'}>
+                <Avatar className={"h-5 w-5 shrink-0"}>
+                    <AvatarImage src={getAvatarSource(v.row.original.avatarToken, 100)} />
+                    <AvatarFallback>
+                        {v.row.original.firstName && v.row.original.firstName[0]}{v.row.original.lastName && v.row.original.lastName[0]}
+                    </AvatarFallback>
+                </Avatar>
+                {v.row.original.email}
+            </div>
+        }
     },
     {
         accessorKey: 'firstName',
@@ -70,7 +85,8 @@ const possiblePageSizes = [5, 10, 50, 100]
 
 const TenantMemberTable: FC<BlockingFC & {
     tenant: TenantDto,
-}> = ({ isLoading, setIsLoading, tenant }) => {
+    onSelect?: (t: TenantUserDto) => unknown,
+}> = ({ isLoading, setIsLoading, tenant, onSelect }) => {
     const [items, setItems] = useState([] as TenantUserDto[])
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [pageCount, setPageCount] = useState(0);
@@ -167,6 +183,7 @@ const TenantMemberTable: FC<BlockingFC & {
                                 key={row.id}
                                 data-state={row.getIsSelected() && "selected"}
                                 className={"cursor-pointer"}
+                                onClick={() => onSelect?.(row.original)}
                             >
                                 {row.getVisibleCells().map((cell) => (
                                     <TableCell key={cell.id}>
@@ -346,7 +363,93 @@ const InviteUserDialog: FC<BlockingFC> = ({ isLoading, setIsLoading }) => {
     </form>
 }
 
+const MemberDetails: FC<BlockingFC & {
+    activeTenant: TenantDto,
+    refreshTrigger: () => unknown,
+    isAdmin: boolean
+    tenantUser: TenantUserDto,
+}> = ({setIsLoading, isLoading, activeTenant, isAdmin, refreshTrigger, tenantUser: formValues}) => {
+    const {requireAgreement} = useConsent()
+    const agreementRef =useRef(null as Promise<boolean> | null)
+
+    const removeMember = useCallback(async () => {
+        if (!await requireAgreement({
+            title: 'Remove user',
+            acceptText: 'Remove',
+            message: `Are you sure you want to remove this user from "${activeTenant.tenantName}" tenant?`,
+            destructive: true,
+            ref: agreementRef,
+        })){
+            return
+        }
+        try {
+            setIsLoading(true)
+
+            await api.delete(formatQueryParameters('tenants/members', {
+                email: formValues.email
+            }))
+
+            refreshTrigger()
+            toast.success("Member removed")
+        } catch (e){
+            notifyApiError(e)
+        } finally {
+            setIsLoading(false)
+        }
+    }, [activeTenant, requireAgreement, setIsLoading])
+
+    return <div className="grid gap-2">
+        <div className={"gap-2 flex flex-row justify-center w-full"}>
+            <Avatar className={'h-64 w-64 my-2'}>
+                <AvatarImage src={getAvatarSource(formValues.avatarToken, 300)}/>
+                <AvatarFallback>
+                    {formValues.firstName[0]}{formValues.lastName[0]}
+                </AvatarFallback>
+            </Avatar>
+        </div>
+        <div className="flex flex-row gap-2">
+            <Label className="w-32">Email:</Label>
+            <Input
+                className="flex-1 border-foreground"
+                value={formValues.email}
+                id="email"
+                disabled={true}
+                required
+            />
+        </div>
+        <div className="flex flex-row gap-2">
+            <Label className="w-32">Name:</Label>
+            <Input
+                className="flex-1 border-foreground"
+                value={(formValues.firstName + ' ' + formValues.lastName).trim()}
+                id="name"
+                disabled={true}
+                required
+            />
+        </div>
+        <div className="flex flex-row gap-2">
+            <Label className="w-32">Permissions:</Label>
+            <Input
+                className="flex-1 border-foreground"
+                value={joinTenantPermissions(formValues.permissions)}
+                id="permissions"
+                disabled={true}
+                required
+            />
+        </div>
+        {(isAdmin || activeTenant.membership === 'MODERATOR' || activeTenant.membership === 'OWNER') &&
+            <Button className={'cursor-pointer w-full'} variant={'destructive'} disabled={isLoading || formValues.membership === 'OWNER'}
+                    onClick={removeMember}>
+                Remove member
+            </Button>}
+    </div>
+}
+
 const TenantMemberPage = () => {
+    const [counter, setCounter] = useState(0)
+    const [focusCounter, setFocusCounter] = useState(0)
+    const [focusedUser, setFocusedUser] = useState(null as TenantUserDto | null)
+    const [isDrawerOpened, setIsDrawerOpened] = useState(false)
     const [isAdmin, setIsAdmin] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const [dialogOpened, setDialogOpened] = useState(false)
@@ -360,6 +463,16 @@ const TenantMemberPage = () => {
             setIsAdmin(true)
         }
     }, [])
+
+    useEffect(() => {
+        setIsDrawerOpened(false)
+    }, [counter])
+
+    useEffect(() => {
+        if (focusedUser){
+            setIsDrawerOpened(true)
+        }
+    }, [focusedUser, focusCounter])
 
     if (!activeTenant){
         return <></>
@@ -408,6 +521,35 @@ const TenantMemberPage = () => {
                 </div>
             </DrawerContent>
         </Drawer> }
+        {(activeTenant && isDesktop) ? <Sheet open={isDrawerOpened} onOpenChange={setIsDrawerOpened}>
+            <SheetContent>
+                <SheetHeader>
+                    <SheetTitle>Member details</SheetTitle>
+                </SheetHeader>
+                <div className={"w-full px-2"}>
+                    <MemberDetails isLoading={isLoading}
+                                   setIsLoading={setIsLoading}
+                                   tenantUser={focusedUser!}
+                                   activeTenant={activeTenant}
+                                   isAdmin={isAdmin}
+                                   refreshTrigger={() => setCounter(c => c + 1)}/>
+                </div>
+            </SheetContent>
+        </Sheet> : <Drawer open={isDrawerOpened} onOpenChange={setIsDrawerOpened}>
+            <DrawerContent>
+                <DrawerHeader>
+                    <DrawerTitle>Member details</DrawerTitle>
+                </DrawerHeader>
+                <div className={"w-full px-3 pb-3"}>
+                    <MemberDetails isLoading={isLoading}
+                                   setIsLoading={setIsLoading}
+                                   tenantUser={focusedUser!}
+                                   activeTenant={activeTenant}
+                                   isAdmin={isAdmin}
+                                   refreshTrigger={() => setCounter(c => c + 1)}/>
+                </div>
+            </DrawerContent>
+        </Drawer> }
         <div className={"w-full p-5 flex flex-col"}>
             <div className={"my-2"}>
                 <Label className={"text-2xl text-foreground font-bold"}>
@@ -429,7 +571,10 @@ const TenantMemberPage = () => {
                     <span>Invite user</span>
                 </Button> }
             </div>
-            <TenantMemberTable isLoading={isLoading} setIsLoading={setIsLoading} tenant={activeTenant}/>
+            <TenantMemberTable key={counter} isLoading={isLoading} setIsLoading={setIsLoading} tenant={activeTenant} onSelect={u => {
+                setFocusedUser(u)
+                setFocusCounter(c => c + 1)
+            }}/>
         </div>
     </MainLayout>
 }

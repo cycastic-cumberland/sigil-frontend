@@ -15,6 +15,7 @@ import {Textarea} from "@/components/ui/textarea.tsx";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
 import {toast} from "sonner";
 import {useConsent} from "@/contexts/ConsentContext.tsx";
+import {usePageTitle} from "@/hooks/use-page-title.ts";
 
 const AdminEntitlementDetailsPage = () => {
     const confirmationRef: RefObject<Promise<boolean> | null> = useRef(null)
@@ -97,7 +98,9 @@ const AdminEntitlementDetailsPage = () => {
             toast.success("Entitlement deleted")
             navigate(`/admin/entitlements/${tenantId}`)
         }
-    }, [])
+    }, [entitlementType, navigate, requireAgreement, tenantId])
+
+    usePageTitle('Entitlement details')
 
     useEffect(() => {
         if (!entitlementType){

@@ -23,6 +23,9 @@ import {PenLine, Plus} from "lucide-react";
 import {type ColumnDef, flexRender, getCoreRowModel, getSortedRowModel, useReactTable} from "@tanstack/react-table";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table.tsx";
 import {Spinner} from "@/components/ui/shadcn-io/spinner";
+import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar.tsx";
+import {getAvatarSource} from "@/utils/path.ts";
+import {usePageTitle} from "@/hooks/use-page-title.ts";
 
 const MAX_PAGE_SIZE = 10
 
@@ -33,7 +36,18 @@ const columnDefs: ColumnDef<UserInfoDto>[] = [
     },
     {
         accessorKey: 'email',
-        header: 'Email'
+        header: "Email",
+        cell: v => {
+            return <div className={'flex text-center gap-2'}>
+                <Avatar className={"h-5 w-5 shrink-0"}>
+                    <AvatarImage src={getAvatarSource(v.row.original.avatarToken, 100)} />
+                    <AvatarFallback>
+                        {v.row.original.firstName && v.row.original.firstName[0]}{v.row.original.lastName && v.row.original.lastName[0]}
+                    </AvatarFallback>
+                </Avatar>
+                {v.row.original.email}
+            </div>
+        }
     },
     {
         accessorKey: 'firstName',
@@ -95,6 +109,8 @@ const AdminUsersPage = () => {
     }, [totalPage, relativePages])
     const [debouncedQuery, setDebouncedQuery] = useState('')
     const navigate = useNavigate()
+
+    usePageTitle('Users')
 
     useEffect(() => {
         if (!(getUserRole() ?? []).includes('ADMIN')){

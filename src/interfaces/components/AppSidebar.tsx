@@ -23,9 +23,10 @@ import {useTheme} from "@/contexts/ThemeContext.tsx";
 import useMediaQuery from "@/hooks/use-media-query.tsx";
 import {useTenant} from "@/contexts/TenantContext.tsx";
 import {format} from "@/utils/format.ts";
-import {cn} from "@/lib/utils.ts";
 import {useNotification} from "@/contexts/NotificationContext.tsx";
 import {getUserRole} from "@/utils/auth.ts";
+import {getAvatarSource} from "@/utils/path.ts";
+import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar.tsx";
 
 const NotificationIcon = () => {
     const {notificationCount} = useNotification()
@@ -127,6 +128,16 @@ const AdminMenuGroupsAlternate: MenuGroup[] = [
         title: "Admin",
         items: [
             {
+                name: "Users",
+                url: '/admin/users',
+                icon: <Users/>,
+            },
+            {
+                name: "Tenants",
+                url: '/admin/tenants',
+                icon: <Building2/>
+            },
+            {
                 name: "Entitlements",
                 url: '/admin/entitlements/{}',
                 icon: <Triangle/>
@@ -163,7 +174,7 @@ const AppSidebar = () => {
         (async () => {
             const myInfo = await getUserInfo()
             setSelfInfo(myInfo)
-            setAvatarUrl(`https://ui-avatars.com/api/?name=${encodeURIComponent(`${myInfo.firstName} ${myInfo.lastName}`)}`)
+            setAvatarUrl(getAvatarSource(myInfo.avatarToken, 100))
         })()
     }, []);
 
@@ -212,9 +223,12 @@ const AppSidebar = () => {
         <SidebarFooter className={"bg-sidebar-accent"}>
             <ul className={"flex w-full min-w-0 flex-row gap-1"}>
                 { state === 'expanded' && <Link to={"/users/self"} className={"w-full flex flex-row m-0"}>
-                    <span className={cn("relative flex size-8 shrink-0 overflow-hidden h-8 w-8 rounded-lg", !avatarUrl ? 'invisible' : '')}>
-                        <img src={avatarUrl ?? "https://ui-avatars.com/api/?name=John+Doe"} alt={"pfp"}/>
-                    </span>
+                    <Avatar className={"h-8 w-8 shrink-0 rounded-lg"}>
+                        {avatarUrl && <AvatarImage src={avatarUrl} />}
+                        <AvatarFallback>
+                            {selfInfo && (selfInfo.firstName && selfInfo.firstName[0] + selfInfo.lastName && selfInfo.lastName[0])}
+                        </AvatarFallback>
+                    </Avatar>
                     <div className={"grid flex-1 ml-2 text-left text-sm leading-tight"}>
                         <span className={"truncate font-medium text-foreground"}>
                             { selfInfo !== null ? `${selfInfo.firstName} ${selfInfo.lastName}` : '' }

@@ -25,7 +25,7 @@ import KanbanBoardEditForm from "@/interfaces/components/KanbanBoardEditForm.tsx
 import {toast} from "sonner";
 import {Accordion, AccordionContent, AccordionItem, AccordionTrigger} from "@/components/ui/accordion.tsx";
 import {Link, useSearchParams} from "react-router";
-import {encodedListingPath} from "@/utils/path.ts";
+import {encodedListingPath, getAvatarSource} from "@/utils/path.ts";
 import {useTenant} from "@/contexts/TenantContext.tsx";
 import type {TaskStatusDto, TaskStatusesDto} from "@/dto/pm/TaskStatusDto.ts";
 import {cn} from "@/lib/utils.ts";
@@ -141,6 +141,16 @@ const BoardAccordion: FC<RequirePartitionKey & {
     const taskIdPreset = useMemo(() => searchParams.get('task'), [searchParams])
     const columns = useMemo(() => {
         let columns = toKanbanColumns(statuses)
+        if (editOn){
+            columns = [
+                ...columns,
+                {
+                    id: 'add',
+                    name: '',
+                    color: '',
+                }
+            ]
+        }
         if (editOn && backlogId === 'auto-backlog'){
             return columns
         }
@@ -419,7 +429,7 @@ const BoardAccordion: FC<RequirePartitionKey & {
                 createStatus().then(undefined)
                 return
             }
-        };
+        }
 
         return <>
             <Input ref={inputRef}
@@ -563,7 +573,7 @@ const BoardAccordion: FC<RequirePartitionKey & {
                                                 <Avatar className="h-4 w-4 shrink-0">
                                                     {feature.assignee
                                                         ? <Avatar className="h-4 w-4 shrink-0">
-                                                            <AvatarImage src={formatQueryParameters('https://ui-avatars.com/api/', {name: `${feature.assignee.firstName} ${feature.assignee.lastName}`})} />
+                                                            <AvatarImage src={getAvatarSource(feature.assignee.avatarToken, 100)}/>
                                                             <AvatarFallback>
                                                                 {feature.assignee.firstName[0]}{feature.assignee.lastName[0]}
                                                             </AvatarFallback>

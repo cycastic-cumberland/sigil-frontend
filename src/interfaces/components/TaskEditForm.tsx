@@ -27,7 +27,8 @@ import type {PartitionUserDto} from "@/dto/tenant/PartitionUserDto.ts";
 import TaskCommentsList from "@/interfaces/components/TaskCommentsList.tsx";
 import {createApi} from "@/api.ts";
 import type {CountDto} from "@/dto/CountDto.ts";
-import {encodedListingPath} from "@/utils/path.ts";
+import {encodedListingPath, getAvatarSource} from "@/utils/path.ts";
+import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar.tsx";
 
 export type CreateOrEditTaskDto = {
     taskId?: string,
@@ -111,11 +112,19 @@ function MemberInfoCard({member}: {member: UserInfoDto}){
         <thead>
             <tr>
                 <td></td>
+                <td></td>
             </tr>
         </thead>
         <tbody>
             {(member.firstName && member.lastName) && <tr>
-                <td className={'flex w-full text-xs'}>{member.firstName} {member.lastName}</td>
+                <td rowSpan={2}>
+                    <Avatar className={'h-6 w-6 mr-2'}>
+                        <AvatarImage src={getAvatarSource(member.avatarToken, 100)}/>
+                        <AvatarFallback>
+                            {member.firstName[0]}{member.lastName[0]}
+                        </AvatarFallback>
+                    </Avatar>
+                </td><td className={'flex w-full text-xs'}>{member.firstName} {member.lastName}</td>
             </tr>}
             <tr>
                 <td className={'text-muted-foreground text-xs'}>{member.email}</td>
